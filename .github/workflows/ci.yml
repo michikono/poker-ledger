@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Type Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run lint
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-poker-ledger
+      NEXT_PUBLIC_FIREBASE_API_KEY: demo-api-key
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-poker-ledger.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: demo-poker-ledger.appspot.com
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+      NEXT_PUBLIC_FIREBASE_APP_ID: 1:000000000000:web:0000000000000000000000
+      NEXT_PUBLIC_USE_FIREBASE_EMULATOR: "true"
+      FIRESTORE_EMULATOR_HOST: localhost:8080
+      FIREBASE_AUTH_EMULATOR_HOST: http://localhost:9099
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start Firebase Emulators
+        run: bash scripts/start-emulators.sh &
+      - name: Wait for Firestore emulator
+        run: until curl -sf http://localhost:8080; do sleep 1; done
+      - run: npm run test:e2e
