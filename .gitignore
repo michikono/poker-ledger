@@ -1,2 +1,25 @@
+# Next.js
+.next/
+out/
+
+# Vercel
 .vercel
+
+# Firebase emulator data (per-worktree, not shared)
+.emulator-data/
+.needs-seed
+
+# Environment variables
 .env*.local
+
+# Dependencies
+node_modules/
+
+# Test output
+playwright-report/
+test-results/
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
