@@ -1,7 +1,7 @@
 # Change 0002: Firebase Auth — Google Sign-In Gate
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -278,3 +278,4 @@ None.
 |---|---|---|
 | 2026-05-02 | Proposed | Initial draft |
 | 2026-05-02 | Accepted | Approved for implementation |
+| 2026-05-02 | Implemented | All gates passed; merged via PR #6 |
