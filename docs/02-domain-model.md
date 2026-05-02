@@ -21,7 +21,7 @@ The root entity. Represents a single poker game from creation through settlement
 | status | enum | `in_progress` \| `settling` \| `settled` \| `archived` |
 | default_buy_in_cents | integer \| null | Optional default applied when a player is added |
 | created_by_uid | string | Firebase Auth UID of the creator |
-| created_by_name | string | Denormalized display name at creation time |
+| created_by_name | string | First name only at creation time — `displayName.split(' ')[0]` |
 | previous_status | enum \| null | Status before archiving; set on archive, cleared on unarchive |
 | created_at | timestamp | |
 | updated_at | timestamp | |
@@ -128,7 +128,7 @@ An immutable record of every state-changing action. Append-only.
 | id | string | Server-generated UUID |
 | session_id | string | Foreign key to Session |
 | actor_uid | string | Firebase Auth UID of the signed-in user who performed the action |
-| actor_name | string | Denormalized display name at the time of the action |
+| actor_name | string | First name only at action time — `displayName.split(' ')[0]`; never email or full name |
 | action_type | enum | `session_created`, `player_added`, `player_name_edited`, `buy_in_added`, `buy_in_removed`, `cash_out_set`, `status_changed`, `payment_marked_paid`, `payment_unmarked_paid` |
 | description | string | Human-readable summary (e.g., "Michi added $50.00 buy-in for Billy") |
 | created_at | timestamp | |

@@ -43,7 +43,7 @@ A persistent side menu (collapsible on mobile) with six items:
 ### Screen: Session Index (`/sessions`)
 
 **Purpose:** List all sessions ordered by status then recency.
-**Who sees it:** Anyone.
+**Who sees it:** Any signed-in user.
 
 **Ordering:**
 1. Search box - a field to find any session
@@ -65,7 +65,7 @@ Archived sessions are hidden from this page. Access them via the Archived sectio
 ### Screen: Session View (`/sessions/:name`)
 
 **Purpose:** View and interact with a specific session.
-**Who sees it:** Anyone with the link.
+**Who sees it:** Any signed-in user.
 
 **Header:**
 - Session name
@@ -118,7 +118,7 @@ Archived sessions are hidden from this page. Access them via the Archived sectio
 **Activity log:**
 - Shown at the bottom of the session view, below all player data and the settle-up section.
 - Append-only list of all changes: buy-ins added/removed, cash-outs set, state transitions, payments marked paid, player additions.
-- Each entry: timestamp, actor name (or "Anonymous"), player name impacted (if applicable), human-readable description. Any numerical values ($) in bold.
+- Each entry: timestamp, actor first name, player name impacted (if applicable), human-readable description. Any numerical values ($) in bold.
 - Most recent entries at the top. 
 - A field that has a self contained scroll box (no pagination).
 
@@ -128,7 +128,7 @@ Archived sessions are hidden from this page. Access them via the Archived sectio
 
 - **Status badge** — color-coded pill for `in_progress`, `settling`, `settled`, `archived`
 - **Currency display** — always formatted as `$X.XX` (from integer cents)
-- **Delta indicator** — shows balance gap with color (green ≤ 1%, red > 1%)
+- **Delta indicator** — shows balance gap with color (green when shortfall ≤ 2% and cash-outs ≤ buy-ins; red otherwise)
 - **Confirmation dialog** — reusable modal for destructive or significant actions (archive, state transitions)
 - **Toast notifications** — for errors and non-blocking feedback
 - **Activity log entry** — timestamp + actor + description

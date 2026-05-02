@@ -168,13 +168,13 @@ taco, toast, tuna, turkey, turnip, waffle, walnut, yam
 
 ## Authorization rules
 
-Auth model: **Google Sign-In required for all mutations; reads are public.** All rules are server-enforced in Server Actions. Firestore Security Rules provide a second layer (read-open, write-requires-auth).
+Auth model: **Google Sign-In required for all access — reads and mutations alike.** Next.js middleware enforces the auth gate universally; individual Server Actions also verify the Firebase ID token. Firestore Security Rules enforce `request.auth != null` for all reads and writes as a second layer.
 
 Players are name strings — they have no auth identity. Any signed-in user may act on behalf of any player.
 
 | Action | Allowed for | Denied for | Notes |
 |---|---|---|---|
-| View session / index / search | Anyone | — | Public reads; search includes all sessions |
+| View session / index / search | Any signed-in user | Unauthenticated | Unauthenticated users redirected to sign in; search includes all sessions |
 | Create session | Any signed-in user | Unauthenticated | |
 | Add player | Any signed-in user | Unauthenticated; session not `in_progress` | |
 | Rename player | Any signed-in user | Unauthenticated; session `archived` | Allowed in all non-archived states |
@@ -204,7 +204,7 @@ Players are name strings — they have no auth identity. Any signed-in user may 
 Every write operation that changes session or player state must produce a `ChangeLogEntry`. This is system-enforced — no mutation is complete without its log entry.
 
 > **Rule:** changelog-on-every-mutation
-> **Description:** Every state-changing write (buy-in added/removed, cash-out set, state transition, player added/renamed, payment marked/unmarked paid, session archived/unarchived) creates a `ChangeLogEntry` with: timestamp, actor display name, action type, and a human-readable description. All mutations require sign-in, so there is always an actor name.
+> **Description:** Every state-changing write (buy-in added/removed, cash-out set, state transition, player added/renamed, payment marked/unmarked paid, session archived/unarchived) creates a `ChangeLogEntry` with: timestamp, actor first name, action type, and a human-readable description. The actor's first name is extracted from the Google account's display name (`displayName.split(' ')[0]`) — never the full name or email. All access requires sign-in, so there is always an actor name.
 > **When violated:** n/a — changelog write is atomic with the primary write (same transaction)
 > **Tests required:** Yes — verify log entries are created for each mutation type
 

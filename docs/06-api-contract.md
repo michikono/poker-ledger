@@ -22,7 +22,9 @@ ADR reference: `specs/decisions/0004-server-actions-over-api-routes.md` (to be w
 
 ## Authentication
 
-All mutation Server Actions verify a Firebase ID token passed from the client:
+**All access requires Google Sign-In.** Next.js middleware enforces the auth gate universally — unauthenticated requests to any route (page or API) are redirected to sign in.
+
+Mutation Server Actions additionally verify a Firebase ID token passed explicitly from the client:
 
 ```ts
 // Pattern used in every mutation action
@@ -30,9 +32,9 @@ const user = await verifyAuthToken(token); // throws if invalid/expired
 if (!user) throw new ActionError("UNAUTHENTICATED");
 ```
 
-Read paths (RSC) are public — no token required.
+Read paths (RSC): auth enforced by middleware before the RSC renders — no explicit token parameter needed in RSC functions.
 
-The search API route (`/api/sessions/search`) is public.
+The search API route (`/api/sessions/search`): requires the Firebase ID token in the `Authorization: Bearer <token>` header.
 
 ---
 
@@ -56,7 +58,7 @@ Error codes:
 | `SESSION_NOT_EDITABLE` | Session state does not allow this mutation |
 | `SESSION_SETTLED` | Session is fully settled — no edits allowed |
 | `INVALID_STATE_TRANSITION` | The requested state change is not permitted |
-| `BALANCE_OUT_OF_RANGE` | Total buy-ins and cash-outs differ by more than 1% |
+| `BALANCE_OUT_OF_RANGE` | Cash-outs exceed buy-ins, or shortfall exceeds 2% of total buy-ins |
 | `DUPLICATE_PLAYER_NAME` | A player with this name already exists in the session |
 | `INVALID_AMOUNT` | Amount must be a positive integer (cents) |
 | `INVALID_PLAYER_NAME` | Player name is empty, too long, or duplicates an existing name |
@@ -195,7 +197,7 @@ returns: ActionResult<{
 }>
 ```
 
-**Validation:** Session must be `in_progress`; all players must have `cash_out_cents` set; `|total_buyin - total_cashout| / total_buyin <= 0.01`.
+**Validation:** Session must be `in_progress`; all players must have `cash_out_cents` set; `total_cashout <= total_buyin` and `(total_buyin - total_cashout) / total_buyin <= 0.02`.
 **Side effects:** Creates `Payment` documents (minimum transaction set); updates `Session.status` to `settling`; writes `ChangeLogEntry` (`status_changed`). All writes in a single Firestore transaction.
 
 ---
@@ -347,7 +349,7 @@ These are server-side data fetches performed inside React Server Components, not
 
 ### `GET /api/sessions/search?q={query}`
 
-**Auth required:** No (public)
+**Auth required:** Yes — Firebase ID token required in `Authorization: Bearer <token>` header.
 **Purpose:** Autocomplete session name search.
 
 **Response:**

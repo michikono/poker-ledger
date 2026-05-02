@@ -10,7 +10,7 @@ Define the high-level technical architecture: layers, components, and how they i
 
 ## System overview
 
-Poker Ledger is a Next.js 15 App Router application hosted on Vercel. All application logic lives in a single Next.js app — there is no separate backend service. The database is Firestore (Firebase). Firebase Auth handles authentication (scope TBD — see `11-open-questions.md`). The UI uses Tailwind CSS and shadcn/ui.
+Poker Ledger is a Next.js 15 App Router application hosted on Vercel. All application logic lives in a single Next.js app — there is no separate backend service. The database is Firestore (Firebase). Firebase Auth (Google Sign-In) gates all access — reads and mutations alike — enforced by Next.js middleware. The UI uses Tailwind CSS and shadcn/ui.
 
 The app is read-heavy with low write volume. Session state changes (buy-ins, cash-outs, payments) are infrequent relative to reads.
 
@@ -22,7 +22,7 @@ The app is read-heavy with low write volume. Session state changes (buy-ins, cas
 | Language | TypeScript (strict) | End-to-end type safety |
 | Hosting | Vercel | Zero-config CI/CD, preview deployments per branch |
 | Database | Firestore (Firebase) | Document model fits session/player structure; Firebase emulator for local dev |
-| Auth | Firebase Auth | Native Firestore integration; supports anonymous auth if needed |
+| Auth | Firebase Auth (Google Sign-In) | Native Firestore integration; Google Sign-In required for all access |
 | Styling | Tailwind CSS + shadcn/ui | Utility-first with accessible, composable components |
 | Lint/Format | Biome | Single tool for lint + format; fast; replaces ESLint + Prettier |
 | Unit/Integration Tests | Vitest + Testing Library | Fast, ESM-native; co-located test files |
@@ -50,19 +50,21 @@ _High-level component diagram — update when architectural boundaries change._
 
 ## Key architectural decisions
 
-ADRs to be written before Phase 1:
+ADRs accepted:
 
-- [ ] `specs/decisions/0001-use-vercel-for-hosting.md` — Vercel for hosting and preview deployments
-- [ ] `specs/decisions/0002-use-firestore.md` — Firestore as the document database
-- [ ] `specs/decisions/0003-auth-model.md` — Authentication and authorization model (blocked on open question — see `11-open-questions.md`)
-- [ ] `specs/decisions/0004-server-actions-over-api-routes.md` — Mutations via Server Actions, not REST endpoints
+- [x] `specs/decisions/0001-use-vercel-for-hosting.md` — Vercel for hosting and preview deployments
+- [x] `specs/decisions/0002-use-firestore.md` — Firestore as the document database
+- [x] `specs/decisions/0003-auth-model.md` — Google Sign-In required for all access; first-name-only changelog attribution
+- [x] `specs/decisions/0004-server-actions-over-api-routes.md` — Mutations via Server Actions; RSC for reads; thin API route for search
+- [x] `specs/decisions/0005-monetary-amounts-as-integer-cents.md` — All monetary amounts stored as integer cents
 
 ## Data flow
 
 **Read (session view):**
 1. Client navigates to `/sessions/:name`
-2. Next.js RSC fetches session + players + buy-ins from Firestore server-side
-3. Server renders HTML; client receives hydrated component tree
+2. Next.js middleware verifies Firebase ID token — unauthenticated requests are redirected to sign-in
+3. Next.js RSC fetches session + players + buy-ins from Firestore server-side
+4. Server renders HTML; client receives hydrated component tree
 
 **Write (buy-in, cash-out, payment, state change):**
 1. User triggers action in the UI
@@ -82,11 +84,13 @@ All mutations go through Server Actions — client components do not write to Fi
 
 ## Security boundaries
 
-- All mutations go through Server Actions (server-side validation only)
-- Firestore Security Rules enforce access control at the database layer as a second line of defense
-- Firebase config vars (`NEXT_PUBLIC_FIREBASE_*`) are public by design — they identify the project, not authorize access
-- Firebase Admin SDK credentials (`FIREBASE_ADMIN_*`) are server-only and never bundled to the client
-- User input is never trusted — validated on the server before any Firestore write
+- **Next.js middleware** enforces the auth gate universally — all routes (reads and mutations) require a valid Firebase ID token. Unauthenticated requests are redirected to sign in.
+- **Server Actions** (mutations) additionally verify the Firebase ID token passed explicitly from the client via the Firebase Admin SDK.
+- **Firestore Security Rules** enforce `request.auth != null` for all reads and writes — second line of defense at the database layer.
+- Firebase config vars (`NEXT_PUBLIC_FIREBASE_*`) are public by design — they identify the project, not authorize access.
+- Firebase Admin SDK credentials (`FIREBASE_ADMIN_*`) are server-only and never bundled to the client.
+- User input is never trusted — validated on the server before any Firestore write.
+- Changelog entries store only the actor's first name (`displayName.split(' ')[0]`) — never the full display name or email.
 
 ## Scalability and constraints
 

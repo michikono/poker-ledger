@@ -64,9 +64,9 @@ STRIDE categories: Spoofing, Tampering, Repudiation, Information disclosure, Den
 - Unauthenticated mutation calls return `401 Unauthorized`
 
 **Authorization:**
-- All reads (view session, list sessions, search) are public — no auth required
-- All writes require a verified Firebase ID token — no per-user ownership checks in MVP (any authenticated user can mutate any session)
-- Firestore Security Rules enforce: reads are open, writes require `request.auth != null` — second line of defense
+- All access (view session, list sessions, search, and all mutations) requires a verified Firebase ID token. Unauthenticated requests are redirected to sign in by Next.js middleware.
+- No per-user ownership checks in MVP — any authenticated user can read or mutate any session.
+- Firestore Security Rules enforce `request.auth != null` for all reads and writes — second line of defense.
 
 **Players vs. users:**
 - Players are name strings in Firestore — they have no auth identity

@@ -8,8 +8,7 @@ Define the primary user flows end-to-end. Each flow should be understandable wit
 
 ## Auth model summary
 
-- **Reads** (view session, view index, search): public — no sign-in required.
-- **All mutations** (create session, add player, add buy-in, set cash-out, mark paid, archive, rollback): require Google Sign-In.
+- **All access** (reads, mutations, search) requires Google Sign-In. Unauthenticated users are redirected to sign in, then redirected back to their original destination.
 - **Players** are tracked by name only — they do not need a Google account. A signed-in user adds players by name on their behalf.
 
 ---
@@ -28,7 +27,7 @@ Define the primary user flows end-to-end. Each flow should be understandable wit
 
 **Success outcome:** Session created; user lands on the session page with an empty player table.
 **Failure cases:** Name collision (server retries silently, up to 5 times); invalid default buy-in (validation error shown inline).
-**Auth required:** Yes — creation requires sign-in. The route `/sessions/:name` is publicly viewable once created.
+**Auth required:** Yes.
 **Data touched:** Creates `Session`, writes `ChangeLogEntry`.
 
 ```mermaid
@@ -177,9 +176,9 @@ _Flow 4: Payment marking is bidirectional — last mark auto-settles; any unmark
 
 ## Notes
 
-- A user who is not signed in can view any session and the index freely. If they attempt a mutation, they are prompted to sign in.
+- All access requires Google Sign-In. Unauthenticated users are redirected to sign in, then returned to their original destination.
 - Players are not users. "Billy" is a name string in Firestore; Billy may have no Google account. The signed-in user who adds Billy's buy-in is the actor in the changelog.
-- The changelog entry format: `[timestamp] [actor display name] [action]`. E.g., "Michi added $50.00 buy-in for Billy."
+- The changelog entry format: `[timestamp] [actor first name] [action]`. E.g., "Michi added $50.00 buy-in for Billy." The actor's first name is extracted from the Google account's display name (`displayName.split(' ')[0]`) — never the full name or email.
 - Cash-outs can be set in the player table at any point during `in_progress` for convenience; the settling modal prefills from those values.
 
 ## Related docs

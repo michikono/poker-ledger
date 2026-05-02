@@ -43,7 +43,7 @@ Document ID = session name (e.g., `crispy-salmon-042`) — serves as the URL slu
 | `status` | `string` | No | `in_progress` \| `settling` \| `settled` \| `archived` |
 | `default_buy_in_cents` | `number` | Yes | Positive integer or null |
 | `created_by_uid` | `string` | No | Firebase Auth UID |
-| `created_by_name` | `string` | No | Denormalized display name at creation |
+| `created_by_name` | `string` | No | First name only at creation — `displayName.split(' ')[0]`; never email or full name |
 | `previous_status` | `string` | Yes | Status before archiving; set on archive, cleared on unarchive |
 | `created_at` | `Timestamp` | No | |
 | `updated_at` | `Timestamp` | No | Updated on every status change |
@@ -109,7 +109,7 @@ Append-only. Never updated or deleted.
 | Field | Type | Nullable | Notes |
 |---|---|---|---|
 | `actor_uid` | `string` | No | Firebase Auth UID |
-| `actor_name` | `string` | No | Denormalized display name at action time |
+| `actor_name` | `string` | No | First name only at action time — `displayName.split(' ')[0]`; never email or full name |
 | `action_type` | `string` | No | Enum: see below |
 | `description` | `string` | No | Human-readable (e.g., "Michi added $50.00 buy-in for Billy") |
 | `created_at` | `Timestamp` | No | |
@@ -221,7 +221,7 @@ No automated migration runner — backfills are manual scripts run before deploy
 ## Sensitive data handling
 
 - **Financial amounts**: stored as integer cents — not classified as PII, but sensitive within a friend group.
-- **User identity**: `actor_uid` (Firebase UID) and `actor_name` (Google display name) are stored in changelog entries. This is personal data. For MVP, no special encryption beyond Firestore at-rest encryption.
+- **User identity**: `actor_uid` (Firebase UID, opaque) and `actor_name` (Google first name only — never full display name or email) are stored in changelog entries. This is personal data. For MVP, no special encryption beyond Firestore at-rest encryption.
 - No payment card data, no bank details, no full legal names.
 
 ---

@@ -20,10 +20,11 @@ Use **Next.js Server Actions** for all mutations. Use **RSC (React Server Compon
 
 - Server Actions are co-located with the UI code that triggers them. No separate route file to maintain.
 - Type safety end-to-end: the action's TypeScript signature is directly callable from the client — no serialization layer to keep in sync.
-- Auth token is passed explicitly as a parameter to each action, verified server-side via Firebase Admin SDK. This is necessary because Server Actions do not have access to request headers in all invocation contexts.
+- Auth token is passed explicitly as a parameter to each mutation action, verified server-side via Firebase Admin SDK. This is necessary because Server Actions do not have access to request headers in all invocation contexts.
+- RSC read paths are gated by Next.js middleware — the middleware verifies the Firebase session cookie before the RSC renders. No per-RSC auth token parameter is needed for reads.
 - All mutations return a typed `ActionResult<T>` union (`{ success: true; data: T } | { success: false; error: ... }`), making error handling uniform.
 - Server Actions are not independently HTTP-testable without the Next.js runtime. Integration tests for actions will call them directly as functions (with the Firebase emulator running) rather than via HTTP.
-- The search API route is a deliberate exception: it needs to be an HTTP endpoint so the browser can call it on every keystroke without a Server Action's form-submission model.
+- The search API route is a deliberate exception: it needs to be an HTTP endpoint so the browser can call it on every keystroke without a Server Action's form-submission model. It requires a Firebase ID token in the `Authorization: Bearer <token>` header — it is not public.
 
 ## Alternatives Considered
 
