@@ -1,17 +1,15 @@
-import { getApps, initializeApp } from "firebase-admin/app";
+// Firebase Admin SDK initialization is in @/lib/auth/admin.
+// This module re-exports adminAuth and provides adminDb for Firestore usage.
+import { getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
-// Local dev: emulator is used automatically when FIRESTORE_EMULATOR_HOST is set.
-// Production: TODO — set FIREBASE_SERVICE_ACCOUNT_KEY (base64 service account JSON)
-//             when the Firebase project is configured.
-const app =
-  getApps().length === 0
-    ? initializeApp({
-        projectId:
-          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "demo-poker-ledger",
-      })
-    : (getApps()[0] ?? initializeApp({ projectId: "demo-poker-ledger" }));
+// Ensure auth/admin has initialized the app before we use getFirestore
+// (Next.js module evaluation order means auth/admin may not be imported first).
+// We import it here only for the side effect of initialization.
+import "@/lib/auth/admin";
 
+const app = getApps()[0];
+if (!app) throw new Error("Firebase Admin app not initialized");
 export const adminDb = getFirestore(app);
 export const adminAuth = getAuth(app);

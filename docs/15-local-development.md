@@ -105,6 +105,27 @@ No other external services are required for local development.
 
 ---
 
+## Signing in locally with Firebase Auth emulator
+
+After starting `npm run dev`, the Firebase Auth emulator is available at `localhost:4000/auth` in the Emulator UI.
+
+To sign in locally:
+
+1. Open http://localhost:4000/auth in your browser.
+2. Click **Add user** and create a test user (any email/password works — no real credentials needed).
+3. Open the app at http://localhost:3000.
+4. Click **Sign in with Google** on the sign-in page.
+5. The emulator will show a popup with your test accounts — select the one you created.
+6. You are now signed in. The app redirects to `/sessions`.
+
+Notes:
+- The emulator accepts Google Sign-In via popup without any real Google credentials.
+- Test users are persisted in `.emulator-data/` and survive restarts.
+- Each worktree has its own `.emulator-data/` so switching worktrees switches user sets.
+- Session cookies are set as `HttpOnly` so they are invisible to JavaScript — this is expected behavior.
+
+---
+
 ## Verifying local functionality
 
 After setup or after a significant change:
