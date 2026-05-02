@@ -17,11 +17,11 @@ initializeApp({ projectId: PROJECT_ID });
 async function clearAll() {
   await fetch(
     `http://localhost:8080/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
   await fetch(
     `http://localhost:9099/emulator/v1/projects/${PROJECT_ID}/accounts`,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
 }
 

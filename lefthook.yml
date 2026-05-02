@@ -1,7 +1,6 @@
 pre-commit:
-  parallel: true
   commands:
-    type-check:
+    typecheck:
       run: npm run type-check
     lint:
       run: npm run lint

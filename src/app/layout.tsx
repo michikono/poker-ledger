@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Poker Ledger",
-  description: "Track poker game sessions and player balances",
+  description: "Track poker game sessions and settle up",
 };
 
 export default function RootLayout({
