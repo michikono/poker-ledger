@@ -10,10 +10,8 @@ out/
 .needs-seed
 
 # Environment variables
-.env
-.env.*
-!.env.example
-.env*.local
+.env*
+!.env.local.example
 
 # Dependencies
 node_modules/
