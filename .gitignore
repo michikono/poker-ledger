@@ -10,6 +10,9 @@ out/
 .needs-seed
 
 # Environment variables
+.env
+.env.*
+!.env.example
 .env*.local
 
 # Dependencies
@@ -23,3 +26,8 @@ coverage/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Misc
+.DS_Store
+dist
+*.log
