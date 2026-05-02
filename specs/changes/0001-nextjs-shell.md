@@ -1,7 +1,7 @@
 # Change 0001: Next.js Application Shell
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -241,3 +241,4 @@ None. All prerequisite decisions are captured in ADRs.
 |---|---|---|
 | 2026-05-02 | Proposed | Initial draft |
 | 2026-05-02 | Accepted | Approved for implementation |
+| 2026-05-02 | Implemented | All gates passed; merged via PR #4 |
