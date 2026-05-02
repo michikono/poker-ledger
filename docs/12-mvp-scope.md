@@ -1,6 +1,6 @@
 # 12 — MVP Scope
 
-> Status: Draft — freeze this before Phase 1 begins. Once frozen, changes require a scope change note with justification.
+> Status: Frozen — 2026-05-02. Changes require a scope change note with justification.
 
 ## Purpose
 
