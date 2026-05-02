@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPublicPath } from "./middleware";
+import { isPublicPath } from "./proxy";
 
 describe("isPublicPath", () => {
   it("returns true for /sign-in", () => {
