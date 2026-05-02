@@ -50,6 +50,18 @@ Emulator ports:
 - Firestore: `8080`
 - Firebase Auth: `9099`
 
+### Signing in locally
+
+The Auth emulator does not connect to real Google accounts. To sign in:
+
+1. Start the app: `npm run dev`
+2. Navigate to `localhost:4000` → **Authentication** tab
+3. Click **"Add user"** and create a test account (e.g., email `test@example.com`, any password)
+4. Go to `localhost:3000` → click **"Sign in with Google"**
+5. The emulator shows a selector of available accounts — pick the one you created
+
+Alternatively, the emulator accepts any Google OAuth flow triggered in the browser against the demo project. Existing emulator users persist in `.emulator-data/` between restarts.
+
 ---
 
 ## Environment variables
@@ -61,10 +73,14 @@ Emulator ports:
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | `demo-poker-ledger` |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase web API key | `demo-api-key` (emulator accepts any value) |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain | `demo-poker-ledger.firebaseapp.com` |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase App ID | `demo-app-id` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket | `demo-poker-ledger.appspot.com` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID | `000000000000` |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase App ID | `1:000000000000:web:0000000000000000000000` |
+| `FIRESTORE_EMULATOR_HOST` | Tells Admin SDK to use Firestore emulator | `localhost:8080` |
+| `FIREBASE_AUTH_EMULATOR_HOST` | Tells Admin SDK to use Auth emulator | `localhost:9099` |
 | `FIREBASE_ADMIN_PROJECT_ID` | Admin SDK project ID (server-only) | `demo-poker-ledger` |
-| `FIRESTORE_EMULATOR_HOST` | Tells SDK to use emulator | `localhost:8080` |
-| `FIREBASE_AUTH_EMULATOR_HOST` | Tells SDK to use emulator | `localhost:9099` |
+| `FIREBASE_ADMIN_CLIENT_EMAIL` | Service account email (production only) | *(blank for local)* |
+| `FIREBASE_ADMIN_PRIVATE_KEY` | Service account private key (production only) | *(blank for local)* |
 
 In production, `NEXT_PUBLIC_FIREBASE_*` variables point to a real Firebase project. `FIREBASE_ADMIN_*` uses service account credentials set in Vercel. See `10-deployment-ops.md`.
 
@@ -102,6 +118,27 @@ npm run check            # aggregate gate: format:check + lint + typecheck + tes
 | Firebase Emulator (Firestore + Auth) | All data reads/writes, authentication | Starts automatically with `npm run dev`; requires Firebase CLI + Java 11+ |
 
 No other external services are required for local development.
+
+---
+
+## Signing in locally with Firebase Auth emulator
+
+After starting `npm run dev`, the Firebase Auth emulator is available at `localhost:4000/auth` in the Emulator UI.
+
+To sign in locally:
+
+1. Open http://localhost:4000/auth in your browser.
+2. Click **Add user** and create a test user (any email/password works — no real credentials needed).
+3. Open the app at http://localhost:3000.
+4. Click **Sign in with Google** on the sign-in page.
+5. The emulator will show a popup with your test accounts — select the one you created.
+6. You are now signed in. The app redirects to `/sessions`.
+
+Notes:
+- The emulator accepts Google Sign-In via popup without any real Google credentials.
+- Test users are persisted in `.emulator-data/` and survive restarts.
+- Each worktree has its own `.emulator-data/` so switching worktrees switches user sets.
+- Session cookies are set as `HttpOnly` so they are invisible to JavaScript — this is expected behavior.
 
 ---
 
