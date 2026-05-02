@@ -20,7 +20,7 @@ _No open questions. Design baseline is ready for Phase 1._
 ## Resolved
 
 > **Q:** What is the authentication model for MVP?
-> **Resolution:** Model (b) — Google Sign-In (Firebase Auth) required for all mutations; reads are public. Players are tracked by name only (not by auth account), so non-app-users can still be tracked. The changelog always has a named actor. Confirmed 2026-05-02.
+> **Resolution:** Model (c) — Google Sign-In (Firebase Auth) required for **all access** — reads and mutations alike. Unauthenticated users are redirected to sign in. Players are tracked by name only (not by auth account), so non-app-users can still be tracked. Changelog stores the actor's first name only (`displayName.split(' ')[0]`) — never email or full name. (Corrected from initial model (b) on 2026-05-02; see ADR 0003.) Confirmed 2026-05-02.
 
 ---
 
