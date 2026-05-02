@@ -1,7 +1,7 @@
 # Change 0003: Dependency Upgrades — Next.js 16, Firebase 12, minor bumps
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -112,3 +112,4 @@ Before bumping major versions, the implementer must:
 |---|---|---|
 | 2026-05-02 | Proposed | Initial draft |
 | 2026-05-02 | Accepted | Approved; run in parallel with spec 0002 PR review |
+| 2026-05-02 | Implemented | All gates passed; merged via PR #8 |
