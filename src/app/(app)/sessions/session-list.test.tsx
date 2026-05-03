@@ -5,6 +5,8 @@ import type { SessionStatus } from "@/lib/sessions/types";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/sessions",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import { SessionList } from "./session-list";
@@ -29,9 +31,16 @@ function makeSession(
   };
 }
 
-describe("SessionList — empty state", () => {
-  it("renders the no-sessions empty state with an enabled New session button", () => {
-    render(<SessionList sessions={[]} />);
+const EMPTY_GROUPS = {
+  in_progress: [] as SerializableSession[],
+  settling: [] as SerializableSession[],
+  settled: [] as SerializableSession[],
+  archived: [] as SerializableSession[],
+};
+
+describe("SessionList (mode=all) — empty state", () => {
+  it("renders the whole-page empty state when all groups are empty", () => {
+    render(<SessionList mode="all" groups={EMPTY_GROUPS} />);
     expect(screen.getByText("No sessions yet.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New session" })).toBeEnabled();
     expect(
@@ -40,61 +49,115 @@ describe("SessionList — empty state", () => {
   });
 });
 
-describe("SessionList — populated state", () => {
-  it("renders all sessions in a single page when count <= page size", () => {
-    const sessions = [
-      makeSession({ id: "alpha" }),
-      makeSession({ id: "beta" }),
-      makeSession({ id: "gamma" }),
-    ];
-    render(<SessionList sessions={sessions} />);
-    expect(screen.getByText("alpha")).toBeInTheDocument();
-    expect(screen.getByText("beta")).toBeInTheDocument();
-    expect(screen.getByText("gamma")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /previous/i }),
-    ).not.toBeInTheDocument();
+describe("SessionList (mode=all) — populated state", () => {
+  it("renders all four section headings", () => {
+    const groups = {
+      ...EMPTY_GROUPS,
+      in_progress: [makeSession({ id: "alpha" })],
+    };
+    render(<SessionList mode="all" groups={groups} />);
+    expect(screen.getByRole("heading", { name: "In Progress" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Settling" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Settled" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Archived" })).toBeInTheDocument();
   });
 
-  it("filters the list by search query", async () => {
+  it("renders sessions in their correct sections", () => {
+    const groups = {
+      in_progress: [makeSession({ id: "alpha" })],
+      settling: [makeSession({ id: "beta", status: "settling" })],
+      settled: [] as SerializableSession[],
+      archived: [] as SerializableSession[],
+    };
+    render(<SessionList mode="all" groups={groups} />);
+    expect(screen.getByText("alpha")).toBeInTheDocument();
+    expect(screen.getByText("beta")).toBeInTheDocument();
+  });
+
+  it("shows per-section empty messages for empty sections", () => {
+    const groups = { ...EMPTY_GROUPS, in_progress: [makeSession({ id: "alpha" })] };
+    render(<SessionList mode="all" groups={groups} />);
+    expect(screen.getByText("No sessions settling.")).toBeInTheDocument();
+    expect(screen.getByText("No settled sessions.")).toBeInTheDocument();
+    expect(screen.getByText("No archived sessions.")).toBeInTheDocument();
+  });
+
+  it("filters across all sections by search query", async () => {
     const user = userEvent.setup();
-    const sessions = [
-      makeSession({ id: "crispy-salmon" }),
-      makeSession({ id: "happy-tuna" }),
-    ];
-    render(<SessionList sessions={sessions} />);
+    const groups = {
+      in_progress: [makeSession({ id: "crispy-salmon" })],
+      settling: [makeSession({ id: "happy-tuna", status: "settling" })],
+      settled: [] as SerializableSession[],
+      archived: [] as SerializableSession[],
+    };
+    render(<SessionList mode="all" groups={groups} />);
     await user.type(screen.getByRole("textbox", { name: /search/i }), "tuna");
     expect(screen.queryByText("crispy-salmon")).not.toBeInTheDocument();
     expect(screen.getByText("happy-tuna")).toBeInTheDocument();
   });
 
-  it("shows a no-match message when the search yields nothing", async () => {
+  it("shows no-match message when search yields nothing", async () => {
     const user = userEvent.setup();
-    const sessions = [makeSession({ id: "alpha" })];
-    render(<SessionList sessions={sessions} />);
+    const groups = {
+      ...EMPTY_GROUPS,
+      in_progress: [makeSession({ id: "alpha" })],
+    };
+    render(<SessionList mode="all" groups={groups} />);
     await user.type(screen.getByRole("textbox", { name: /search/i }), "zzzzzz");
     expect(
       screen.getByText("No sessions match your search."),
     ).toBeInTheDocument();
   });
+});
 
-  it("paginates when there are more than 10 sessions", async () => {
-    const user = userEvent.setup();
-    const sessions = Array.from({ length: 15 }, (_, i) =>
-      makeSession({
-        id: `session-${i.toString().padStart(2, "0")}`,
-        createdAt: new Date(2026, 0, 15 - i).toISOString(),
-      }),
+describe("SessionList (mode=filtered)", () => {
+  it("renders only the matching section without pagination when count <= page size", () => {
+    const sessions = [makeSession({ id: "alpha" }), makeSession({ id: "beta" })];
+    render(
+      <SessionList
+        mode="filtered"
+        filter="in_progress"
+        sessions={sessions}
+        currentPage={1}
+        totalCount={2}
+        pageSize={10}
+      />,
     );
-    render(<SessionList sessions={sessions} />);
-    expect(screen.getByText("session-00")).toBeInTheDocument();
-    expect(screen.queryByText("session-14")).not.toBeInTheDocument();
+    expect(screen.getByText("alpha")).toBeInTheDocument();
+    expect(screen.getByText("beta")).toBeInTheDocument();
+    expect(screen.queryByText(/Page/)).not.toBeInTheDocument();
+  });
+
+  it("shows pagination controls when total exceeds page size", () => {
+    const sessions = Array.from({ length: 10 }, (_, i) =>
+      makeSession({ id: `session-${i}` }),
+    );
+    render(
+      <SessionList
+        mode="filtered"
+        filter="in_progress"
+        sessions={sessions}
+        currentPage={1}
+        totalCount={15}
+        pageSize={10}
+      />,
+    );
     expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
+    expect(screen.getByText("Next")).toBeInTheDocument();
+    expect(screen.getByText("Previous")).toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole("button", { name: /next/i }));
-
-    expect(screen.queryByText("session-00")).not.toBeInTheDocument();
-    expect(screen.getByText("session-14")).toBeInTheDocument();
-    expect(screen.getByText(/Page 2 of 2/)).toBeInTheDocument();
+  it("shows empty state for filtered view with no sessions", () => {
+    render(
+      <SessionList
+        mode="filtered"
+        filter="settling"
+        sessions={[]}
+        currentPage={1}
+        totalCount={0}
+        pageSize={10}
+      />,
+    );
+    expect(screen.getByText("No sessions settling.")).toBeInTheDocument();
   });
 });

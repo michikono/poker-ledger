@@ -1,16 +1,22 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { CardIcon } from "@/components/icons/card-icon";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { UserMenu } from "./user-menu";
+import type { NavCounts } from "@/lib/sessions/queries";
+import { NavLink } from "./nav-link";
+import { NavSearch } from "./nav-search";
+import { NewSessionButton } from "./new-session-button";
 import { NAV_ITEMS } from "./nav-items";
+import { UserMenu } from "./user-menu";
 
 export type SideRailProps = {
   firstName: string;
+  navCounts: NavCounts;
   className?: string;
 };
 
-export function SideRail({ firstName, className }: SideRailProps) {
+export function SideRail({ firstName, navCounts, className }: SideRailProps) {
   return (
     <aside
       className={cn(
@@ -18,35 +24,77 @@ export function SideRail({ firstName, className }: SideRailProps) {
         className,
       )}
     >
-      <div className="flex items-center gap-2 px-4 py-5">
+      {/* Logo */}
+      <Link
+        href="/sessions"
+        className="flex items-center gap-2 px-4 py-5 transition-opacity hover:opacity-80"
+      >
         <CardIcon size={28} />
         <span className="font-heading text-lg font-semibold tracking-tight">
           Poker Ledger
         </span>
-      </div>
+      </Link>
+
       <Separator />
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
-        <ul className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  <Icon className="size-4 text-felt group-hover:text-felt" />
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-      <Separator />
-      <div className="px-2 py-3">
-        <UserMenu firstName={firstName} variant="rail" />
+
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        {/* Zone 1: New session CTA */}
+        <div className="px-2 pt-3 pb-2">
+          <NewSessionButton />
+        </div>
+
+        {/* Zone 2: Search */}
+        <div className="pb-3">
+          <NavSearch />
+        </div>
+
+        <Separator />
+
+        {/* Zone 3: Status filters */}
+        <nav className="flex-1 px-2 py-3">
+          <ul className="flex flex-col gap-0.5">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const count = item.countKey ? navCounts[item.countKey] : undefined;
+              return (
+                <li key={item.label}>
+                  <Suspense
+                    fallback={
+                      <Link
+                        href={item.href}
+                        className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Icon className="size-4 text-felt" />
+                        <span className="flex-1">{item.label}</span>
+                        {count != null && count > 0 && (
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-felt/15 px-1.5 text-xs font-medium text-felt tabular-nums">
+                            {count}
+                          </span>
+                        )}
+                      </Link>
+                    }
+                  >
+                    <NavLink href={item.href}>
+                      <Icon className="size-4 text-felt" />
+                      <span className="flex-1">{item.label}</span>
+                      {count != null && count > 0 && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-felt/15 px-1.5 text-xs font-medium text-felt tabular-nums">
+                          {count}
+                        </span>
+                      )}
+                    </NavLink>
+                  </Suspense>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </div>
+
+      <Separator />
+
+      {/* Zone 4: User account */}
+      <UserMenu firstName={firstName} />
     </aside>
   );
 }
