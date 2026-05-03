@@ -4,6 +4,23 @@ This file defines mandatory rules for Claude Code in this repository. Read it fu
 
 ---
 
+## Public repository
+
+**This repository is public on GitHub.** Every commit, branch name, file content, PR title, and PR body is world-readable. Treat every action as if it will be screenshotted and shared.
+
+Implications for Claude Code:
+
+- **Never commit per-user state.** `.claude/` is gitignored and must stay that way. Do not add files to `.claude/` and stage them, do not edit `.gitignore` to remove the `.claude/` entry, and do not propose committing Claude Code transcripts, agent configs, MCP credentials, or local settings under any path.
+- **Never commit secrets, credentials, tokens, service-account JSON, or private keys.** `.env*` is gitignored except `.env.local.example` (which must contain only placeholder values like `demo-api-key`). Before any commit, scan staged content for high-signal secret patterns (`PRIVATE KEY`, `AKIA`, `AIza`, `sk_live_`, `ghp_`, `xox[bp]-`, etc.).
+- **No internal hostnames, IP addresses, real customer data, or third-party identifiers** (Slack channel IDs, internal Linear/Jira IDs, employee names beyond the LICENSE author) anywhere in tracked files. Test fixtures use RFC 2606 reserved domains (`@example.com`).
+- **Branch names, commit messages, and PR titles/bodies are public.** Do not embed internal context, team names, or anything that wouldn't be appropriate on a public-facing page.
+- **`firestore.rules` denies all client writes by default.** Server Actions go through the Admin SDK with verified ID tokens. Never relax these defaults to "make a test work" — fix the test path instead.
+- **The `demo-poker-ledger` Firebase project ID is intentional** — it's a Firebase emulator demo project that requires no real credentials. Real production project IDs and config land only in Vercel env vars (`vercel env`), never in tracked files.
+
+When in doubt, ask before committing. The cost of pausing is low; the cost of an exposed secret on a public repo is much higher (history rewrites are visible, search engines and clones cache aggressively).
+
+---
+
 ## Project operating model
 
 ### Phase 0: Upfront design

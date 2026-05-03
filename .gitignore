@@ -13,6 +13,9 @@ out/
 .env*
 !.env.local.example
 
+# Claude Code per-user state (settings, agent configs, transcripts) — never commit
+.claude/
+
 # Dependencies
 node_modules/
 
