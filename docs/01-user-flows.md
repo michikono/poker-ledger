@@ -177,9 +177,10 @@ _Flow 4: Payment marking is bidirectional — last mark auto-settles; any unmark
 ## Notes
 
 - All access requires Google Sign-In. Unauthenticated users are redirected to sign in, then returned to their original destination.
+- **Sharing a session URL with a friend who lacks a Google account does not work** — they must sign in with Google before viewing.
 - Players are not users. "Billy" is a name string in Firestore; Billy may have no Google account. The signed-in user who adds Billy's buy-in is the actor in the changelog.
-- The changelog entry format: `[timestamp] [actor first name] [action]`. E.g., "Michi added $50.00 buy-in for Billy." The actor's first name is extracted from the Google account's display name (`displayName.split(' ')[0]`) — never the full name or email.
-- Cash-outs can be set in the player table at any point during `in_progress` for convenience; the settling modal prefills from those values.
+- The changelog entry format: `[timestamp] [actor first name] [action]`. E.g., `"Michi added **$50.00** buy-in for Billy."` Monetary amounts are wrapped in `**...**` markers and rendered bold by the activity log component. The actor's first name is `displayName.split(' ')[0]`, falling back to the literal string `"Anonymous"` if missing — **never** email or UID.
+- Cash-outs are editable **only during `in_progress`**, in two places: (a) the player table during `in_progress`, and (b) the settling modal at the moment of transition. Once the session is `settling` or `settled`, cash-outs are locked. To change one, roll back to `in_progress` first.
 
 ## Related docs
 

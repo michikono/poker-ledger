@@ -23,6 +23,7 @@ The root entity. Represents a single poker game from creation through settlement
 | created_by_uid | string | Firebase Auth UID of the creator |
 | created_by_name | string | First name only at creation time — `displayName.split(' ')[0]` |
 | previous_status | enum \| null | Status before archiving; set on archive, cleared on unarchive |
+| player_count | integer | Denormalized count, updated atomically with `addPlayer`. Default 0. |
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
@@ -33,9 +34,11 @@ The root entity. Represents a single poker game from creation through settlement
 
 **Invariants:**
 - `name` is immutable after creation.
-- `status` follows the allowed state machine (see `07-business-logic.md`).
+- `status` follows the allowed state machine (see `07-business-logic.md` → "State transition matrix").
 - A session with no players cannot transition to `settling`.
 - `default_buy_in_cents` must be null or a positive integer.
+- If `status === "archived"`, `previous_status` MUST be a non-null valid recoverable state (`in_progress`, `settling`, or `settled`). Otherwise `previous_status` MUST be null.
+- `player_count` is the count of `Player` documents in the session subcollection.
 
 ---
 
@@ -48,7 +51,8 @@ A named participant in a session. Not tied to a Firebase Auth account — anyone
 | id | string | Server-generated UUID |
 | session_id | string | Foreign key to Session |
 | name | string | Display name (e.g., "Billy"); 1–50 chars; unique within session (case-insensitive) |
-| cash_out_cents | integer \| null | Final cash-out amount; null until set |
+| name_lower | string | Lowercased + trimmed copy of `name`; denormalized for case-insensitive uniqueness |
+| cash_out_cents | integer \| null | Final cash-out amount in cents; null until set; 0 means "busted out" (valid distinct from null) |
 | created_by_uid | string | Firebase Auth UID of whoever added this player |
 | created_at | timestamp | |
 | updated_at | timestamp | |
@@ -59,9 +63,10 @@ A named participant in a session. Not tied to a Firebase Auth account — anyone
 - Referenced by `Payment` records (as debtor or creditor)
 
 **Invariants:**
-- `name` must be unique within the session (case-insensitive after trimming).
-- `cash_out_cents` must be null or a non-negative integer.
+- `name` must be unique within the session (case-insensitive after trimming) — enforced via `name_lower` equality query.
+- `cash_out_cents` must be null or 0 ≤ value ≤ 2_000_000.
 - Players cannot be added once the session is `settling` or `settled`.
+- A player can be renamed in any non-archived state. Existing changelog entries are NOT rewritten — they snapshot the prior name.
 
 ---
 
@@ -111,11 +116,11 @@ A calculated debt between two players. Generated when a session transitions to `
 
 **Invariants:**
 - `amount_cents` must be a positive integer.
-- `paid` can be toggled. Marking paid is idempotent (no-op if already paid).
-- When a payment is un-marked while the session is `settled`, the session auto-transitions to `settling`.
-- When manually rolling back `settled → settling`, all `paid` fields are reset to false.
-- When rolling back `settling → in_progress`, payment records are retained but ignored; recalculated on re-entry to `settling`.
-- Payment records are never deleted.
+- `paid` can be toggled. Marking paid is idempotent (no-op if already paid). Same for unmark.
+- When a payment is un-marked while the session is `settled`, the session auto-transitions to `settling` in the same transaction.
+- When manually rolling back `settled → settling`, all `paid` fields are reset to false in the same transaction.
+- **When rolling back `settling → in_progress`, ALL Payment records are deleted in the same transaction** so the next transition to `settling` recomputes from scratch. (This is the canonical answer to "what happens to old Payments on rollback?")
+- Payment records are otherwise never deleted (i.e., archive does not delete; only the `settling → in_progress` rollback does).
 
 ---
 
@@ -129,17 +134,19 @@ An immutable record of every state-changing action. Append-only.
 | session_id | string | Foreign key to Session |
 | actor_uid | string | Firebase Auth UID of the signed-in user who performed the action |
 | actor_name | string | First name only at action time — `displayName.split(' ')[0]`; never email or full name |
-| action_type | enum | `session_created`, `player_added`, `player_name_edited`, `buy_in_added`, `buy_in_removed`, `cash_out_set`, `status_changed`, `payment_marked_paid`, `payment_unmarked_paid` |
-| description | string | Human-readable summary (e.g., "Michi added $50.00 buy-in for Billy") |
+| action_type | enum | See `docs/05-data-model.md` for the canonical enum and `metadata` shape per type. |
+| description | string | Human-readable summary, with `**$amount**` markers for monetary values (rendered bold by the activity log). Example: `"Michi added **$50.00** buy-in for Billy."` |
+| metadata | map \| null | Optional structured payload — see `docs/05-data-model.md` |
 | created_at | timestamp | |
 
 **Relationships:**
 - Belongs to one `Session`
 
 **Invariants:**
-- Immutable after creation — never updated or deleted.
-- Written atomically with the primary mutation it describes.
-- Every state-changing write must produce exactly one `ChangeLogEntry`.
+- Immutable after creation — never updated or deleted (even when the session is archived).
+- Written atomically with the primary mutation it describes (in the same Firestore batch or transaction).
+- Most state-changing writes produce exactly one entry. Three exceptions emit two entries (last payment marked paid → `payment_marked_paid` + `status_changed`; payment unmarked while settled → `payment_unmarked_paid` + `status_changed`; `transitionToSettling` produces zero Payments → single `status_changed` to `settled`). See `docs/05-data-model.md` → "Cascading actions" table.
+- `actor_name` is always non-empty. If `displayName` is missing/empty, the literal string `"Anonymous"` is used. **Never** falls back to email or UID.
 
 ---
 

@@ -60,11 +60,11 @@
 
 ### Integration tests (data layer)
 
-**Command:** `npm run test:integration`
+**Command:** `npm run test:integration` *(not yet configured — see "Current state of CI" below)*
 **Blocks local completion:** No (impractical to always run locally)
-**Blocks merge:** Yes
+**Blocks merge:** Yes once configured
 **Tool:** Vitest + Firebase emulator
-**Notes:** Requires the Firebase emulator running. CI starts the emulator automatically.
+**Notes:** Requires the Firebase emulator running. The Vitest config splits unit and integration suites by file pattern (`*.test.ts(x)` for unit, `*.integration.test.ts` for integration). Until the integration script is added, integration-style tests should be authored as `*.integration.test.ts.todo` placeholders or guarded with a `describe.skip`.
 
 ---
 
@@ -72,9 +72,9 @@
 
 **Command:** `npm run test:e2e`
 **Blocks local completion:** No (requires full dev server)
-**Blocks merge:** Yes (critical flows)
+**Blocks merge:** Yes (critical flows) once CI is configured
 **Tool:** Playwright
-**Notes:** Requires `npm run dev` running locally. CI starts the full stack.
+**Notes:** Requires `npm run dev` running locally. CI (when added) starts the full stack. Currently no Playwright tests exist — they will be added with the first feature spec that produces a complete user-facing flow.
 
 ---
 
@@ -89,10 +89,10 @@
 
 ### Security / secrets scan
 
-**Command:** Manual — `git log -p | grep -iE 'password|secret|token|key|credential' | grep -v '\.example'`
-**Blocks local completion:** Yes
-**Blocks merge:** Yes
-**Notes:** Automated scan (e.g., gitleaks) to be added once CI is configured. Until then, manual review before every push.
+**Current:** manual eyeball review of `git diff` and `git log -p` for the new commits before push. The earlier prescribed grep (`git log -p | grep -iE 'password|secret|token|key|credential'`) generates false positives on words like "tokenize" and is unreliable; it should not be relied on as a gate.
+**Recommended (future):** add `gitleaks` to CI for deterministic secrets scanning. Until then, this gate is **manual-only** and depends on reviewer discipline.
+**Blocks local completion:** Yes (manual)
+**Blocks merge:** Yes (manual)
 
 ---
 
@@ -115,10 +115,10 @@
 ### Aggregate gate
 
 **Command:** `npm run check`
-**Definition:** `format:check && lint && typecheck && test && build` (sequential)
+**Definition:** `format:check && lint && type-check && test && build` (sequential)
 **Blocks local completion:** Yes
 **Blocks merge:** Yes
-**Notes:** Integration and E2E tests are run separately in CI, not in the aggregate local gate (they require the emulator/server)
+**Notes:** This is the **fast subset** — it does not include integration tests or E2E (those require the emulator/full server). Once CI is configured, a `npm run check:full` script will be added that includes those layers; PR merge will block on `check:full`. Until then, integration/E2E coverage is the human reviewer's responsibility.
 
 ---
 
@@ -145,13 +145,22 @@ If a gate does not yet exist when a change spec is implemented:
 
 ## CI integration
 
-GitHub Actions runs on every PR push:
+### Current state
+
+**GitHub Actions CI is not yet configured.** Tests run locally via the pre-commit hook (`lefthook.yml` runs lint + typecheck + unit tests) and via `npm run check`. There is no automatic gate on PRs at the GitHub level — review discipline is the only gate.
+
+Spec 0001 explicitly deferred CI to a future change spec. This is tracked as deferred work; the gap should be closed before the team grows beyond a single committer.
+
+### When CI is added (future spec)
+
+GitHub Actions will run on every PR push:
 
 - Unit tests (`npm test`)
 - Integration tests (`npm run test:integration`) — emulator started in CI using `demo-poker-ledger`
 - E2E tests (`npm run test:e2e`) — full stack started in CI
 - Format check, lint, typecheck, build
-- Merge to `main` is blocked if any gate fails
+- Secrets scan (`gitleaks`)
+- Merge to `main` blocked if any gate fails
 - Gate configuration lives in `.github/workflows/ci.yml`
 
 ---

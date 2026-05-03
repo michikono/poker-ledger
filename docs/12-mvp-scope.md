@@ -22,18 +22,18 @@ Define exactly what is in and out of scope for the initial release. A frozen sco
 - [ ] Ability to start a gaming session. The session's name is the URL to the session. 
 - [ ] When starting a session, the creator can set a default buy-in amount, which is assumed whenever a new player is added. 
 - [ ] Sessions have four states: `in_progress`, `settling`, `settled`, and `archived`. `archived` is a soft-delete — sessions are hidden from the index but not hard-deleted.
-- [ ] Players can add themselves or each other inside an in progress session.
+- [ ] Any signed-in user can add players (by name) to an in-progress session. Players have no auth identity — "self vs. other" is not a system concept.
 - [ ] Players must have a name assigned when created (e.g., "Billy", "Joe"). Names can be edited after creation in any non-archived session state.
 - [ ] Players can add additional buyins while the session is in progress, which tracks their total buy in.
 - [ ] Anybody can attempt to mark the session as settling (button always enabled when players exist). A modal opens where cash-out amounts for each player can be entered or confirmed (prefilled with any prior data).
 - [ ] A session cannot move into settling state unless: total cash-outs ≤ total buy-ins, and the shortfall is ≤ 2% of total buy-ins. The 2% tolerance accounts for real-world chip loss. Cash-outs can never exceed total buy-ins.
-- [ ] A session once marked Settling no longer allows players to update or add new buy-ins, but it does allow them to edit their final amounts. 
+- [ ] A session once marked Settling locks both buy-ins and cash-outs. To change a cash-out after `settling`, the user must roll back to `in_progress`. (Earlier drafts allowed cash-out edits during `settling`; that was changed because Payment records become stale. Canonical rule: `docs/07-business-logic.md → cashout-edits-only-via-rollback-once-settling`.)
 - [ ] Once in a settling state, the application will show the minimum number of transactions necessary to settle all balances so that everybody who lost money knows who to pay who made money. 
 - [ ] Each player or players can mark that they have paid what they owe to their recipient. Payments can also be un-marked (toggled back to unpaid).
 - [ ] Once all payments are marked as completed, the session automatically moves to settled state immediately — no confirmation dialog.
 - [ ] If any payment is un-marked while the session is settled, the session automatically transitions back to settling.
 - [ ] All changes are tracked in a change log shown in the UI at the bottom of the session view.
-- [ ] Session status can be moved back if a player chooses (settling → in_progress, settled → settling). Rolling back never deletes records; paid marks are reset when rolling back from settled.
+- [ ] Session status can be moved back if a player chooses (settling → in_progress, settled → settling). On rollback **`settled → settling`**: payment records are retained; all paid marks are reset. On rollback **`settling → in_progress`**: payment records are **deleted** (re-computed on next transition to `settling`).
 - [ ] Any session can be soft-deleted (archived) from any state with a confirmation. Archived sessions are hidden from the index.
 
 ## Out of scope (explicitly deferred)

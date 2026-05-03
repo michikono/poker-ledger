@@ -17,6 +17,8 @@ Casual poker players that are doing cash games in a small group setting.
 
 This app will make it easy to initialize a cash game, share the link with your colleagues, have them track their buy-in and cash out, and then help everybody settle up at the end of the night.
 
+> **Auth note:** Recipients of a shared link must sign in with Google before viewing — this is a deliberate trade-off documented in ADR `0003-auth-model.md`. Players being tracked by the app (e.g., "Billy") do NOT need a Google account; only signed-in users recording the data do.
+
 ## Non-goals (product level)
 
 This is not a product to learn how to play poker, or to track other types of games that are not poker, or to track multiple different types of currencies, or to do currency conversions. Nor should it facilitate the actual movement of money, since that is something that people can track themselves.
@@ -27,7 +29,7 @@ This app will not push out any notification-type activity and is strictly a simp
 
 ## Open questions
 
-<!-- Unresolved decisions that will block design or implementation. Move to docs/11-open-questions.md. -->
+All resolved in design phase — see `docs/11-open-questions.md` for the audit trail.
 
 ## Related docs
 
