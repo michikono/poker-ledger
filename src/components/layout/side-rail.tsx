@@ -55,7 +55,9 @@ export function SideRail({ firstName, navCounts, className }: SideRailProps) {
           <ul className="flex flex-col gap-0.5">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const count = item.countKey ? navCounts[item.countKey] : undefined;
+              const count = item.countKey
+                ? navCounts[item.countKey]
+                : undefined;
               return (
                 <li key={item.label}>
                   <Suspense

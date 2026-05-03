@@ -15,21 +15,15 @@ describe("NavLink — active state", () => {
   it("is not active when URL does not match", () => {
     mockPathname.mockReturnValue("/sessions");
     mockSearchParams.mockReturnValue(new URLSearchParams());
-    render(
-      <NavLink href="/sessions?status=in_progress">In Progress</NavLink>,
-    );
+    render(<NavLink href="/sessions?status=in_progress">In Progress</NavLink>);
     const link = screen.getByRole("link", { name: "In Progress" });
     expect(link).not.toHaveClass("bg-accent");
   });
 
   it("is active when pathname and status param match", () => {
     mockPathname.mockReturnValue("/sessions");
-    mockSearchParams.mockReturnValue(
-      new URLSearchParams("status=in_progress"),
-    );
-    render(
-      <NavLink href="/sessions?status=in_progress">In Progress</NavLink>,
-    );
+    mockSearchParams.mockReturnValue(new URLSearchParams("status=in_progress"));
+    render(<NavLink href="/sessions?status=in_progress">In Progress</NavLink>);
     const link = screen.getByRole("link", { name: "In Progress" });
     expect(link).toHaveClass("bg-accent");
   });
@@ -37,9 +31,7 @@ describe("NavLink — active state", () => {
   it("is not active when status param differs", () => {
     mockPathname.mockReturnValue("/sessions");
     mockSearchParams.mockReturnValue(new URLSearchParams("status=settling"));
-    render(
-      <NavLink href="/sessions?status=in_progress">In Progress</NavLink>,
-    );
+    render(<NavLink href="/sessions?status=in_progress">In Progress</NavLink>);
     const link = screen.getByRole("link", { name: "In Progress" });
     expect(link).not.toHaveClass("bg-accent");
   });

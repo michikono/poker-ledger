@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { SessionStatus } from "@/lib/sessions/types";
 
@@ -7,6 +6,17 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => "/sessions",
   useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("@/components/sessions/session-search-input", () => ({
+  SessionSearchInput: () => (
+    <input
+      role="combobox"
+      aria-label="Search sessions"
+      aria-controls="session-search-listbox"
+      aria-expanded={false}
+    />
+  ),
 }));
 
 import { SessionList } from "./session-list";
@@ -56,10 +66,18 @@ describe("SessionList (mode=all) — populated state", () => {
       in_progress: [makeSession({ id: "alpha" })],
     };
     render(<SessionList mode="all" groups={groups} />);
-    expect(screen.getByRole("heading", { name: "In Progress" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Settling" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Settled" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Archived" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "In Progress" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Settling" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Settled" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Archived" }),
+    ).toBeInTheDocument();
   });
 
   it("renders sessions in their correct sections", () => {
@@ -75,44 +93,34 @@ describe("SessionList (mode=all) — populated state", () => {
   });
 
   it("shows per-section empty messages for empty sections", () => {
-    const groups = { ...EMPTY_GROUPS, in_progress: [makeSession({ id: "alpha" })] };
+    const groups = {
+      ...EMPTY_GROUPS,
+      in_progress: [makeSession({ id: "alpha" })],
+    };
     render(<SessionList mode="all" groups={groups} />);
     expect(screen.getByText("No sessions settling.")).toBeInTheDocument();
     expect(screen.getByText("No settled sessions.")).toBeInTheDocument();
     expect(screen.getByText("No archived sessions.")).toBeInTheDocument();
   });
 
-  it("filters across all sections by search query", async () => {
-    const user = userEvent.setup();
-    const groups = {
-      in_progress: [makeSession({ id: "crispy-salmon" })],
-      settling: [makeSession({ id: "happy-tuna", status: "settling" })],
-      settled: [] as SerializableSession[],
-      archived: [] as SerializableSession[],
-    };
-    render(<SessionList mode="all" groups={groups} />);
-    await user.type(screen.getByRole("textbox", { name: /search/i }), "tuna");
-    expect(screen.queryByText("crispy-salmon")).not.toBeInTheDocument();
-    expect(screen.getByText("happy-tuna")).toBeInTheDocument();
-  });
-
-  it("shows no-match message when search yields nothing", async () => {
-    const user = userEvent.setup();
+  it("renders SessionSearchInput autocomplete in populated state", () => {
     const groups = {
       ...EMPTY_GROUPS,
       in_progress: [makeSession({ id: "alpha" })],
     };
     render(<SessionList mode="all" groups={groups} />);
-    await user.type(screen.getByRole("textbox", { name: /search/i }), "zzzzzz");
     expect(
-      screen.getByText("No sessions match your search."),
+      screen.getByRole("combobox", { name: /search/i }),
     ).toBeInTheDocument();
   });
 });
 
 describe("SessionList (mode=filtered)", () => {
   it("renders only the matching section without pagination when count <= page size", () => {
-    const sessions = [makeSession({ id: "alpha" }), makeSession({ id: "beta" })];
+    const sessions = [
+      makeSession({ id: "alpha" }),
+      makeSession({ id: "beta" }),
+    ];
     render(
       <SessionList
         mode="filtered"

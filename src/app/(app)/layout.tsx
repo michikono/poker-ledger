@@ -28,5 +28,9 @@ export default async function AppLayout({
 
   const navCounts = await fetchNavCounts();
 
-  return <AppShell firstName={user.firstName} navCounts={navCounts}>{children}</AppShell>;
+  return (
+    <AppShell firstName={user.firstName} navCounts={navCounts}>
+      {children}
+    </AppShell>
+  );
 }

@@ -59,7 +59,7 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
 
             {/* Zone 2: Search */}
             <div className="pb-3">
-              <NavSearch />
+              <NavSearch onSelect={() => setOpen(false)} />
             </div>
 
             <Separator />

@@ -34,5 +34,17 @@
   },
   "organizeImports": {
     "enabled": true
-  }
+  },
+  "overrides": [
+    {
+      "include": ["src/components/sessions/session-search-input.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -19,8 +19,7 @@ export function NavLink({ href, children, className, onClick }: NavLinkProps) {
   const url = new URL(href, "http://n");
   const hrefStatus = url.searchParams.get("status");
   const currentStatus = searchParams.get("status");
-  const isActive =
-    pathname === url.pathname && currentStatus === hrefStatus;
+  const isActive = pathname === url.pathname && currentStatus === hrefStatus;
 
   return (
     <Link
