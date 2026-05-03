@@ -1,7 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SessionStatus } from "@/lib/sessions/types";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 import { SessionList } from "./session-list";
 
 type SerializableSession = {
@@ -25,10 +30,10 @@ function makeSession(
 }
 
 describe("SessionList — empty state", () => {
-  it("renders the no-sessions empty state when given an empty list", () => {
+  it("renders the no-sessions empty state with an enabled New session button", () => {
     render(<SessionList sessions={[]} />);
     expect(screen.getByText("No sessions yet.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New Session" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "New session" })).toBeEnabled();
     expect(
       screen.queryByRole("textbox", { name: /search/i }),
     ).not.toBeInTheDocument();

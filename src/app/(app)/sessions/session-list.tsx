@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { filterSessions } from "@/lib/sessions/filter";
 import type { SessionSummary } from "@/lib/sessions/types";
+import { CreateSessionDialog } from "./create-session-dialog";
 import { SessionRow } from "./session-row";
 
 const PAGE_SIZE = 10;
@@ -40,7 +41,7 @@ export function SessionList({
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16 text-center">
         <p className="text-muted-foreground">No sessions yet.</p>
-        <Button disabled>New Session</Button>
+        <CreateSessionDialog trigger={<Button>New session</Button>} />
       </div>
     );
   }
@@ -58,7 +59,7 @@ export function SessionList({
           }}
           className="max-w-sm"
         />
-        <Button disabled>New Session</Button>
+        <CreateSessionDialog trigger={<Button>New session</Button>} />
       </div>
 
       {filtered.length === 0 ? (
