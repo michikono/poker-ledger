@@ -1,5 +1,6 @@
 "use client";
 
+import { FirebaseError } from "firebase/app";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -15,6 +16,12 @@ import {
 import { getClientAuth } from "@/lib/firebase/client";
 import { createSession } from "./actions";
 
+const SILENT_POPUP_ERRORS = new Set([
+  "auth/popup-closed-by-user",
+  "auth/cancelled-popup-request",
+  "auth/user-cancelled",
+]);
+
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,12 +33,23 @@ function SignInForm() {
     setLoading(true);
     setError(null);
     try {
+      const auth = getClientAuth();
+      // Wait for Firebase to finish restoring any persisted auth state before
+      // opening the OAuth popup. Without this, the very first click after a
+      // cold page load can race with IndexedDB/persistence init and surface
+      // as a popup/auth error, while a second click (state now ready) works.
+      await auth.authStateReady();
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(getClientAuth(), provider);
+      const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       await createSession(idToken);
       router.push(from);
     } catch (err) {
+      if (err instanceof FirebaseError && SILENT_POPUP_ERRORS.has(err.code)) {
+        // User dismissed the popup — don't show an error.
+        setLoading(false);
+        return;
+      }
       setError("Sign-in failed. Please try again.");
       console.error(err);
     } finally {
