@@ -3,13 +3,13 @@ import {
   fetchSessionsByStatus,
 } from "@/lib/sessions/queries";
 import {
-  STATUS_LABELS,
   isSessionStatus,
   type SessionStatus,
   type SessionSummary,
 } from "@/lib/sessions/types";
 import { FilterPills } from "./filter-pills";
 import { SessionList } from "./session-list";
+import { SessionsHeader } from "./sessions-header";
 
 type SerializableSession = Omit<SessionSummary, "createdAt"> & {
   createdAt: string;
@@ -46,7 +46,8 @@ export default async function SessionsPage({ searchParams }: Props) {
 
     return (
       <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-        <h1 className="text-2xl font-semibold">{STATUS_LABELS[filter]}</h1>
+        <h1 className="text-2xl font-semibold">Sessions</h1>
+        <SessionsHeader />
         <FilterPills activeFilter={filter} />
         <SessionList
           mode="filtered"
@@ -71,6 +72,7 @@ export default async function SessionsPage({ searchParams }: Props) {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">Sessions</h1>
+      <SessionsHeader />
       <FilterPills />
       <SessionList mode="all" groups={serializableGroups} />
     </div>

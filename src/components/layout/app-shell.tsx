@@ -15,7 +15,7 @@ export function AppShell({ firstName, navCounts, children }: AppShellProps) {
       <SideRail
         firstName={firstName}
         navCounts={navCounts}
-        className="hidden md:flex"
+        className="hidden md:flex md:sticky md:top-0 md:h-svh"
       />
       <Header
         firstName={firstName}

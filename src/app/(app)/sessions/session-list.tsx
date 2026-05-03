@@ -2,16 +2,14 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { SessionSearchInput } from "@/components/sessions/session-search-input";
 import {
   STATUS_EMPTY_MESSAGES,
   STATUS_LABELS,
   type SessionStatus,
   type SessionSummary,
 } from "@/lib/sessions/types";
-import { CreateSessionDialog } from "./create-session-dialog";
 import { SessionRow } from "./session-row";
 
 type SerializableSession = Omit<SessionSummary, "createdAt"> & {
@@ -88,28 +86,17 @@ function SessionListDefault({ groups }: DefaultProps) {
 
   if (totalSessions === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16 text-center">
-        <p className="text-muted-foreground">No sessions yet.</p>
-        <CreateSessionDialog trigger={<Button>New session</Button>} />
-      </div>
+      <p className="py-16 text-center text-muted-foreground">
+        No sessions yet.
+      </p>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <SessionSearchInput className="max-w-sm" />
-        <CreateSessionDialog trigger={<Button>New session</Button>} />
-      </div>
-      <div className="flex flex-col gap-6">
-        {STATUS_ORDER.map((status) => (
-          <StatusSection
-            key={status}
-            status={status}
-            sessions={groups[status]}
-          />
-        ))}
-      </div>
+      {STATUS_ORDER.map((status) => (
+        <StatusSection key={status} status={status} sessions={groups[status]} />
+      ))}
     </div>
   );
 }
@@ -156,7 +143,7 @@ function SessionListFiltered({
             ) : (
               <Link
                 href={`/sessions?status=${filter}&page=${currentPage - 1}`}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
+                className={buttonVariants({ variant: "secondary", size: "sm" })}
               >
                 Previous
               </Link>
@@ -173,7 +160,7 @@ function SessionListFiltered({
             ) : (
               <Link
                 href={`/sessions?status=${filter}&page=${currentPage + 1}`}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
+                className={buttonVariants({ variant: "secondary", size: "sm" })}
               >
                 Next
               </Link>

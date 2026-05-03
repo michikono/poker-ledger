@@ -9,6 +9,15 @@ const PILL_STATUSES: readonly SessionStatus[] = [
   "archived",
 ];
 
+function pillClass(isActive: boolean) {
+  return cn(
+    "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+    isActive
+      ? "border-accent bg-accent text-accent-foreground"
+      : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+  );
+}
+
 export function FilterPills({
   activeFilter,
 }: {
@@ -16,18 +25,16 @@ export function FilterPills({
 }) {
   return (
     <div className="flex flex-wrap gap-2">
+      <Link href="/sessions" className={pillClass(!activeFilter)}>
+        All
+      </Link>
       {PILL_STATUSES.map((status) => {
         const isActive = status === activeFilter;
         return (
           <Link
             key={status}
             href={isActive ? "/sessions" : `/sessions?status=${status}`}
-            className={cn(
-              "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-              isActive
-                ? "border-accent bg-accent text-accent-foreground"
-                : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
+            className={pillClass(isActive)}
           >
             {STATUS_LABELS[status]}
           </Link>

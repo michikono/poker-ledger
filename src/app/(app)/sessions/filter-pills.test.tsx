@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { FilterPills } from "./filter-pills";
 
 describe("FilterPills", () => {
-  it("renders all four status pills", () => {
+  it("renders all five pills including All", () => {
     render(<FilterPills />);
+    expect(screen.getByRole("link", { name: "All" })).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "In Progress" }),
     ).toBeInTheDocument();
@@ -13,18 +14,26 @@ describe("FilterPills", () => {
     expect(screen.getByRole("link", { name: "Archived" })).toBeInTheDocument();
   });
 
-  it("no pill is active when activeFilter is undefined", () => {
+  it("All pill is active when no filter is set", () => {
     render(<FilterPills />);
-    const pills = screen.getAllByRole("link");
-    for (const pill of pills) {
-      expect(pill).not.toHaveClass("bg-accent");
+    expect(screen.getByRole("link", { name: "All" })).toHaveClass("bg-accent");
+  });
+
+  it("no status pill is active when activeFilter is undefined", () => {
+    render(<FilterPills />);
+    for (const name of ["In Progress", "Settling", "Settled", "Archived"]) {
+      expect(screen.getByRole("link", { name })).not.toHaveClass("bg-accent");
     }
   });
 
-  it("marks the matching pill as active", () => {
+  it("marks the matching status pill as active", () => {
     render(<FilterPills activeFilter="settling" />);
-    const active = screen.getByRole("link", { name: "Settling" });
-    expect(active).toHaveClass("bg-accent");
+    expect(screen.getByRole("link", { name: "Settling" })).toHaveClass(
+      "bg-accent",
+    );
+    expect(screen.getByRole("link", { name: "All" })).not.toHaveClass(
+      "bg-accent",
+    );
   });
 
   it("inactive pills link to their status filter URL", () => {

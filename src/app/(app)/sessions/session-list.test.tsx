@@ -8,17 +8,6 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-vi.mock("@/components/sessions/session-search-input", () => ({
-  SessionSearchInput: () => (
-    <input
-      role="combobox"
-      aria-label="Search sessions"
-      aria-controls="session-search-listbox"
-      aria-expanded={false}
-    />
-  ),
-}));
-
 import { SessionList } from "./session-list";
 
 type SerializableSession = {
@@ -49,13 +38,9 @@ const EMPTY_GROUPS = {
 };
 
 describe("SessionList (mode=all) — empty state", () => {
-  it("renders the whole-page empty state when all groups are empty", () => {
+  it("renders the empty state message when all groups are empty", () => {
     render(<SessionList mode="all" groups={EMPTY_GROUPS} />);
     expect(screen.getByText("No sessions yet.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New session" })).toBeEnabled();
-    expect(
-      screen.queryByRole("textbox", { name: /search/i }),
-    ).not.toBeInTheDocument();
   });
 });
 
@@ -101,17 +86,6 @@ describe("SessionList (mode=all) — populated state", () => {
     expect(screen.getByText("No sessions settling.")).toBeInTheDocument();
     expect(screen.getByText("No settled sessions.")).toBeInTheDocument();
     expect(screen.getByText("No archived sessions.")).toBeInTheDocument();
-  });
-
-  it("renders SessionSearchInput autocomplete in populated state", () => {
-    const groups = {
-      ...EMPTY_GROUPS,
-      in_progress: [makeSession({ id: "alpha" })],
-    };
-    render(<SessionList mode="all" groups={groups} />);
-    expect(
-      screen.getByRole("combobox", { name: /search/i }),
-    ).toBeInTheDocument();
   });
 });
 

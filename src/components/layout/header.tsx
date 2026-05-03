@@ -65,7 +65,7 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
             <Separator />
 
             {/* Zone 3: Status filters */}
-            <nav className="flex-1 px-2 py-3">
+            <nav className="px-2 py-3">
               <ul className="flex flex-col gap-0.5">
                 {NAV_ITEMS.map((item) => {
                   const Icon = item.icon;
@@ -110,12 +110,13 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
                 })}
               </ul>
             </nav>
+
+            {/* Zone 4: User account — last item in scroll area */}
+            <div className="mt-auto">
+              <Separator />
+              <UserMenu firstName={firstName} />
+            </div>
           </div>
-
-          <Separator />
-
-          {/* Zone 4: User account */}
-          <UserMenu firstName={firstName} />
         </SheetContent>
       </Sheet>
 
