@@ -1,8 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test("home page loads", async ({ page }) => {
+test("unauthenticated visit to / lands on the sign-in page", async ({
+  page,
+}) => {
   await page.goto("/");
+  await expect(page).toHaveURL(/\/sign-in/);
+  await expect(page.getByText("Poker Ledger")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Poker Ledger" }),
+    page.getByRole("button", { name: /Continue with Google/i }),
   ).toBeVisible();
 });
