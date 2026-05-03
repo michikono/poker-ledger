@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { filterSessions } from "@/lib/sessions/filter";
+import { SessionSearchInput } from "@/components/sessions/session-search-input";
 import {
   STATUS_EMPTY_MESSAGES,
   STATUS_LABELS,
@@ -19,7 +18,9 @@ type SerializableSession = Omit<SessionSummary, "createdAt"> & {
   createdAt: string;
 };
 
-function deserialize(sessions: readonly SerializableSession[]): SessionSummary[] {
+function deserialize(
+  sessions: readonly SerializableSession[],
+): SessionSummary[] {
   return sessions.map((s) => ({ ...s, createdAt: new Date(s.createdAt) }));
 }
 
@@ -59,7 +60,6 @@ function StatusSection({
 type DefaultProps = {
   mode: "all";
   groups: Record<SessionStatus, readonly SerializableSession[]>;
-  initialQuery?: string;
 };
 
 type FilteredProps = {
@@ -80,28 +80,9 @@ export function SessionList(props: SessionListProps) {
   return <SessionListDefault {...props} />;
 }
 
-function SessionListDefault({ groups, initialQuery }: DefaultProps) {
-  const [query, setQuery] = useState(initialQuery ?? "");
-
-  const filteredGroups = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-    if (!trimmed) return groups;
-    return Object.fromEntries(
-      STATUS_ORDER.map((status) => [
-        status,
-        groups[status].filter((s) =>
-          s.name.toLowerCase().includes(trimmed),
-        ),
-      ]),
-    ) as unknown as Record<SessionStatus, readonly SerializableSession[]>;
-  }, [groups, query]);
-
+function SessionListDefault({ groups }: DefaultProps) {
   const totalSessions = STATUS_ORDER.reduce(
     (sum, s) => sum + groups[s].length,
-    0,
-  );
-  const filteredTotal = STATUS_ORDER.reduce(
-    (sum, s) => sum + filteredGroups[s].length,
     0,
   );
 
@@ -117,31 +98,18 @@ function SessionListDefault({ groups, initialQuery }: DefaultProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
-        <Input
-          aria-label="Search sessions"
-          placeholder="Search sessions..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="max-w-sm"
-        />
+        <SessionSearchInput className="max-w-sm" />
         <CreateSessionDialog trigger={<Button>New session</Button>} />
       </div>
-
-      {filteredTotal === 0 ? (
-        <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
-          No sessions match your search.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {STATUS_ORDER.map((status) => (
-            <StatusSection
-              key={status}
-              status={status}
-              sessions={filteredGroups[status]}
-            />
-          ))}
-        </div>
-      )}
+      <div className="flex flex-col gap-6">
+        {STATUS_ORDER.map((status) => (
+          <StatusSection
+            key={status}
+            status={status}
+            sessions={groups[status]}
+          />
+        ))}
+      </div>
     </div>
   );
 }

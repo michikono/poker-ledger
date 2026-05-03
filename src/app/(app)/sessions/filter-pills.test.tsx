@@ -5,7 +5,9 @@ import { FilterPills } from "./filter-pills";
 describe("FilterPills", () => {
   it("renders all four status pills", () => {
     render(<FilterPills />);
-    expect(screen.getByRole("link", { name: "In Progress" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "In Progress" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settling" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settled" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Archived" })).toBeInTheDocument();
