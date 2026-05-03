@@ -1,7 +1,7 @@
 # Change 0011: Firestore Deploy Automation
 
 ## Status
-Accepted
+In Progress
 
 ## Owner
 Michi Kono
@@ -107,7 +107,7 @@ For each `match` block in `firestore.rules` (`/sessions/{id}`, `/sessions/{id}/p
 
 Tests use `@firebase/rules-unit-testing`'s `initializeTestEnvironment` against the local emulator at `localhost:8080`. Each test runs in an isolated context. `clearFirestore` between tests.
 
-The test file lives at `firestore-rules.test.ts` at the repo root, alongside `firestore.rules` (Vitest's default glob picks it up).
+The test file lives at `firestore-rules.test.ts` at the repo root, alongside `firestore.rules`. It is excluded from the default Vitest run (which `npm test`, the pre-commit hook, and the CI `Unit Tests` job all invoke) so that those continue to require no emulator. The rules suite runs via a dedicated config (`vitest.rules.config.ts`) under `npm run test:rules` and in the CI `Firestore Rules Tests` job — both of which expect a Firestore emulator on the default port `8080`.
 
 **Workflow itself:** not unit-testable. Validated by the post-merge smoke step in Rollout phase E.
 
@@ -402,3 +402,4 @@ None. Resolved during design discussion:
 |---|---|---|
 | 2026-05-03 | Proposed | Initial draft |
 | 2026-05-03 | Accepted | Approved for implementation |
+| 2026-05-03 | In Progress | Implementation begun on `feature/0011-firestore-deploy-automation`; rules tests excluded from default Vitest run via `vitest.rules.config.ts` so `npm test` and the existing CI `Unit Tests` job remain emulator-free (small clarification to the original "default glob picks it up" wording). |

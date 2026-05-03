@@ -17,4 +17,16 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
+  ...(process.env.CI
+    ? {
+        webServer: {
+          command: "npx next dev -p 3000",
+          url: "http://localhost:3000",
+          reuseExistingServer: false,
+          timeout: 120_000,
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      }
+    : {}),
 });
