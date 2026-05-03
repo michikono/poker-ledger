@@ -12,11 +12,15 @@ Add Google Sign-In via Firebase Auth so that every route in the app — reads an
 
 ## Context
 
-Spec 0001 delivered the Next.js shell with no auth. This slice wires up Firebase Auth (Google provider) end-to-end: client-side sign-in flow, session cookie written server-side, Next.js middleware enforcing the gate on every request, and a utility for Server Actions to verify the ID token.
+Spec 0001 delivered the Next.js shell with no auth. This slice wires up Firebase Auth (Google provider) end-to-end: client-side sign-in flow, session cookie written server-side, Next.js proxy enforcing the gate on every request, and a utility for Server Actions to verify the ID token.
 
 All subsequent slices depend on this — no Firestore reads or mutations are possible without a verified identity.
 
-Relevant docs: `docs/01-user-flows.md` (auth model summary), `docs/03-architecture.md` (security boundaries), `docs/04-security-threat-model.md`, `specs/decisions/0003-auth-model.md`.
+> **Historical note (2026-05-02 retrospective):** This spec was authored against Next.js 15 and refers throughout to "middleware" / `src/middleware.ts`. The Next.js 16 upgrade (spec 0003) renamed this concept to **proxy** / `src/proxy.ts`. The implementation lives at `src/proxy.ts`. All current docs (`docs/03`, `docs/04`, `docs/06`, `docs/07`, ADR 0003) use "proxy" terminology. This spec is left as-is for historical accuracy.
+>
+> **Also:** the as-shipped proxy is **presence-only** — it checks the `session` cookie exists but does NOT cryptographically verify it. Full verification happens in the `(app)` layout RSC via `adminAuth.verifySessionCookie` and in each Server Action via `adminAuth.verifyIdToken`. This is defense-in-depth; the original spec text describing "middleware verifies token" was inaccurate to the implementation. See `docs/03-architecture.md → "Auth flow"` for the canonical flow.
+
+Relevant docs: `docs/01-user-flows.md` (auth model summary), `docs/03-architecture.md` (canonical auth flow), `docs/04-security-threat-model.md`, `specs/decisions/0003-auth-model.md`.
 
 ## User-visible behavior
 

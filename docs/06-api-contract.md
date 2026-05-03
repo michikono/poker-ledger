@@ -22,19 +22,43 @@ ADR reference: `specs/decisions/0004-server-actions-over-api-routes.md` (to be w
 
 ## Authentication
 
-**All access requires Google Sign-In.** Next.js middleware enforces the auth gate universally — unauthenticated requests to any route (page or API) are redirected to sign in.
+**All access requires Google Sign-In.** See `docs/03-architecture.md` → "Auth flow" for the canonical flow. Summary:
 
-Mutation Server Actions additionally verify a Firebase ID token passed explicitly from the client:
+- **Proxy** (`src/proxy.ts`): presence-only cookie check. Defense-in-depth.
+- **Read paths (RSC)**: cryptographic verification of the session cookie happens in `src/app/(app)/layout.tsx` via `adminAuth.verifySessionCookie(cookie, true)`. No token parameter needed in RSC page functions — the layout has already verified.
+- **Mutation Server Actions**: each action takes a `token: string` parameter. The client obtains it via `auth.currentUser.getIdToken()` immediately before the call. Verified in the action via `adminAuth.verifyIdToken(token)`. The session cookie alone is NOT sufficient.
+- **Search API route** (`/api/sessions/search`): requires the Firebase ID token in `Authorization: Bearer <token>` header.
 
 ```ts
 // Pattern used in every mutation action
-const user = await verifyAuthToken(token); // throws if invalid/expired
-if (!user) throw new ActionError("UNAUTHENTICATED");
+"use server";
+import { adminAuth } from "@/lib/auth/admin";
+
+async function requireUser(token: string) {
+  try {
+    return await adminAuth.verifyIdToken(token);
+  } catch {
+    throw new ActionError("UNAUTHENTICATED");
+  }
+}
 ```
 
-Read paths (RSC): auth enforced by middleware before the RSC renders — no explicit token parameter needed in RSC functions.
+**Client-side token retrieval pattern:**
 
-The search API route (`/api/sessions/search`): requires the Firebase ID token in the `Authorization: Bearer <token>` header.
+```ts
+"use client";
+import { auth } from "@/lib/firebase/client";
+
+async function callMutation(args) {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) {
+    // Cross-tab sign-out: redirect with a session-expired toast
+    window.location.href = `/sign-in?redirect=${encodeURIComponent(location.pathname)}`;
+    return;
+  }
+  return await someServerAction(args, token);
+}
+```
 
 ---
 
@@ -48,22 +72,28 @@ type ActionResult<T> =
   | { success: false; error: { code: ErrorCode; message: string } }
 ```
 
-Error codes:
+Error codes — exhaustive enum:
 
-| Code | Meaning |
-|---|---|
-| `UNAUTHENTICATED` | No valid auth token provided |
-| `INVALID_INPUT` | Validation failed — see `message` for detail |
-| `SESSION_NOT_FOUND` | Session does not exist |
-| `SESSION_NOT_EDITABLE` | Session state does not allow this mutation |
-| `SESSION_SETTLED` | Session is fully settled — no edits allowed |
-| `INVALID_STATE_TRANSITION` | The requested state change is not permitted |
-| `BALANCE_OUT_OF_RANGE` | Cash-outs exceed buy-ins, or shortfall exceeds 2% of total buy-ins |
-| `DUPLICATE_PLAYER_NAME` | A player with this name already exists in the session |
-| `INVALID_AMOUNT` | Amount must be a positive integer (cents) |
-| `INVALID_PLAYER_NAME` | Player name is empty, too long, or duplicates an existing name |
-| `NAME_COLLISION` | Session name generation failed after max retries |
-| `INTERNAL_ERROR` | Unexpected server error |
+| Code | Meaning | Default UI treatment |
+|---|---|---|
+| `UNAUTHENTICATED` | No valid auth token provided | Redirect to `/sign-in?redirect=<path>` + toast: "Session expired — please sign in again." |
+| `INVALID_INPUT` | Validation failed at the action boundary (shape/type) | Inline error on the offending field |
+| `INVALID_AMOUNT` | Amount is not a positive integer / out of range | Inline error on the amount input |
+| `INVALID_PLAYER_NAME` | Player name is empty, too long, or contains forbidden characters | Inline error on the name input |
+| `DUPLICATE_PLAYER_NAME` | Case-insensitive name collision in this session | Inline error on the name input |
+| `SESSION_NOT_FOUND` | Session document does not exist | Toast: "Session not found." + redirect to `/sessions` |
+| `SESSION_NOT_EDITABLE` | Session state does not allow this mutation | Toast: "This session can't be edited in its current state." |
+| `SESSION_SETTLED` | Session is fully settled — no edits allowed | Toast (subset of `SESSION_NOT_EDITABLE` for clarity) |
+| `SESSION_ARCHIVED` | Session is archived; not editable | Toast: "This session is archived. Unarchive it to edit." |
+| `INVALID_STATE_TRANSITION` | Requested transition not permitted by the state machine | Toast: "Can't perform that action right now." |
+| `BALANCE_OUT_OF_RANGE` | Cash-outs > buy-ins, or shortfall > 2%, or total buy-in is zero | Inline in the settling modal (Confirm stays disabled with explanatory text) |
+| `SESSION_DATA_STALE` | Optimistic-concurrency conflict — server data changed during the action's transaction | Toast: "Someone else just updated this session. Refresh to see the latest." + reload |
+| `PAYMENT_NOT_FOUND` | Payment document does not exist | Toast: "That payment no longer exists. Refreshing." + reload |
+| `PLAYER_NOT_FOUND` | Player document does not exist | Toast: "That player no longer exists. Refreshing." + reload |
+| `NAME_COLLISION` | Session name generation failed after 5 retries | Toast: "Couldn't create a session — please try again." |
+| `INTERNAL_ERROR` | Unexpected server error | Toast: "Something went wrong — please try again." |
+
+The Toast vs. inline distinction is canonicalized in `docs/08-ux-spec.md` → "Error code → UI treatment".
 
 ---
 
@@ -160,27 +190,27 @@ returns: ActionResult<void>
 ### `setCashOut(input, token)`
 
 **Auth required:** Yes
-**Purpose:** Set or update a player's cash-out amount.
+**Purpose:** Set, update, or clear a player's cash-out amount.
 
 ```ts
 input: {
   sessionId: string;
   playerId: string;
-  amountCents: number; // non-negative integer
+  amountCents: number | null; // null = clear; otherwise non-negative integer
 }
 
 returns: ActionResult<void>
 ```
 
-**Validation:** Session must be `in_progress` or `settling`; amount must be ≥ 0.
-**Side effects:** Updates `Player.cash_out_cents`; writes `ChangeLogEntry` (`cash_out_set`).
+**Validation:** Session must be **`in_progress` only** — see rule `cashout-edits-only-via-rollback-once-settling` in `docs/07`. Amount, if non-null, must be 0 ≤ value ≤ 2_000_000.
+**Side effects:** Updates `Player.cash_out_cents`; writes `ChangeLogEntry` (`cash_out_set`, with `metadata.cleared = true` if `amountCents === null`).
 
 ---
 
 ### `transitionToSettling(input, token)`
 
 **Auth required:** Yes
-**Purpose:** Move session from `in_progress` to `settling`. Calculates and stores minimum settlements.
+**Purpose:** Move session from `in_progress` to `settling` (or directly to `settled` if zero Payments are produced). Calculates and stores minimum settlements.
 
 ```ts
 input: {
@@ -194,11 +224,13 @@ returns: ActionResult<{
     toPlayerId: string;
     amountCents: number;
   }>;
+  finalStatus: "settling" | "settled"; // settled if zero payments produced
 }>
 ```
 
-**Validation:** Session must be `in_progress`; all players must have `cash_out_cents` set; `total_cashout <= total_buyin` and `(total_buyin - total_cashout) / total_buyin <= 0.02`.
-**Side effects:** Creates `Payment` documents (minimum transaction set); updates `Session.status` to `settling`; writes `ChangeLogEntry` (`status_changed`). All writes in a single Firestore transaction.
+**Validation:** Session must be `in_progress`; ≥1 player; all players must have `cash_out_cents` set (non-null); `total_cashout <= total_buyin` and `total_buyin > 0` and `(total_buyin - total_cashout) / total_buyin <= 0.02`.
+**Side effects:** Creates `Payment` documents (minimum transaction set, after applying shortfall absorption per `docs/07-business-logic.md`); updates `Session.status` to `settling` (or `settled` if zero payments). Writes one `ChangeLogEntry` (`status_changed`). All writes in a single Firestore transaction.
+**Optimistic concurrency:** if another concurrent mutation modifies the session during this transaction, Firestore retries up to 5 times. After exhaustion, returns `SESSION_DATA_STALE`.
 
 ---
 
@@ -217,8 +249,8 @@ input: {
 returns: ActionResult<void>
 ```
 
-**Validation:** Session must not be `archived`; name must be unique within session (case-insensitive); non-empty.
-**Side effects:** Updates `Player.name`; writes `ChangeLogEntry` (`player_name_edited`).
+**Validation:** Session must not be `archived`; name must be unique within session (case-insensitive via `name_lower`); non-empty after trim; ≤ 50 chars.
+**Side effects:** Updates `Player.name` and `Player.name_lower`; writes `ChangeLogEntry` (`player_renamed`, with `metadata = { player_id, from, to }`). Existing changelog entries are NOT rewritten — they retain the old name as a snapshot.
 
 ---
 
@@ -294,7 +326,9 @@ returns: ActionResult<void>
 ```
 
 **Validation:** Transition must be a valid rollback (settled→settling or settling→in_progress).
-**Side effects:** Updates `Session.status`; if rolling back `settled → settling`, resets all `Payment.paid` to false; writes `ChangeLogEntry` (`status_changed`).
+**Side effects:**
+- For `settled → settling`: updates `Session.status`; resets every `Payment.paid` to false (and clears `paid_at`, `paid_by_uid`); writes one `ChangeLogEntry` (`status_changed`, with `metadata.reason = "manual_rollback"`). No individual `payment_unmarked_paid` entries are emitted for the cascade.
+- For `settling → in_progress`: updates `Session.status`; **deletes every Payment document in the session** (so re-entry to `settling` recomputes from scratch); writes one `ChangeLogEntry` (`status_changed`, with `metadata.reason` omitted). All in one Firestore transaction.
 
 ---
 
@@ -311,8 +345,8 @@ input: {
 returns: ActionResult<void>
 ```
 
-**Validation:** Session must exist and not already be `archived`.
-**Side effects:** Updates `Session.status` to `archived`, sets `Session.previous_status`; writes `ChangeLogEntry` (`status_changed`).
+**Validation:** Session must exist and not already be `archived` (returns `INVALID_STATE_TRANSITION` otherwise).
+**Side effects:** Updates `Session.status` to `archived`, sets `Session.previous_status` to the prior status; writes `ChangeLogEntry` (`session_archived`, with `metadata = { previous_status }`). Payment docs are retained as-is.
 
 ---
 
@@ -329,8 +363,8 @@ input: {
 returns: ActionResult<void>
 ```
 
-**Validation:** Session must be `archived` and must have a valid `previous_status`.
-**Side effects:** Updates `Session.status` to `previous_status`, clears `Session.previous_status`; writes `ChangeLogEntry` (`status_changed`).
+**Validation:** Session must be `archived` and must have a valid `previous_status` (one of `in_progress`, `settling`, `settled`). Returns `INVALID_STATE_TRANSITION` if `previous_status` is null/missing/invalid.
+**Side effects:** Updates `Session.status` to `previous_status`, clears `Session.previous_status`; writes `ChangeLogEntry` (`session_unarchived`, with `metadata = { restored_to }`).
 
 ---
 
@@ -340,8 +374,25 @@ These are server-side data fetches performed inside React Server Components, not
 
 | Page | Data fetched |
 |---|---|
-| `/sessions` | All non-archived sessions, ordered by `(status, created_at DESC)` |
-| `/sessions/:name` | Session + all players + all buy-ins per player + all payments + change log |
+| `/sessions` | All non-archived sessions, fetched as three parallel `where("status", "==", X)` queries (one per visible status), then sorted in app code. Player count is read from the denormalized `Session.player_count` field — no N+1. Hard cap: 200 per status group. |
+| `/sessions/:name` | Single session document + all players (and per-player `buy_ins`) + all payments + last 200 changelog entries. |
+| `/sessions/archived` (Archived menu item) | All sessions where `status == "archived"`, ordered by `previous_status` priority then `created_at DESC`. |
+
+**Recommended fetch pattern for `/sessions/:name`:**
+
+```ts
+const [session, players, payments, log] = await Promise.all([
+  db.collection("sessions").doc(name).get(),
+  db.collection("sessions").doc(name).collection("players").orderBy("created_at", "asc").get(),
+  db.collection("sessions").doc(name).collection("payments").orderBy("created_at", "asc").get(),
+  db.collection("sessions").doc(name).collection("change_log").orderBy("created_at", "desc").limit(200).get(),
+]);
+// Then for each player, fetch buy-ins (additional Promise.all over players[])
+```
+
+Buy-ins per player are fetched in a second `Promise.all` round (one query per player). Acceptable at MVP scale (typically ≤ 10 players per session). If this becomes a hot path, denormalize `total_buy_in_cents` onto the player document.
+
+**Date serialization:** all Firestore Timestamps are converted to ISO 8601 strings (UTC) before being passed from RSC to Client Components, since `Timestamp` is not serializable across the RSC boundary.
 
 ---
 
@@ -352,15 +403,34 @@ These are server-side data fetches performed inside React Server Components, not
 **Auth required:** Yes — Firebase ID token required in `Authorization: Bearer <token>` header.
 **Purpose:** Autocomplete session name search.
 
+**Query semantics:**
+- `q` is lowercased (`q.toLowerCase()`) before matching.
+- Two passes:
+    1. **Prefix matches** on `name_lower`: Firestore range query `where("name_lower", ">=", q).where("name_lower", "<", q + "")` — sorted alphabetically (A→Z).
+    2. **Contains matches** (only if prefix yields fewer than 10): fetch a wider window (latest 100 sessions) and filter client-side for `name_lower.includes(q)` excluding the prefix matches. Sorted by `created_at DESC`.
+- Results are merged in that order; max 10 returned.
+- Empty/whitespace `q` → 400 `INVALID_INPUT`.
+- Includes archived sessions. Archived results carry the `archived` status badge in the UI.
+
 **Response:**
 ```json
 [
-  { "name": "crispy-salmon-042", "status": "in_progress", "created_at": "..." },
-  ...
+  {
+    "name": "crispy-salmon-042",
+    "status": "in_progress",
+    "created_at": "2026-05-02T18:30:00.000Z",
+    "match_kind": "prefix"
+  },
+  {
+    "name": "happy-tuna-007",
+    "status": "settled",
+    "created_at": "2026-04-15T12:10:00.000Z",
+    "match_kind": "contains"
+  }
 ]
 ```
 
-Results ordered: alphabetical match first, then most recent. Maximum 10 results. Includes all sessions regardless of status (including `archived`).
+All timestamps are ISO 8601 strings (UTC). `match_kind` is `"prefix"` or `"contains"` (used by the UI to surface why a result matched). Maximum 10 results. Cap at 5 prefix + 5 contains.
 
 ---
 

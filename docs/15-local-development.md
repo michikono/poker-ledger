@@ -52,15 +52,7 @@ Emulator ports:
 
 ### Signing in locally
 
-The Auth emulator does not connect to real Google accounts. To sign in:
-
-1. Start the app: `npm run dev`
-2. Navigate to `localhost:4000` → **Authentication** tab
-3. Click **"Add user"** and create a test account (e.g., email `test@example.com`, any password)
-4. Go to `localhost:3000` → click **"Sign in with Google"**
-5. The emulator shows a selector of available accounts — pick the one you created
-
-Alternatively, the emulator accepts any Google OAuth flow triggered in the browser against the demo project. Existing emulator users persist in `.emulator-data/` between restarts.
+See the consolidated "Signing in locally with Firebase Auth emulator" section below.
 
 ---
 
@@ -128,7 +120,7 @@ After starting `npm run dev`, the Firebase Auth emulator is available at `localh
 To sign in locally:
 
 1. Open http://localhost:4000/auth in your browser.
-2. Click **Add user** and create a test user (any email/password works — no real credentials needed).
+2. Click **Add user** and create a test user. **Set the `displayName` field** (e.g., `Test User`) — otherwise the changelog will show `"Anonymous"` as the actor.
 3. Open the app at http://localhost:3000.
 4. Click **Sign in with Google** on the sign-in page.
 5. The emulator will show a popup with your test accounts — select the one you created.
@@ -136,9 +128,11 @@ To sign in locally:
 
 Notes:
 - The emulator accepts Google Sign-In via popup without any real Google credentials.
+- The popup is the **emulator's own picker**, not a real Google OAuth screen. This differs from production.
 - Test users are persisted in `.emulator-data/` and survive restarts.
 - Each worktree has its own `.emulator-data/` so switching worktrees switches user sets.
 - Session cookies are set as `HttpOnly` so they are invisible to JavaScript — this is expected behavior.
+- If you forget to set `displayName`, the user signs in fine but the activity log will show `"Anonymous"` for that user. The fallback chain is: `displayName.split(' ')[0]` → `"Anonymous"`. Email and UID are never used as `actor_name`.
 
 ---
 

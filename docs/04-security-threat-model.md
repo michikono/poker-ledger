@@ -44,10 +44,10 @@ Identify threats, attack surface, and mitigations before implementation. This do
 | Unauthenticated mutation (add/remove buy-in without sign-in) | Elevation of privilege | High | High | Firebase Auth token verified server-side on every Server Action; unauthenticated calls rejected | Planned |
 | Session data tampering (manipulate another user's buy-in) | Tampering | Medium | Medium | Authorization check on every mutation (session must exist, status must allow edit); Firestore Security Rules as second layer | Planned |
 | Session spam / DoS (create thousands of sessions) | Denial of service | Medium | Low | Session creation requires Google Sign-In; rate limiting TBD | Partial |
-| Guessing session URLs (enumerate sessions) | Information disclosure | Low | Low | Session names are `food-food-NNN` (~2.5M combinations); not secret but not enumerable by brute force in practice | Accepted risk |
+| Guessing session URLs (enumerate sessions) | Information disclosure | Low | Low | Session names are `food-food-NNN` (~5.3M combinations: 73 × 73 × 1000 — see `docs/07-business-logic.md`); not secret but not enumerable by brute force in practice | Accepted risk |
 | Secret leakage via client bundle | Information disclosure | Low | High | Firebase Admin credentials are server-only env vars; never referenced in client components; `NEXT_PUBLIC_` vars are intentionally public | Planned |
 | CSRF on Server Actions | Spoofing | Low | High | Next.js Server Actions use `SameSite=Strict` cookies; cross-origin requests blocked | Framework default |
-| Replay of expired Firebase ID tokens | Spoofing | Low | Medium | Firebase ID tokens expire after 1 hour; Admin SDK verifies expiry on every request | Firebase default |
+| Replay of expired Firebase ID tokens | Spoofing | Low | Medium | Firebase ID tokens expire after 1 hour; Admin SDK verifies expiry on every request. Replay within the 1-hour window is mitigated by `SameSite=Strict` session cookie + HTTPS-only transport | Firebase default |
 | XSS via user-supplied content | Tampering | Low | Medium | React escapes all rendered content by default; no `dangerouslySetInnerHTML`; player names and descriptions are plain text | Framework default |
 | Compromised npm dependency | Various | Low | High | `npm audit` in CI; pin dependency versions in `package-lock.json`; review major dep additions | Planned |
 
@@ -57,20 +57,28 @@ STRIDE categories: Spoofing, Tampering, Repudiation, Information disclosure, Den
 
 ## Authentication and authorization model
 
-**Authentication:**
-- Google Sign-In via Firebase Auth (`signInWithPopup`)
-- Firebase ID token issued to client after sign-in
-- Every Server Action that mutates data: client sends ID token in request; server verifies via Firebase Admin SDK (`auth.verifyIdToken(token)`)
-- Unauthenticated mutation calls return `401 Unauthorized`
+The canonical auth flow is documented in `docs/03-architecture.md` → "Auth flow". Summary:
 
-**Authorization:**
-- All access (view session, list sessions, search, and all mutations) requires a verified Firebase ID token. Unauthenticated requests are redirected to sign in by Next.js middleware.
-- No per-user ownership checks in MVP — any authenticated user can read or mutate any session.
-- Firestore Security Rules enforce `request.auth != null` for all reads and writes — second line of defense.
+**Authentication layers (defense-in-depth):**
+1. **Proxy** (`src/proxy.ts`): presence-only cookie check. Redirects to `/sign-in` if the `session` cookie is absent. **Does NOT cryptographically verify** — that happens at layer 2.
+2. **App layout RSC** (`src/app/(app)/layout.tsx`): cryptographically verifies the session cookie via `adminAuth.verifySessionCookie(cookie, true)` (revocation check enabled). Failure → redirect. This is the primary check for read paths.
+3. **Server Actions**: every mutation requires a fresh Firebase ID token (passed by client via `auth.currentUser.getIdToken()`), verified by `adminAuth.verifyIdToken(token)`. The session cookie alone is NOT sufficient for mutations.
+4. **Firestore Security Rules**: reads require `request.auth != null` as defense-in-depth. Writes are denied to clients — all writes flow through Server Actions using the Admin SDK (which bypasses rules).
 
-**Players vs. users:**
-- Players are name strings in Firestore — they have no auth identity
-- The authenticated user who performs an action is recorded in the changelog; the player being acted on is just a reference
+**Authorization (what an authenticated user can do):**
+- All access (view session, list sessions, search, and all mutations) requires sign-in. Anyone signed in can read or mutate any session — no per-session ownership in MVP.
+- Player records have no auth identity — they are name strings. The signed-in actor is recorded in the changelog; the player being acted on is referenced by document ID.
+
+**Token lifecycle:**
+- Session cookie TTL: **5 days** (`HttpOnly`, `Secure`, `SameSite=Strict`).
+- Firebase ID token TTL: **1 hour** (auto-refreshed by Firebase Client SDK using its persisted refresh token).
+- After session-cookie expiry: next navigation → `/sign-in`.
+- After cross-tab sign-out: in-memory `auth.currentUser` is stale; next Server Action returns `UNAUTHENTICATED`; client redirects to `/sign-in?redirect=...` with a "Session expired" toast.
+
+**`displayName` privacy:**
+- The changelog stores **only** the user's first name (`displayName.split(' ')[0]`).
+- Fallback chain when `displayName` is missing/empty: `"Anonymous"` (literal). **Never** falls back to `email` or `uid` (would leak PII).
+- Email and UID are stored only in `actor_uid` (UID, opaque).
 
 ---
 
