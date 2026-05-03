@@ -1,85 +1,140 @@
 # Change 0012: Session Index Filters
 
 ## Status
-Proposed
+Implemented
 
 ## Owner
 Michi Kono
 
 ## Goal
 
-Make the six nav items functional: wire `?status=` filtering on the sessions index so that "In progress", "Settling", "Settled", and "Archived" each show only the relevant sessions, and highlight the active nav item.
+Give the sessions index page inline navigation across all four session states, with URL-based deep linking so that side nav links automatically activate the correct filter on arrival.
+
+Also: show live session counts next to "In progress" and "Settling" in the side nav, and make the logo/title in the side rail clickable.
 
 ## Context
 
-The six nav items in `src/components/layout/nav-items.ts` already link to `/sessions?status=<value>`, but the sessions index page ignores the `?status` param entirely — all links land on the same unfiltered list. The "Archived" link is additionally broken because `fetchVisibleSessions` excludes archived sessions from its Firestore query, so even if filtering were wired up, archived sessions would never appear.
+The sessions index currently shows one flat list of all non-archived sessions with no inline navigation between status groups. The six nav items in `src/components/layout/nav-items.ts` link to `/sessions?status=<value>`, but the page ignores the `?status` param entirely — all links land on the same unfiltered list. Archived sessions are additionally excluded from `fetchVisibleSessions`, so the "Archived" nav link would be broken even if filtering were wired.
 
-This is the last gap between the implemented code and the MVP UX spec (`docs/08-ux-spec.md` § Navigation model, § Session Index).
+The revised design makes the sessions index self-contained: four section tables (one per status) are visible at once on the default view, and a filter pill bar lets users jump to a single-status paginated view. Filter state lives entirely in the URL — pill clicks are plain `<Link>` navigations that trigger a server re-render with only the relevant sessions fetched. This keeps pagination simple: each filtered view is an independent server-rendered page with its own `?page=` param.
 
 ## User-visible behavior
 
-### Status filtering
+### Sessions index — default state (`/sessions`)
 
-- `/sessions` — current behavior unchanged: shows all non-archived sessions ordered by status priority then recency.
-- `/sessions?status=in_progress` — shows only `in_progress` sessions, most recent first.
-- `/sessions?status=settling` — shows only `settling` sessions, most recent first.
-- `/sessions?status=settled` — shows only `settled` sessions, most recent first.
-- `/sessions?status=archived` — shows only `archived` sessions, most recent first.
+- Four sections render on the page in order: **In Progress**, **Settling**, **Settled**, **Archived**.
+- Each section has a heading and a table of sessions with that status, most recent first.
+- An empty section shows a minimal per-status empty message (no CTA).
+- A filter pill bar sits below the page heading and above the sections: `In Progress` · `Settling` · `Settled` · `Archived`.
+- No pill is active in the default state.
+- A search bar is visible. It filters session names client-side across all visible sections simultaneously.
+- The "New session" button is visible.
+- No side nav item is highlighted.
+- No pagination — the default view fetches all sessions across all four statuses and renders them without a page limit. (Session counts are expected to be small for a poker ledger; if this becomes a concern it is a follow-up.)
 
-An invalid `?status` value (anything not in the enum) is treated as no filter (falls back to unfiltered view).
+### Sessions index — filtered state (`/sessions?status=<value>`)
 
-### Page heading
-
-The `<h1>` on the sessions index changes to reflect the active filter:
+- The server fetches **only** the matching status, paginated at 10 per page.
+- Exactly one filter pill is active — the one matching `?status`.
+- Only the matching section is visible; the other three are not rendered.
+- The active pill is visually distinct (same `bg-accent text-accent-foreground` treatment as the hover state).
+- The search bar is **hidden** on filtered views.
+- Pagination controls appear below the section when there are more than 10 sessions.
+- The `?page=` param controls the current page (default 1). Invalid page values clamp to 1.
+- The page `<h1>` changes to reflect the active filter:
 
 | `?status` | Heading |
 |---|---|
 | (none) | Sessions |
-| `in_progress` | In progress |
+| `in_progress` | In Progress |
 | `settling` | Settling |
 | `settled` | Settled |
 | `archived` | Archived |
 
+- An invalid or unrecognised `?status` value falls back to the default (all sections, no pill active, heading "Sessions").
+
+### Filter pill interaction
+
+- Pills are plain `<Link>` elements — clicking one triggers a full server navigation.
+- Clicking an **inactive** pill navigates to `/sessions?status=<value>` (server fetches only that status, page resets to 1).
+- Clicking the **active** pill navigates to `/sessions` (server re-renders the default four-section view).
+- The active pill is determined server-side from `searchParams.status` — no client state needed.
+- The browser back button restores the previous URL and view as a normal navigation.
+
+### Deep links from the side nav
+
+The side nav status links (`/sessions?status=in_progress`, etc.) drive the filter state via the URL. On arrival the page reads `?status`, renders only the matching section, and shows the matching pill as active — the user lands in the correct filtered view without any extra interaction.
+
 ### Empty states
 
-Each filtered view has its own empty-state copy:
-
-| Filter | Empty copy |
+| Context | Empty copy |
 |---|---|
-| (none) | "No sessions yet." + New session CTA |
-| `in_progress` | "No sessions in progress." |
-| `settling` | "No sessions settling." |
-| `settled` | "No settled sessions." |
-| `archived` | "No archived sessions." |
+| No sessions at all (default view, all sections empty) | "No sessions yet." + New session CTA |
+| Section empty in default view | "No {status label} sessions." (no CTA) |
+| Filtered view, no sessions | "No {status label} sessions." (no CTA) |
+| Search with no matches (default view only) | "No sessions match your search." (no CTA) |
 
-Filtered empty states do not show the New session CTA.
+The "New session" CTA appears only when every section is empty on the default view.
 
-### Active nav item
+### Active side nav item
 
-The currently active nav item is visually highlighted (same `bg-accent text-accent-foreground` treatment as hover). The active item is determined by matching the current pathname + `?status` param:
+The currently active nav item is visually highlighted when its `?status` filter is active in the URL:
 
 | Nav item | Active when |
 |---|---|
-| New session | never highlighted |
+| New session (CTA) | never highlighted |
 | In progress | `?status=in_progress` |
 | Settling | `?status=settling` |
 | Settled | `?status=settled` |
 | Archived | `?status=archived` |
-| Search | never highlighted (deferred — see spec 0013) |
+| Search input | never highlighted |
 
-No item is highlighted when visiting `/sessions` with no status param.
+No item is highlighted on the default `/sessions` view.
 
-### Search box
+### Side nav counts
 
-The search box is hidden on filtered views (`?status=*`). It is only shown on the unfiltered index (`/sessions`). Rationale: the search box filters the already-fetched list client-side; combining it with a status filter adds complexity for minimal gain, and the filtered lists are short enough to not need it.
+The "In progress" and "Settling" nav items show a live count badge when the count is greater than zero. The badge disappears when the count reaches zero. Counts are fetched server-side on each layout render via two lightweight Firestore `count()` aggregate queries.
+
+### Side rail logo link
+
+The "Poker Ledger" icon + title in the side rail is a clickable link to `/sessions`. The mobile header already has this behaviour; this change makes the desktop side rail consistent.
+
+### Side nav structure
+
+The nav is reorganised into three distinct zones, visually separated:
+
+**Zone 1 — Primary action:**
+- A "New session" button rendered as a full-width primary CTA (using the primary/felt colour treatment). Clicking it opens the create-session dialog directly — it does not navigate to a different page. A visual separator (or extra spacing) distinguishes it from the search input below.
+
+**Zone 2 — Search:**
+- An inline text input (not a link or icon button) rendered below the "New session" CTA.
+- Typing and submitting (Enter) navigates to `/sessions?q=<value>`, applying a name search server-side.
+- Clearing the input navigates back to `/sessions`.
+- The search input is always visible in the nav; it is not a collapsible or deferred element.
+- Placeholder text: "Search sessions…"
+
+**Zone 3 — Status filters:**
+- Four items in order: In Progress · Settling · Settled · Archived.
+- These are the standard nav link rows (icon + label + optional count badge).
+- Active highlighting applies to this group only.
+
+**Zone 4 — User account (bottom of nav, below a separator):**
+- An avatar circle showing the user's first initial (felt colour background).
+- The user's first name displayed as static text — not a link, not a button, no interaction.
+- A "Log out" link/button directly visible beside or below the name — no dropdown, no hidden menu.
+- Clicking "Log out" signs the user out and redirects to the sign-in page.
+
+This replaces the current dropdown `UserMenu` for the rail variant. The existing dropdown pattern is removed.
+
+The mobile drawer (`Header`) mirrors this structure: CTA button, then search input, then four filter links, then the user account zone at the bottom.
 
 ## Non-goals
 
-- Session search / autocomplete (`/api/sessions/search`) — deferred to a follow-up spec.
-- `?focus=search` behavior for the Search nav item — deferred.
-- Pagination on the archived view — use the same 10-per-page client-side pagination already in `<SessionList>`.
+- Pagination on the default (all-sections) view — deferred; session counts are expected to stay small.
+- Full-text / fuzzy search — nav search matches by session name only (substring, case-insensitive).
 - Any change to the session detail page.
 - Any change to the data model.
+- Multi-select filtering (showing two or more status sections while hiding others).
 
 ## Data model impact
 
@@ -91,17 +146,25 @@ None. No domain model, architecture, API contract, or user flow diagrams are aff
 
 ## API impact
 
-No new Server Actions or API routes. One new read helper:
+No new Server Actions or API routes. New read helpers in `src/lib/sessions/queries.ts`:
 
-**`fetchArchivedSessions(): Promise<SessionSummary[]>`** — queries Firestore for sessions where `status == "archived"`, ordered by `created_at DESC`. Lives in `src/lib/sessions/queries.ts` alongside `fetchVisibleSessions`. Returns `SessionSummary[]` (same shape). No `sortSessions` call needed — result is already a single-status list ordered by date.
+**`fetchSessionsByStatus(status: SessionStatus): Promise<SessionSummary[]>`** — queries Firestore for the given status, ordered by `created_at DESC`. Used by the filtered view for all four statuses (including archived). Returns `SessionSummary[]`.
+
+**`fetchAllStatusGroups(): Promise<Record<SessionStatus, SessionSummary[]>>`** — four parallel `fetchSessionsByStatus` calls. Used by the default view. Returns a map of status → sessions.
+
+**`fetchNavCounts(): Promise<NavCounts>`** — two parallel `count()` aggregate queries for `in_progress` and `settling`. Returns `{ in_progress: number; settling: number }`. Called in the app layout, not the sessions page.
+
+`fetchVisibleSessions()` can be removed or left as an alias once all call sites are updated.
+
+The `?q=` param (from the nav search input) is a name substring filter applied server-side before returning results. When `?q=` is present alongside no `?status=`, all four groups are fetched and filtered by name. When `?q=` is present with a `?status=`, only that status is fetched and filtered by name.
 
 ## Security/privacy impact
 
-None. Archived sessions are owned by the same users and already readable via Firebase Auth token verification in the layout. No new auth surface.
+None. Archived sessions are owned by the same users and already readable via Firebase Auth token verification in the layout.
 
 ## Local development impact
 
-None. The emulator already supports all queries used here. No new env vars or emulator services.
+None. The emulator supports all queries used here. No new env vars or emulator services.
 
 ## Quality gates
 
@@ -119,112 +182,154 @@ None. The emulator already supports all queries used here. No new env vars or em
 
 **Unit tests (write alongside implementation):**
 
-1. **`fetchArchivedSessions`** — emulator-based:
-   - Returns only archived sessions.
+1. **`fetchSessionsByStatus`** — emulator-based:
+   - Returns only sessions with the given status.
    - Returns empty array when none exist.
    - Ordered most recent first.
+   - Works for all four statuses including `archived`.
 
-2. **`filterSessions`** — no changes needed; status filtering happens before this function is called.
+2. **`fetchNavCounts`** — emulator-based:
+   - Returns correct counts for `in_progress` and `settling`.
+   - Returns zero counts when no matching sessions exist.
 
-3. **`<SessionList>`** — update existing tests to cover:
-   - Empty state copy varies by filter prop.
-   - Search box is hidden when a status filter is active.
+3. **`<SessionsPage>` / routing** — unit or smoke:
+   - Default render shows all four section headings.
+   - `?status=in_progress` renders only the In Progress section.
+   - `?status=bogus` falls back to the default four-section render.
 
-4. **`<NavItems>` / active highlight** — unit test that the correct item is marked active for each `?status` value and for the unfiltered case.
+4. **`<FilterPills>`**:
+   - No pill has the active style when `status` is undefined.
+   - The matching pill has the active style for each valid `?status` value.
+
+5. **`<SessionList>` / grouped view**:
+   - Default: all four sections rendered with correct headings.
+   - Filtered: only the matching section rendered, pagination controls present when count > 10.
+   - Search filters across all sections in the default view.
+   - No-match message shown when search yields nothing.
+   - Whole-page empty state shown when all sessions arrays are empty.
+
+6. **`<NavLink>` / active state** — unit test that the correct item receives the active class for each `?status` value and for the unfiltered case.
 
 **Not unit-tested:**
-- RSC `page.tsx` routing logic (covered by smoke test).
+- Firestore index correctness (covered by emulator integration tests above).
 
 **Local smoke test checklist:**
-- [ ] Visit `/sessions` — unfiltered list, no nav item highlighted, search box visible, heading "Sessions"
-- [ ] Click "In progress" in nav — URL is `/sessions?status=in_progress`, "In progress" nav item highlighted, heading "In progress", only in-progress sessions shown, search box hidden
-- [ ] Click "Settling" — correct filter applied and nav item highlighted
-- [ ] Click "Settled" — correct filter applied and nav item highlighted
-- [ ] Archive a session via the session detail page, then click "Archived" in nav — archived session appears, heading "Archived", nav item highlighted
-- [ ] Unarchive the session from the archived view — session disappears from archived list
-- [ ] Visit `/sessions` again — unarchived session reappears in unfiltered list
-- [ ] Visit `/sessions?status=bogus` — falls back to unfiltered view, no nav item highlighted
-- [ ] Empty state: visit a filtered view with no matching sessions — correct per-filter copy, no New session CTA
+- [ ] Visit `/sessions` — all four sections visible, no nav item highlighted, search box visible, heading "Sessions", no filter pill active
+- [ ] Click "In progress" filter pill — full page navigation to `?status=in_progress`, only In Progress section visible, pill active, heading "In Progress", search hidden, "In progress" nav item highlighted
+- [ ] Click the active "In progress" pill — navigates to `/sessions`, all sections shown, no pill active
+- [ ] Click "In progress" in the side nav — same result as clicking the pill
+- [ ] Repeat for Settling, Settled, Archived
+- [ ] On a filtered view with > 10 sessions: pagination controls appear; Next/Previous navigate correctly via `?page=` param
+- [ ] Archive a session via the detail page; visit `/sessions?status=archived` — archived session appears
+- [ ] Visit `/sessions?status=bogus` — falls back to default view, no pill active, heading "Sessions"
+- [ ] Nav counts: "In progress" and "Settling" show counts when sessions exist in those states; badges absent when count is zero
+- [ ] Logo in side rail is clickable and navigates to `/sessions`
+- [ ] "New session" in the nav is a CTA button, visually distinct from the status items below it
+- [ ] Search input in the nav: type a name and press Enter → navigates to `/sessions?q=<value>` showing matching sessions; clear the input and press Enter → returns to `/sessions`
+- [ ] Mobile drawer has the same three-zone structure
 
 ## Acceptance criteria
 
-- [ ] `/sessions?status=in_progress` shows only in-progress sessions
-- [ ] `/sessions?status=settling` shows only settling sessions
-- [ ] `/sessions?status=settled` shows only settled sessions
-- [ ] `/sessions?status=archived` shows only archived sessions (fetched via `fetchArchivedSessions`)
-- [ ] `/sessions` (no param) shows all non-archived sessions — existing behavior preserved
-- [ ] Invalid `?status` values fall back to the unfiltered view
+- [ ] Default `/sessions` shows all four status sections with no pagination
+- [ ] Filter pills render for all four statuses; no pill is active by default
+- [ ] Clicking an inactive pill performs a server navigation to `?status=<value>` showing only that section
+- [ ] Clicking the active pill navigates to `/sessions` and restores the default view
+- [ ] `/sessions?status=in_progress` (and each other valid status) renders only the matching section with the pill active
+- [ ] Filtered views are paginated at 10 per page; `?page=N` controls the current page
+- [ ] Invalid `?status` values fall back to the default view
 - [ ] Page `<h1>` reflects the active filter
-- [ ] Active nav item is visually highlighted for each status filter
-- [ ] No nav item is highlighted on the unfiltered `/sessions` view
-- [ ] Search box is visible on `/sessions` and hidden on all filtered views
-- [ ] Empty states use the per-filter copy and show the New session CTA only on the unfiltered view
-- [ ] `fetchArchivedSessions` unit tests pass against the emulator
+- [ ] Active side nav item is visually highlighted for each status filter
+- [ ] No side nav item is highlighted on the default `/sessions` view
+- [ ] Search bar visible on default view, hidden on filtered views
+- [ ] Search filters across all sections in the default view
+- [ ] Empty states use per-context copy; CTA only on whole-page empty state
+- [ ] `fetchSessionsByStatus` unit tests pass against the emulator
+- [ ] `fetchNavCounts` unit tests pass against the emulator
 - [ ] `<SessionList>` unit tests updated and passing
+- [ ] `<FilterPills>` unit tests passing
 - [ ] Active nav item unit tests passing
+- [ ] Nav counts show on "In progress" and "Settling" in the side nav
+- [ ] Logo in side rail navigates to `/sessions`
+- [ ] "New session" renders as a primary CTA button, visually separated from the four status filter items
+- [ ] Search is an inline text input in the nav; submitting navigates to `/sessions?q=<value>`; clearing returns to `/sessions`
+- [ ] User account zone: avatar initial + first name (non-interactive) + direct "Log out" action visible without a dropdown
+- [ ] Mobile drawer mirrors the same four-zone nav structure
 - [ ] Local smoke test checklist completed
 - [ ] `npm run check` passes
 
 ## Rollout/deployment notes
 
-No new Firestore indexes needed — `where("status", "==", "archived") + orderBy("created_at", "desc")` uses the same per-status index already defined for visible sessions in `firestore.indexes.json`. No new env vars.
+No new Firestore indexes needed. The per-status queries and `count()` aggregates use existing indexes. No new env vars.
 
 ## Implementation notes
 
-**RSC page changes (`src/app/(app)/sessions/page.tsx`):**
+**RSC page (`src/app/(app)/sessions/page.tsx`):**
 
-The page receives `searchParams` and reads `status`. If `status === "archived"`, call `fetchArchivedSessions()`. Otherwise call `fetchVisibleSessions()` as today. Pass `statusFilter` down to `<SessionList>` alongside `sessions`.
+Reads `searchParams.status` and `searchParams.page`. When a valid status filter is present, fetches only that status with offset-based pagination. When no filter, fetches all four groups in parallel:
 
 ```ts
-type Props = { searchParams: Promise<{ status?: string }> };
+type Props = { searchParams: Promise<{ status?: string; page?: string }> };
 
 export default async function SessionsPage({ searchParams }: Props) {
-  const { status } = await searchParams;
+  const { status, page } = await searchParams;
   const filter = isSessionStatus(status) ? status : undefined;
-  const sessions = filter === "archived"
-    ? await fetchArchivedSessions()
-    : await fetchVisibleSessions();
-  // serialize + pass filter to <SessionList>
+  const currentPage = Math.max(1, parseInt(page ?? "1", 10) || 1);
+
+  if (filter) {
+    const sessions = await fetchSessionsByStatus(filter);
+    // slice for pagination, pass filter + page to client component
+  } else {
+    const groups = await fetchAllStatusGroups();
+    // pass all groups to client component, no pagination
+  }
 }
 ```
 
-**`isSessionStatus` helper** — narrow an unknown string to `SessionStatus | undefined`. Lives in `src/lib/sessions/types.ts` or alongside the query.
+Pagination is handled by slicing the already-fetched array (Firestore offset queries are not recommended; fetching the full status list and slicing server-side is fine given expected volumes).
 
-**`fetchArchivedSessions` (`src/lib/sessions/queries.ts`):**
+**`<FilterPills>` component (server component):**
 
-```ts
-export async function fetchArchivedSessions(): Promise<SessionSummary[]> {
-  const snap = await adminDb
-    .collection("sessions")
-    .where("status", "==", "archived")
-    .orderBy("created_at", "desc")
-    .get();
-  return Promise.all(snap.docs.map(async (doc) => { /* same shape as fetchVisibleSessions */ }));
-}
-```
+Receives `activeFilter: SessionStatus | undefined` as a prop (passed from the RSC). Renders a pill for each status. Each pill is a `<Link>`:
+- Inactive pill → `href="/sessions?status=<value>"`
+- Active pill → `href="/sessions"` (deactivates by returning to base URL)
 
-**`<SessionList>` changes:**
+No `useSearchParams` or client state needed.
 
-Add an optional `statusFilter?: SessionStatus` prop. When set:
-- Hide the search input.
-- Use filter-specific empty copy.
-- The existing `filterSessions` call is skipped (or query is always `""`).
+**`<SessionList>` refactor:**
 
-**Active nav item (`src/components/layout/nav-items.ts` + consumers):**
+Split into two render modes driven by props:
+- **Default mode** (no filter): renders four `<StatusSection>` components, each receiving its session array. Includes client-side search input.
+- **Filtered mode** (filter prop present): renders one `<StatusSection>` with pagination controls.
 
-`SideRail` and the mobile drawer both render nav items. To highlight the active item, make the link rendering aware of the current pathname + search params. Use Next.js `usePathname` + `useSearchParams` in a small `<NavLink>` client component that wraps each `<Link>` and applies the active class when `href` matches.
+**Active nav item (`<NavLink>` client component):**
 
-The `New session` and `Search` items are never highlighted (their `href` values — `/sessions` and `/sessions?focus=search` — don't correspond to a filter state).
+Extract a small `<NavLink>` client component that uses `usePathname` + `useSearchParams` to compare against each item's `href` and applies the active class when they match. Used by both `SideRail` and the mobile `Header` drawer.
+
+**`isSessionStatus` helper:**
+
+Narrow an unknown string to `SessionStatus | undefined`. Lives in `src/lib/sessions/types.ts`.
+
+**User account zone:**
+
+The current `UserMenu` dropdown is replaced with a flat layout: avatar + first name (static text) + "Log out" button. The `UserMenu` component should be simplified or replaced — the dropdown `DropdownMenu` wrapper is no longer needed for the rail variant. The "Log out" button calls the existing `signOut` server action directly.
+
+**"New session" CTA in the nav:**
+
+The CTA must open the create-session dialog, not navigate. Since `SideRail` and the mobile `Header` are server components, the CTA must be extracted into a small client component (e.g. `<NewSessionButton>`) that owns the `CreateSessionDialog` open state — the same pattern already used on the sessions page. The `CreateSessionDialog` component should be reused as-is; only the trigger changes.
+
+**Nav counts and logo link (already implemented on this branch):**
+
+`fetchNavCounts()` is already implemented in `src/lib/sessions/queries.ts` and called from the app layout. The logo link in `side-rail.tsx` is already a `<Link>`. These do not need further implementation work.
 
 ## Open questions
 
-None. Design is fully specified in `docs/08-ux-spec.md`.
+None.
 
 ## Links
 
 - `docs/08-ux-spec.md` — navigation model and session index screen spec
 - `src/components/layout/nav-items.ts` — nav item definitions
-- `src/lib/sessions/queries.ts` — `fetchVisibleSessions` (reference implementation)
+- `src/lib/sessions/queries.ts` — existing query helpers
 - `src/app/(app)/sessions/page.tsx` — RSC to modify
 - `src/app/(app)/sessions/session-list.tsx` — client component to modify
 
@@ -232,4 +337,8 @@ None. Design is fully specified in `docs/08-ux-spec.md`.
 
 | Date | Status | Notes |
 |---|---|---|
-| 2026-05-03 | Proposed | Initial draft |
+| 2026-05-03 | Proposed | Initial draft — URL filter + side nav only approach |
+| 2026-05-03 | Proposed | Revised: 4 section tables + inline filter pills + URL deep linking; nav counts and logo link added |
+| 2026-05-03 | Proposed | Revised: server-side filtering via Link navigation; filtered views paginated; default view fetches all four groups in parallel, no pagination |
+| 2026-05-03 | Proposed | Revised: nav reorganised into three zones — New session CTA → Search input → Status filters |
+| 2026-05-03 | Implemented | All acceptance criteria met; npm run check passes |

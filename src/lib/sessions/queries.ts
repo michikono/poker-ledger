@@ -1,39 +1,63 @@
 import { adminDb } from "@/lib/firebase/admin";
-import { sortSessions } from "./sort";
 import type { SessionStatus, SessionSummary } from "./types";
 
-const VISIBLE_STATUSES: readonly SessionStatus[] = [
-  "in_progress",
-  "settling",
-  "settled",
-];
+export type NavCounts = {
+  in_progress: number;
+  settling: number;
+};
 
-export async function fetchVisibleSessions(): Promise<SessionSummary[]> {
-  const groups = await Promise.all(
-    VISIBLE_STATUSES.map((status) =>
-      adminDb
-        .collection("sessions")
-        .where("status", "==", status)
-        .orderBy("created_at", "desc")
-        .get(),
-    ),
-  );
+async function docToSummary(
+  doc: FirebaseFirestore.QueryDocumentSnapshot,
+): Promise<SessionSummary> {
+  const data = doc.data();
+  const playerCountSnap = await doc.ref.collection("players").count().get();
+  return {
+    id: doc.id,
+    name: typeof data.name === "string" ? data.name : doc.id,
+    status: data.status as SessionStatus,
+    createdAt: data.created_at?.toDate?.() ?? new Date(0),
+    playerCount: playerCountSnap.data().count,
+  };
+}
 
-  const docs = groups.flatMap((snap) => snap.docs);
+export async function fetchSessionsByStatus(
+  status: SessionStatus,
+): Promise<SessionSummary[]> {
+  const snap = await adminDb
+    .collection("sessions")
+    .where("status", "==", status)
+    .orderBy("created_at", "desc")
+    .get();
+  return Promise.all(snap.docs.map(docToSummary));
+}
 
-  const sessions = await Promise.all(
-    docs.map(async (doc): Promise<SessionSummary> => {
-      const data = doc.data();
-      const playerCountSnap = await doc.ref.collection("players").count().get();
-      return {
-        id: doc.id,
-        name: typeof data.name === "string" ? data.name : doc.id,
-        status: data.status as SessionStatus,
-        createdAt: data.created_at?.toDate?.() ?? new Date(0),
-        playerCount: playerCountSnap.data().count,
-      };
-    }),
-  );
+export async function fetchAllStatusGroups(): Promise<
+  Record<SessionStatus, SessionSummary[]>
+> {
+  const [in_progress, settling, settled, archived] = await Promise.all([
+    fetchSessionsByStatus("in_progress"),
+    fetchSessionsByStatus("settling"),
+    fetchSessionsByStatus("settled"),
+    fetchSessionsByStatus("archived"),
+  ]);
+  return { in_progress, settling, settled, archived };
+}
 
-  return sortSessions(sessions);
+export async function fetchNavCounts(): Promise<NavCounts> {
+  const [inProgressSnap, settlingSnap] = await Promise.all([
+    adminDb
+      .collection("sessions")
+      .where("status", "==", "in_progress")
+      .count()
+      .get(),
+    adminDb
+      .collection("sessions")
+      .where("status", "==", "settling")
+      .count()
+      .get(),
+  ]);
+  return {
+    in_progress: inProgressSnap.data().count,
+    settling: settlingSnap.data().count,
+  };
 }

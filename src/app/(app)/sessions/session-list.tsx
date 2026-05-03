@@ -1,43 +1,111 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { filterSessions } from "@/lib/sessions/filter";
-import type { SessionSummary } from "@/lib/sessions/types";
+import {
+  STATUS_EMPTY_MESSAGES,
+  STATUS_LABELS,
+  type SessionStatus,
+  type SessionSummary,
+} from "@/lib/sessions/types";
 import { CreateSessionDialog } from "./create-session-dialog";
 import { SessionRow } from "./session-row";
-
-const PAGE_SIZE = 10;
 
 type SerializableSession = Omit<SessionSummary, "createdAt"> & {
   createdAt: string;
 };
 
-function deserialize(
-  sessions: readonly SerializableSession[],
-): SessionSummary[] {
+function deserialize(sessions: readonly SerializableSession[]): SessionSummary[] {
   return sessions.map((s) => ({ ...s, createdAt: new Date(s.createdAt) }));
 }
 
-export function SessionList({
-  sessions,
-}: { sessions: readonly SerializableSession[] }) {
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
+const STATUS_ORDER: readonly SessionStatus[] = [
+  "in_progress",
+  "settling",
+  "settled",
+  "archived",
+];
 
-  const allSessions = useMemo(() => deserialize(sessions), [sessions]);
-  const filtered = useMemo(
-    () => filterSessions(allSessions, query),
-    [allSessions, query],
+function StatusSection({
+  status,
+  sessions,
+}: {
+  status: SessionStatus;
+  sessions: readonly SerializableSession[];
+}) {
+  const deserialized = useMemo(() => deserialize(sessions), [sessions]);
+  return (
+    <section>
+      <h2 className="mb-2 text-base font-semibold">{STATUS_LABELS[status]}</h2>
+      {deserialized.length === 0 ? (
+        <p className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
+          {STATUS_EMPTY_MESSAGES[status]}
+        </p>
+      ) : (
+        <ul className="rounded-lg border bg-card">
+          {deserialized.map((session) => (
+            <SessionRow key={session.id} session={session} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+type DefaultProps = {
+  mode: "all";
+  groups: Record<SessionStatus, readonly SerializableSession[]>;
+  initialQuery?: string;
+};
+
+type FilteredProps = {
+  mode: "filtered";
+  filter: SessionStatus;
+  sessions: readonly SerializableSession[];
+  currentPage: number;
+  totalCount: number;
+  pageSize: number;
+};
+
+export type SessionListProps = DefaultProps | FilteredProps;
+
+export function SessionList(props: SessionListProps) {
+  if (props.mode === "filtered") {
+    return <SessionListFiltered {...props} />;
+  }
+  return <SessionListDefault {...props} />;
+}
+
+function SessionListDefault({ groups, initialQuery }: DefaultProps) {
+  const [query, setQuery] = useState(initialQuery ?? "");
+
+  const filteredGroups = useMemo(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) return groups;
+    return Object.fromEntries(
+      STATUS_ORDER.map((status) => [
+        status,
+        groups[status].filter((s) =>
+          s.name.toLowerCase().includes(trimmed),
+        ),
+      ]),
+    ) as unknown as Record<SessionStatus, readonly SerializableSession[]>;
+  }, [groups, query]);
+
+  const totalSessions = STATUS_ORDER.reduce(
+    (sum, s) => sum + groups[s].length,
+    0,
+  );
+  const filteredTotal = STATUS_ORDER.reduce(
+    (sum, s) => sum + filteredGroups[s].length,
+    0,
   );
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const startIndex = (safePage - 1) * PAGE_SIZE;
-  const visible = filtered.slice(startIndex, startIndex + PAGE_SIZE);
-
-  if (allSessions.length === 0) {
+  if (totalSessions === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16 text-center">
         <p className="text-muted-foreground">No sessions yet.</p>
@@ -47,55 +115,101 @@ export function SessionList({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <Input
           aria-label="Search sessions"
           placeholder="Search sessions..."
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => setQuery(e.target.value)}
           className="max-w-sm"
         />
         <CreateSessionDialog trigger={<Button>New session</Button>} />
       </div>
 
-      {filtered.length === 0 ? (
+      {filteredTotal === 0 ? (
         <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
           No sessions match your search.
         </div>
       ) : (
+        <div className="flex flex-col gap-6">
+          {STATUS_ORDER.map((status) => (
+            <StatusSection
+              key={status}
+              status={status}
+              sessions={filteredGroups[status]}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SessionListFiltered({
+  filter,
+  sessions,
+  currentPage,
+  totalCount,
+  pageSize,
+}: FilteredProps) {
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const deserialized = useMemo(() => deserialize(sessions), [sessions]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {deserialized.length === 0 ? (
+        <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
+          {STATUS_EMPTY_MESSAGES[filter]}
+        </div>
+      ) : (
         <ul className="rounded-lg border bg-card">
-          {visible.map((session) => (
+          {deserialized.map((session) => (
             <SessionRow key={session.id} session={session} />
           ))}
         </ul>
       )}
 
-      {filtered.length > PAGE_SIZE && (
+      {totalCount > pageSize && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Page {safePage} of {pageCount} · {filtered.length} sessions
+            Page {currentPage} of {pageCount} · {totalCount} sessions
           </span>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={safePage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={safePage >= pageCount}
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-            >
-              Next
-            </Button>
+            {currentPage <= 1 ? (
+              <span
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "pointer-events-none opacity-50",
+                )}
+              >
+                Previous
+              </span>
+            ) : (
+              <Link
+                href={`/sessions?status=${filter}&page=${currentPage - 1}`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Previous
+              </Link>
+            )}
+            {currentPage >= pageCount ? (
+              <span
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "pointer-events-none opacity-50",
+                )}
+              >
+                Next
+              </span>
+            ) : (
+              <Link
+                href={`/sessions?status=${filter}&page=${currentPage + 1}`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Next
+              </Link>
+            )}
           </div>
         </div>
       )}

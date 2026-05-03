@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { adminAuth } from "@/lib/auth/admin";
+import { fetchNavCounts } from "@/lib/sessions/queries";
 
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -25,5 +26,7 @@ export default async function AppLayout({
   const user = await getSessionUser();
   if (!user) redirect("/sign-in");
 
-  return <AppShell firstName={user.firstName}>{children}</AppShell>;
+  const navCounts = await fetchNavCounts();
+
+  return <AppShell firstName={user.firstName} navCounts={navCounts}>{children}</AppShell>;
 }
