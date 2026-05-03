@@ -1,7 +1,7 @@
 # Change 0009: UI Design System & App Shell
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -262,3 +262,4 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
 |---|---|---|
 | 2026-05-02 | Proposed | Initial draft |
 | 2026-05-02 | Accepted | Brand palette + card-suit logomark added; ready to implement |
+| 2026-05-03 | Implemented | Merged via PR #16 |

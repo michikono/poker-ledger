@@ -1,7 +1,7 @@
 # Change 0004: Sessions Index Page
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -156,3 +156,4 @@ None — ready for implementation.
 |---|---|---|
 | 2026-05-02 | Proposed | Initial draft |
 | 2026-05-02 | Accepted | Approved for implementation |
+| 2026-05-03 | Implemented | Merged via PR #11 |
