@@ -1,7 +1,7 @@
 # Change 0010: Session Detail View
 
 ## Status
-Proposed
+Accepted
 
 ## Owner
 Michi Kono
@@ -342,3 +342,4 @@ None blocking. Design is fully specified in `docs/07-business-logic.md` and `doc
 | Date | Status | Notes |
 |---|---|---|
 | 2026-05-03 | Proposed | Initial draft |
+| 2026-05-03 | Accepted | Approved for implementation |
