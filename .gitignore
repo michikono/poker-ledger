@@ -9,6 +9,10 @@ out/
 .emulator-data/
 .needs-seed
 
+# Per-worktree dev port offset + generated emulator config (spec 0008)
+.devports
+firebase.runtime.json
+
 # Environment variables
 .env*
 !.env.local.example

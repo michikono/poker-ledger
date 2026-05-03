@@ -225,6 +225,7 @@ git worktree remove --force ../worktrees/poker-ledger-0001
 - Run `git worktree list` if you are unsure which directory maps to which branch.
 - Do not open the main repo and a worktree in the same IDE session without clearly labeling them.
 - Name worktree directories to match the spec number (e.g., `poker-ledger-0001`) — this maps to the branch name and change spec.
+- Each worktree allocates its own dev ports on first `npm run dev` and persists the offset to `.devports` (gitignored). The startup banner — e.g. `Worktree dev ports — offset +500 — Next 3500, UI 4500, Firestore 8580, Auth 9599` — is the quickest way to confirm which terminal window belongs to which worktree. See `docs/15-local-development.md` for the full mechanism.
 
 ---
 
