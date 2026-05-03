@@ -57,12 +57,8 @@ describe("formatRelativeTime", () => {
   });
 
   it("returns 'Yesterday at <time>' for yesterday", () => {
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    yesterday.setHours(15, 0, 0, 0);
-    expect(formatRelativeTime(yesterday.toISOString(), now)).toMatch(
-      /Yesterday at/,
-    );
+    const yesterday = "2026-05-02T15:00:00.000Z";
+    expect(formatRelativeTime(yesterday, now)).toMatch(/Yesterday at/);
   });
 
   it("returns absolute date for older entries", () => {
