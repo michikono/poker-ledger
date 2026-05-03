@@ -261,7 +261,7 @@ export function SessionView({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setArchiveOpen(false)}
               disabled={submitting}
             >
@@ -293,7 +293,7 @@ export function SessionView({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setRollbackOpen(false)}
               disabled={submitting}
             >

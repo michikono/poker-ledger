@@ -18,7 +18,10 @@ export function ActivityLog({ entries }: { entries: SessionLogView[] }) {
     >
       {entries.map((entry) => (
         <li key={entry.id} className="flex flex-col gap-0.5 text-sm">
-          <span className="text-xs text-muted-foreground">
+          <span
+            className="cursor-default text-xs text-muted-foreground"
+            title={new Date(entry.createdAt).toLocaleString()}
+          >
             {formatRelativeTime(entry.createdAt)} · {entry.actorName}
           </span>
           <span>{renderLogDescription(entry.description)}</span>

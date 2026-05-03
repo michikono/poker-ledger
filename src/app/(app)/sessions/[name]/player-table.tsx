@@ -1,14 +1,16 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
+import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
 import type { SessionStatus } from "@/lib/sessions/types";
-import { addPlayer } from "./actions";
+import { addPlayer, updateDefaultBuyIn } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
 import { PlayerRow } from "./player-row";
@@ -32,6 +34,18 @@ function redirectToSignIn() {
   }
 }
 
+function formatCurrencyInput(raw: string): string {
+  const cleaned = raw.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  const intPart = cleaned.slice(0, firstDot);
+  const decPart = cleaned
+    .slice(firstDot + 1)
+    .replace(/\./g, "")
+    .slice(0, 2);
+  return `${intPart}.${decPart}`;
+}
+
 export function PlayerTable({
   sessionId,
   status,
@@ -48,8 +62,16 @@ export function PlayerTable({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [editingDefaultBuyIn, setEditingDefaultBuyIn] = useState(false);
+  const [defaultBuyInDraft, setDefaultBuyInDraft] = useState(
+    defaultBuyInCents ? (defaultBuyInCents / 100).toFixed(2) : "",
+  );
+  const [defaultBuyInError, setDefaultBuyInError] = useState<string | null>(
+    null,
+  );
+  const [defaultBuyInBusy, setDefaultBuyInBusy] = useState(false);
+
   const editable = status === "in_progress";
-  const renameOnly = status === "settling" || status === "settled";
 
   const totals = computeSessionTotals(
     players.map((p) => ({
@@ -108,6 +130,47 @@ export function PlayerTable({
     }
   }
 
+  async function handleUpdateDefaultBuyIn(e: FormEvent) {
+    e.preventDefault();
+    if (defaultBuyInBusy) return;
+    setDefaultBuyInError(null);
+
+    const trimmed = defaultBuyInDraft.trim();
+    let amountCents: number | null = null;
+
+    if (trimmed !== "") {
+      const cents = parseDollars(trimmed);
+      if (cents === null || cents <= 0 || cents > 2_000_000) {
+        setDefaultBuyInError("Enter a valid amount, e.g., 25 or 25.00.");
+        return;
+      }
+      amountCents = cents;
+    }
+
+    if (amountCents === defaultBuyInCents) {
+      setEditingDefaultBuyIn(false);
+      return;
+    }
+
+    setDefaultBuyInBusy(true);
+    const token = await getToken();
+    if (!token) {
+      setDefaultBuyInBusy(false);
+      redirectToSignIn();
+      return;
+    }
+
+    const result = await updateDefaultBuyIn({ sessionId, amountCents }, token);
+    setDefaultBuyInBusy(false);
+
+    if (result.success) {
+      setEditingDefaultBuyIn(false);
+      router.refresh();
+      return;
+    }
+    toast.error(GENERIC_ERROR);
+  }
+
   return (
     <section className="flex flex-col gap-3" data-testid="player-table">
       <div className="flex items-center justify-between">
@@ -127,11 +190,11 @@ export function PlayerTable({
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="p-3">Player</th>
+                {editable && <th className="p-3">Add buy-in</th>}
                 <th className="p-3">Buy-ins</th>
                 <th className="p-3 text-right">Total in</th>
                 <th className="p-3 text-right">Cash out</th>
                 <th className="p-3 text-right">Net</th>
-                {(editable || renameOnly) && <th className="p-3" />}
               </tr>
             </thead>
             <tbody>
@@ -144,9 +207,10 @@ export function PlayerTable({
                 />
               ))}
             </tbody>
-            <tfoot className="border-t bg-muted/30 text-xs">
+            <tfoot className="border-t bg-muted/30">
               <tr>
                 <td className="p-3 font-medium">Totals</td>
+                {editable && <td className="p-3" />}
                 <td className="p-3" />
                 <td className="p-3 text-right font-medium">
                   {formatCents(totals.totalBuyInCents)}
@@ -161,7 +225,6 @@ export function PlayerTable({
                       ? `${formatCents(totals.shortfallCents)} short`
                       : `${formatCents(-totals.shortfallCents)} over`}
                 </td>
-                {(editable || renameOnly) && <td className="p-3" />}
               </tr>
             </tfoot>
           </table>
@@ -195,10 +258,72 @@ export function PlayerTable({
               </p>
             )}
             {!error && defaultBuyInCents && defaultBuyInCents > 0 && (
-              <p className="text-xs text-muted-foreground">
-                New players start with a {formatCents(defaultBuyInCents)}{" "}
-                buy-in.
-              </p>
+              <div className="flex items-center gap-1">
+                {editingDefaultBuyIn ? (
+                  <form
+                    className="flex items-center gap-1"
+                    onSubmit={handleUpdateDefaultBuyIn}
+                  >
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 25"
+                      value={defaultBuyInDraft}
+                      onChange={(e) =>
+                        setDefaultBuyInDraft(
+                          formatCurrencyInput(e.target.value),
+                        )
+                      }
+                      disabled={defaultBuyInBusy}
+                      aria-invalid={defaultBuyInError ? true : undefined}
+                      className="h-7 w-24 text-xs"
+                      autoFocus
+                    />
+                    <Button type="submit" size="sm" disabled={defaultBuyInBusy}>
+                      {defaultBuyInBusy && (
+                        <Loader2 className="mr-1 size-3 animate-spin" />
+                      )}
+                      Save
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingDefaultBuyIn(false);
+                        setDefaultBuyInDraft(
+                          defaultBuyInCents
+                            ? (defaultBuyInCents / 100).toFixed(2)
+                            : "",
+                        );
+                        setDefaultBuyInError(null);
+                      }}
+                      disabled={defaultBuyInBusy}
+                    >
+                      Cancel
+                    </Button>
+                    {defaultBuyInError && (
+                      <span className="text-xs text-destructive">
+                        {defaultBuyInError}
+                      </span>
+                    )}
+                  </form>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      New players start with a {formatCents(defaultBuyInCents)}{" "}
+                      buy-in.
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs text-primary underline-offset-2 hover:underline"
+                      onClick={() => setEditingDefaultBuyIn(true)}
+                    >
+                      Change
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
           <Button type="submit" disabled={submitting}>
