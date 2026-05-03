@@ -1,7 +1,7 @@
 # Change 0011: Firestore Deploy Automation
 
 ## Status
-In Progress
+Implemented
 
 ## Owner
 Michi Kono
@@ -404,3 +404,4 @@ None. Resolved during design discussion:
 | 2026-05-03 | Accepted | Approved for implementation |
 | 2026-05-03 | In Progress | Implementation begun on `feature/0011-firestore-deploy-automation`; rules tests excluded from default Vitest run via `vitest.rules.config.ts` so `npm test` and the existing CI `Unit Tests` job remain emulator-free (small clarification to the original "default glob picks it up" wording). |
 | 2026-05-03 | In Progress | Phase E cutover smoke (PR #25) revealed `firebase deploy` does not pick up Application Default Credentials minted by `google-github-actions/auth` — the deploy step failed with `Failed to authenticate, have you run firebase login?`. Fix on `chore/0011-deploy-auth-fix`: ask the auth action for an `access_token` (`token_format: access_token`) and pass it to `firebase deploy` via `FIREBASE_TOKEN`. Token is short-lived and minted per run; no long-lived credential is added. |
+| 2026-05-03 | Implemented | Auth fix merged in PR #26. Phase E cutover cleanup (stale SA key deletion, legacy Firebase token revocation) confirmed done by owner. |
