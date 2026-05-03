@@ -85,10 +85,17 @@ export function PaymentList({
             data-testid={`payment-row-${p.id}`}
             data-paid={p.paid ? "true" : "false"}
           >
-            <span className="text-sm">
-              <span className="font-medium">{from}</span> pays{" "}
-              <span className="font-medium">{to}</span>{" "}
-              <strong>{formatCents(p.amountCents)}</strong>
+            <span className="flex flex-wrap items-center gap-1.5 text-sm">
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
+                {from}
+              </span>
+              <span className="text-muted-foreground">pays</span>
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
+                {to}
+              </span>
+              <strong className="text-base tabular-nums">
+                {formatCents(p.amountCents)}
+              </strong>
             </span>
             <div className="flex items-center gap-2">
               {p.paid && (

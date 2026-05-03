@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -8,12 +9,21 @@ import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
+import { cn } from "@/lib/utils";
 import type { SessionStatus } from "@/lib/sessions/types";
-import { addBuyIn, removeBuyIn, setCashOut, updatePlayerName } from "./actions";
+import {
+  addBuyIn,
+  deletePlayer,
+  removeBuyIn,
+  setCashOut,
+  updatePlayerName,
+} from "./actions";
 import type { SessionPlayerView } from "./page";
 import { computePlayerTotals } from "./totals";
 
 const GENERIC_ERROR = "Something went wrong — please try again.";
+
+type BusyOp = "cashOut" | "buyIn" | "rename" | "delete" | null;
 
 async function getToken(): Promise<string | null> {
   try {
@@ -29,6 +39,18 @@ function redirectToSignIn() {
   if (typeof window !== "undefined") {
     window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
   }
+}
+
+function formatCurrencyInput(raw: string): string {
+  const cleaned = raw.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  const intPart = cleaned.slice(0, firstDot);
+  const decPart = cleaned
+    .slice(firstDot + 1)
+    .replace(/\./g, "")
+    .slice(0, 2);
+  return `${intPart}.${decPart}`;
 }
 
 export function PlayerRow({
@@ -56,7 +78,9 @@ export function PlayerRow({
   );
   const [cashOutError, setCashOutError] = useState<string | null>(null);
 
-  const [busy, setBusy] = useState(false);
+  const [busyOp, setBusyOp] = useState<BusyOp>(null);
+  const [busyRemovingId, setBusyRemovingId] = useState<string | null>(null);
+  const busy = busyOp !== null || busyRemovingId !== null;
 
   const totals = computePlayerTotals(
     player.buyIns.map((b) => ({ amountCents: b.amountCents })),
@@ -91,7 +115,7 @@ export function PlayerRow({
       return;
     }
 
-    setBusy(true);
+    setBusyOp("rename");
     setNameError(null);
     const result = await withToken((token) =>
       updatePlayerName(
@@ -99,7 +123,7 @@ export function PlayerRow({
         token,
       ),
     );
-    setBusy(false);
+    setBusyOp(null);
     if (!result) return;
     if (result.success) {
       setEditingName(false);
@@ -112,6 +136,21 @@ export function PlayerRow({
     }
     if (result.error.code === "INVALID_PLAYER_NAME") {
       setNameError(result.error.message);
+      return;
+    }
+    toast.error(GENERIC_ERROR);
+  }
+
+  async function handleDeletePlayer() {
+    if (busy) return;
+    setBusyOp("delete");
+    const result = await withToken((token) =>
+      deletePlayer({ sessionId, playerId: player.id }, token),
+    );
+    setBusyOp(null);
+    if (!result) return;
+    if (result.success) {
+      router.refresh();
       return;
     }
     toast.error(GENERIC_ERROR);
@@ -133,11 +172,11 @@ export function PlayerRow({
       return;
     }
 
-    setBusy(true);
+    setBusyOp("buyIn");
     const result = await withToken((token) =>
       addBuyIn({ sessionId, playerId: player.id, amountCents: cents }, token),
     );
-    setBusy(false);
+    setBusyOp(null);
     if (!result) return;
     if (result.success) {
       setBuyInDraft("");
@@ -149,11 +188,11 @@ export function PlayerRow({
 
   async function handleRemoveBuyIn(buyInId: string) {
     if (busy) return;
-    setBusy(true);
+    setBusyRemovingId(buyInId);
     const result = await withToken((token) =>
       removeBuyIn({ sessionId, playerId: player.id, buyInId }, token),
     );
-    setBusy(false);
+    setBusyRemovingId(null);
     if (!result) return;
     if (result.success) {
       router.refresh();
@@ -181,14 +220,14 @@ export function PlayerRow({
 
     if (target === player.cashOutCents) return;
 
-    setBusy(true);
+    setBusyOp("cashOut");
     const result = await withToken((token) =>
       setCashOut(
         { sessionId, playerId: player.id, amountCents: target },
         token,
       ),
     );
-    setBusy(false);
+    setBusyOp(null);
     if (!result) return;
     if (result.success) {
       router.refresh();
@@ -199,37 +238,58 @@ export function PlayerRow({
 
   return (
     <tr className="border-t" data-testid={`player-row-${player.id}`}>
+      {/* Player name */}
       <td className="p-3">
         {editingName ? (
-          <form className="flex items-center gap-1" onSubmit={handleRename}>
-            <Input
-              value={nameDraft}
-              onChange={(e) => setNameDraft(e.target.value)}
-              autoFocus
-              maxLength={50}
-              aria-label={`Rename ${player.name}`}
-              disabled={busy}
-            />
-            <Button type="submit" size="sm" disabled={busy}>
-              Save
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setEditingName(false);
-                setNameDraft(player.name);
-                setNameError(null);
-              }}
-              disabled={busy}
-            >
-              Cancel
-            </Button>
+          <div className="flex flex-col gap-1">
+            <form className="flex items-center gap-1" onSubmit={handleRename}>
+              <Input
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                autoFocus
+                maxLength={50}
+                aria-label={`Rename ${player.name}`}
+                disabled={busy}
+              />
+              <Button type="submit" size="sm" disabled={busy}>
+                {busyOp === "rename" && (
+                  <Loader2 className="mr-1 size-3 animate-spin" />
+                )}
+                Save
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setEditingName(false);
+                  setNameDraft(player.name);
+                  setNameError(null);
+                }}
+                disabled={busy}
+              >
+                Cancel
+              </Button>
+            </form>
             {nameError && (
               <span className="text-xs text-destructive">{nameError}</span>
             )}
-          </form>
+            {editable && (
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                className="self-start"
+                onClick={() => void handleDeletePlayer()}
+                disabled={busy}
+              >
+                {busyOp === "delete" && (
+                  <Loader2 className="mr-1 size-3 animate-spin" />
+                )}
+                Delete player
+              </Button>
+            )}
+          </div>
         ) : (
           <button
             type="button"
@@ -244,6 +304,39 @@ export function PlayerRow({
           </button>
         )}
       </td>
+
+      {/* Add buy-in form — only when editable */}
+      {editable && (
+        <td className="p-3">
+          <form className="flex items-center gap-1" onSubmit={handleAddBuyIn}>
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="amount"
+              value={buyInDraft}
+              onChange={(e) =>
+                setBuyInDraft(formatCurrencyInput(e.target.value))
+              }
+              disabled={busy}
+              aria-invalid={buyInError ? true : undefined}
+              className="h-7 w-24 text-xs"
+              aria-label={`Add buy-in for ${player.name}`}
+            />
+            <Button type="submit" size="sm" variant="outline" disabled={busy}>
+              {busyOp === "buyIn" ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                "Add"
+              )}
+            </Button>
+          </form>
+          {buyInError && (
+            <p className="mt-1 text-xs text-destructive">{buyInError}</p>
+          )}
+        </td>
+      )}
+
+      {/* Buy-in chips */}
       <td className="p-3">
         <div className="flex flex-wrap items-center gap-1">
           {player.buyIns.map((b) => (
@@ -261,59 +354,59 @@ export function PlayerRow({
                   onClick={() => void handleRemoveBuyIn(b.id)}
                   disabled={busy}
                 >
-                  ×
+                  {busyRemovingId === b.id ? (
+                    <Loader2 className="size-2.5 animate-spin" />
+                  ) : (
+                    "×"
+                  )}
                 </button>
               )}
             </span>
           ))}
-          {editable && (
-            <form className="flex items-center gap-1" onSubmit={handleAddBuyIn}>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="add buy-in"
-                value={buyInDraft}
-                onChange={(e) => setBuyInDraft(e.target.value)}
-                disabled={busy}
-                aria-invalid={buyInError ? true : undefined}
-                className="h-7 w-28 text-xs"
-                aria-label={`Add buy-in for ${player.name}`}
-              />
-              <Button type="submit" size="sm" variant="outline" disabled={busy}>
-                Add
-              </Button>
-            </form>
-          )}
         </div>
-        {buyInError && (
-          <p className="mt-1 text-xs text-destructive">{buyInError}</p>
-        )}
       </td>
+
+      {/* Total in */}
       <td className="p-3 text-right tabular-nums">
         {formatCents(totals.totalBuyInCents)}
       </td>
+
+      {/* Cash out */}
       <td className="p-3 text-right">
         {editable ? (
           <div className="flex flex-col items-end gap-1">
-            <Input
-              type="text"
-              inputMode="decimal"
-              placeholder="—"
-              value={cashOutDraft}
-              onChange={(e) => setCashOutDraft(e.target.value)}
-              onBlur={() => void commitCashOut()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  (e.currentTarget as HTMLInputElement).blur();
+            <div className="relative">
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="—"
+                value={cashOutDraft}
+                onChange={(e) =>
+                  setCashOutDraft(formatCurrencyInput(e.target.value))
                 }
-              }}
-              disabled={busy}
-              aria-invalid={cashOutError ? true : undefined}
-              className="h-8 w-24 text-right"
-              aria-label={`Cash out for ${player.name}`}
-              data-testid={`cash-out-${player.id}`}
-            />
+                onBlur={() => void commitCashOut()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
+                disabled={busy}
+                aria-invalid={cashOutError ? true : undefined}
+                className={cn(
+                  "h-8 w-24 text-right",
+                  busyOp === "cashOut" && "pr-8",
+                )}
+                aria-label={`Cash out for ${player.name}`}
+                data-testid={`cash-out-${player.id}`}
+              />
+              {busyOp === "cashOut" && (
+                <Loader2
+                  aria-label="Saving"
+                  className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                />
+              )}
+            </div>
             {cashOutError && (
               <span className="text-xs text-destructive">{cashOutError}</span>
             )}
@@ -326,6 +419,8 @@ export function PlayerRow({
           </span>
         )}
       </td>
+
+      {/* Net */}
       <td className="p-3 text-right tabular-nums">
         {totals.netCents === null
           ? "—"
@@ -335,21 +430,6 @@ export function PlayerRow({
               ? `+${formatCents(totals.netCents)}`
               : formatCents(totals.netCents)}
       </td>
-      {(editable || renameOnly) && (
-        <td className="p-3 text-right">
-          {!editingName && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => setEditingName(true)}
-              disabled={busy}
-            >
-              Rename
-            </Button>
-          )}
-        </td>
-      )}
     </tr>
   );
 }

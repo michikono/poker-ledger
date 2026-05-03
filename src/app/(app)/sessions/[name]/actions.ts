@@ -978,6 +978,140 @@ export async function archiveSession(
   }
 }
 
+// ============ deletePlayer ============
+
+export type DeletePlayerInput = {
+  sessionId: string;
+  playerId: string;
+};
+
+export async function deletePlayer(
+  input: DeletePlayerInput,
+  token: string,
+): Promise<ActionResult<void>> {
+  const auth = await authenticate(token);
+  if (!auth.ok) return errFromCode("UNAUTHENTICATED");
+
+  const actorName = getActorFirstName(auth.decoded);
+
+  try {
+    await adminDb.runTransaction(async (tx) => {
+      const sessionRef = adminDb.collection("sessions").doc(input.sessionId);
+      const sessionSnap = await tx.get(sessionRef);
+
+      if (!sessionSnap.exists) throw new Error("SESSION_NOT_FOUND");
+      const sessionData = sessionSnap.data();
+      if (sessionData?.status !== "in_progress") {
+        throw new Error("SESSION_NOT_EDITABLE");
+      }
+
+      const playerRef = sessionRef.collection("players").doc(input.playerId);
+      const playerSnap = await tx.get(playerRef);
+      if (!playerSnap.exists) throw new Error("PLAYER_NOT_FOUND");
+
+      const playerName = (playerSnap.data()?.name as string) ?? "player";
+
+      const buyInsSnap = await tx.get(playerRef.collection("buy_ins"));
+      for (const buyInDoc of buyInsSnap.docs) {
+        tx.delete(buyInDoc.ref);
+      }
+
+      tx.delete(playerRef);
+
+      tx.update(sessionRef, {
+        player_count: FieldValue.increment(-1),
+        updated_at: FieldValue.serverTimestamp(),
+      });
+
+      const changelogRef = sessionRef.collection("change_log").doc();
+      tx.set(changelogRef, {
+        actor_uid: auth.decoded.uid,
+        actor_name: actorName,
+        action_type: "player_removed",
+        description: `${actorName} removed player ${playerName}.`,
+        metadata: {
+          player_id: input.playerId,
+          player_name: playerName,
+        },
+        created_at: FieldValue.serverTimestamp(),
+      });
+    });
+
+    return { success: true, data: undefined };
+  } catch (err) {
+    if (err instanceof Error && err.message in ERR_MESSAGES) {
+      return errFromCode(err.message);
+    }
+    return errFromCode("INTERNAL_ERROR");
+  }
+}
+
+// ============ updateDefaultBuyIn ============
+
+export type UpdateDefaultBuyInInput = {
+  sessionId: string;
+  amountCents: number | null;
+};
+
+export async function updateDefaultBuyIn(
+  input: UpdateDefaultBuyInInput,
+  token: string,
+): Promise<ActionResult<void>> {
+  const auth = await authenticate(token);
+  if (!auth.ok) return errFromCode("UNAUTHENTICATED");
+
+  if (input.amountCents !== null) {
+    if (
+      !Number.isInteger(input.amountCents) ||
+      input.amountCents <= 0 ||
+      input.amountCents > MAX_AMOUNT_CENTS
+    ) {
+      return fail("INVALID_AMOUNT", "Invalid amount.");
+    }
+  }
+
+  const actorName = getActorFirstName(auth.decoded);
+
+  try {
+    await adminDb.runTransaction(async (tx) => {
+      const sessionRef = adminDb.collection("sessions").doc(input.sessionId);
+      const sessionSnap = await tx.get(sessionRef);
+
+      if (!sessionSnap.exists) throw new Error("SESSION_NOT_FOUND");
+      const sessionData = sessionSnap.data();
+      if (sessionData?.status !== "in_progress") {
+        throw new Error("SESSION_NOT_EDITABLE");
+      }
+
+      tx.update(sessionRef, {
+        default_buy_in_cents: input.amountCents,
+        updated_at: FieldValue.serverTimestamp(),
+      });
+
+      const changelogRef = sessionRef.collection("change_log").doc();
+      const description =
+        input.amountCents === null
+          ? `${actorName} cleared the default buy-in.`
+          : `${actorName} set the default buy-in to ${moneyMd(input.amountCents)}.`;
+      tx.set(changelogRef, {
+        actor_uid: auth.decoded.uid,
+        actor_name: actorName,
+        action_type: "default_buy_in_updated",
+        description,
+        metadata: { amount_cents: input.amountCents },
+        created_at: FieldValue.serverTimestamp(),
+      });
+    });
+
+    return { success: true, data: undefined };
+  } catch (err) {
+    if (err instanceof Error && err.message in ERR_MESSAGES) {
+      return errFromCode(err.message);
+    }
+    return errFromCode("INTERNAL_ERROR");
+  }
+}
+
 // ============ unarchiveSession ============
 
 export type UnarchiveSessionInput = {
