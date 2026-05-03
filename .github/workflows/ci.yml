@@ -32,6 +32,24 @@ jobs:
       - run: npm ci
       - run: npm run test
 
+  firestore-rules:
+    name: Firestore Rules Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Start Firestore emulator
+        run: |
+          npx firebase emulators:start --only firestore --project=demo-poker-ledger \
+            > /tmp/emulator.log 2>&1 &
+      - name: Wait for Firestore emulator
+        run: until curl -sf http://localhost:8080; do sleep 1; done
+      - run: npm run test:rules
+
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest

@@ -1,0 +1,33 @@
+name: Deploy Firestore Config
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - firestore.indexes.json
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency: deploy-firestore
+
+jobs:
+  deploy:
+    name: Deploy Firestore
+    runs-on: ubuntu-latest
+    environment: firestore-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/1030556024864/locations/global/workloadIdentityPools/github/providers/poker-ledger
+          service_account: firestore-deployer@poker-ledger-8d3bc.iam.gserviceaccount.com
+      - run: npx firebase deploy --only firestore --project poker-ledger-8d3bc --non-interactive

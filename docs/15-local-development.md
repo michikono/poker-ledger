@@ -128,13 +128,16 @@ npm run format           # apply Biome formatting
 npm run lint             # run Biome linter
 npm run lint:fix         # auto-fix Biome lint issues
 npm run typecheck        # run TypeScript compiler check (tsc --noEmit)
-npm test                 # run unit tests (Vitest)
+npm test                 # run unit tests (Vitest) — does not require the emulator
 npm run test:watch       # Vitest in watch mode
+npm run test:rules       # run Firestore rules tests (requires Firestore emulator on localhost:8080)
 npm run test:e2e         # run E2E tests (Playwright — requires npm run dev running)
 npm run test:e2e:ui      # Playwright UI mode
 npm run build            # production build
 npm run check            # aggregate gate: format:check + lint + typecheck + test + build
 ```
+
+`npm run test:rules` is excluded from `npm test` (and from `npm run check`) because it requires the Firestore emulator on the default port `8080`. To run it locally, start the emulator on the default port with `npx firebase emulators:start --only firestore --project=demo-poker-ledger` in another terminal, then run `npm run test:rules`. The same suite runs in the CI `Firestore Rules Tests` job and is a required check on PRs that touch `firestore.rules`.
 
 ---
 
@@ -142,7 +145,7 @@ npm run check            # aggregate gate: format:check + lint + typecheck + tes
 
 | Service | Required for | Local setup |
 |---|---|---|
-| Firebase Emulator (Firestore + Auth) | All data reads/writes, authentication | Starts automatically with `npm run dev`; requires Firebase CLI + Java 11+ |
+| Firebase Emulator (Firestore + Auth) | All data reads/writes, authentication, Firestore rules tests | Starts automatically with `npm run dev`; rules tests require an emulator on the default port `8080` (see `npm run test:rules`); requires Firebase CLI + Java 11+ |
 
 No other external services are required for local development.
 

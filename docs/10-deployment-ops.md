@@ -18,9 +18,23 @@ Define how the application is deployed, monitored, and operated. Covers environm
 
 ## Deployment process
 
+### Application
+
 - Push to feature branch → Vercel preview deployment (automatic).
 - Merge to `main` → Vercel production deployment (automatic).
 - Do not use manual `vercel deploy` for normal workflow. The Vercel CLI is reserved for: linking projects, pulling env vars locally (`vercel env pull`), and manual inspection (`vercel logs`).
+
+### Firestore configuration (rules + indexes)
+
+`firestore.rules` and `firestore.indexes.json` deploy via the GitHub Actions workflow `.github/workflows/deploy-firestore.yml`.
+
+- Trigger: a push to `main` that changes either file (path filter).
+- Auth: Workload Identity Federation — no long-lived deploy credentials. The `firestore-deployer` service account on `poker-ledger-8d3bc` holds only `roles/firebaserules.admin` and `roles/datastore.indexAdmin`.
+- Gate: the workflow attaches to the GitHub `firestore-production` environment, which requires manual reviewer approval before the deploy step runs.
+- Command: `npx firebase deploy --only firestore --project poker-ledger-8d3bc --non-interactive`.
+- Concurrency: serialized via the `deploy-firestore` concurrency group; only one deploy runs at a time.
+
+Manual `firebase deploy` from a developer laptop is the documented fallback if the workflow is disabled.
 
 ## Environment variables
 
@@ -73,7 +87,7 @@ See `15-local-development.md` for local setup and `.env.local.example` for the c
 Firestore is schemaless — no DDL migrations. Schema evolution rules are documented in `docs/05-data-model.md → "Migration strategy"`. Summary:
 - **Additive changes** (new field with default): deploy code first; old documents read with a fallback default.
 - **Renaming/removing fields**: requires a backfill script. Document the script in the change spec; run it before deploying the consuming code.
-- **Index changes**: composite indexes are declared in `firestore.indexes.json`. Deploy via `firebase deploy --only firestore:indexes` before deploying code that depends on the new index. Index builds can take minutes on large collections.
+- **Index changes**: composite indexes are declared in `firestore.indexes.json`. Merging a change to that file triggers the `Deploy Firestore Config` workflow (see "Firestore configuration" above) — approve the deploy before merging the consuming code, since index builds can take minutes on large collections.
 
 No automated migration runner. All backfills are manual scripts under `/scripts/migrations/`, named by date (`scripts/migrations/2026-05-02-add-name-lower.ts`). Each migration script is idempotent and re-runnable.
 
