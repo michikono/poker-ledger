@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { AppShell } from "@/components/layout/app-shell";
 import { adminAuth } from "@/lib/auth/admin";
-import SignOutButton from "./sign-out-button";
 
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -25,24 +25,5 @@ export default async function AppLayout({
   const user = await getSessionUser();
   if (!user) redirect("/sign-in");
 
-  return (
-    <>
-      <header
-        style={{
-          padding: "1rem",
-          borderBottom: "1px solid #eee",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <span>Poker Ledger</span>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <span>{user.firstName}</span>
-          <SignOutButton />
-        </div>
-      </header>
-      <main>{children}</main>
-    </>
-  );
+  return <AppShell firstName={user.firstName}>{children}</AppShell>;
 }
