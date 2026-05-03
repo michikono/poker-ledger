@@ -45,7 +45,7 @@ Local development uses a Firebase **demo project** (`demo-poker-ledger`). Demo p
 
 The emulator starts automatically with `npm run dev`. Emulator data is persisted to `.emulator-data/` in the project directory (gitignored). Switching worktrees gives you an isolated data set for that branch.
 
-Emulator ports:
+Default emulator ports (these shift per-worktree — see "Per-worktree dev ports" below):
 - Emulator UI: `4000`
 - Firestore: `8080`
 - Firebase Auth: `9099`
@@ -53,6 +53,40 @@ Emulator ports:
 ### Signing in locally
 
 See the consolidated "Signing in locally with Firebase Auth emulator" section below.
+
+---
+
+## Per-worktree dev ports
+
+`npm run dev` picks a per-worktree port offset on first run and reuses it on every subsequent run, so multiple worktrees can run their own Next.js + Firebase emulator stacks in parallel without colliding on the default ports.
+
+On startup, `scripts/dev.mjs` prints a banner like:
+
+```
+Worktree dev ports — offset +500 — Next 3500, UI 4500, Firestore 8580, Auth 9599
+```
+
+**How the offset is chosen:**
+- On first run, an offset is picked at random from `[100, 5000]` in steps of `100` (50 buckets).
+- The four target ports are probed; if any is occupied, a new offset is picked. Up to 3 retries.
+- The chosen offset is persisted to `.devports` in the worktree (gitignored), so subsequent runs reuse it.
+- If a previously persisted offset later collides (another worktree booted in the meantime), the same retry-and-repick path runs and `.devports` is overwritten.
+- After 3 failed attempts, `npm run dev` exits with a clear message — typically meaning every nearby bucket is in use; stop another worktree's `npm run dev` or hand-edit `.devports`.
+
+**Port layout (offset +500 example):**
+
+| Service | Default | Shifted (+500) |
+|---|---|---|
+| Next.js dev server | 3000 | 3500 |
+| Emulator UI | 4000 | 4500 |
+| Firestore emulator | 8080 | 8580 |
+| Firebase Auth emulator | 9099 | 9599 |
+
+**Generated, gitignored artifacts:**
+- `.devports` — single-line file (`OFFSET=500`). Hand-editable. Delete to force re-pick on next `npm run dev`.
+- `firebase.runtime.json` — generated copy of `firebase.json` with emulator ports shifted; consumed by `firebase emulators:start --config firebase.runtime.json`.
+
+**Scope:** Only `npm run dev` honors the offset. `npm run build`, `npm run start`, and CI use the default ports / Vercel-managed env. Playwright (`npm run test:e2e`) connects to whatever port the running dev server bound (read from `.devports` if it needs to derive a URL).
 
 ---
 
@@ -68,8 +102,9 @@ See the consolidated "Signing in locally with Firebase Auth emulator" section be
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket | `demo-poker-ledger.appspot.com` |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID | `000000000000` |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase App ID | `1:000000000000:web:0000000000000000000000` |
-| `FIRESTORE_EMULATOR_HOST` | Tells Admin SDK to use Firestore emulator | `localhost:8080` |
-| `FIREBASE_AUTH_EMULATOR_HOST` | Tells Admin SDK to use Auth emulator | `localhost:9099` |
+| `FIRESTORE_EMULATOR_HOST` | Tells Admin SDK to use Firestore emulator | `localhost:8080` (auto-shifted by `scripts/dev.mjs` to match the worktree offset) |
+| `FIREBASE_AUTH_EMULATOR_HOST` | Tells Admin SDK to use Auth emulator | `localhost:9099` (auto-shifted by `scripts/dev.mjs`) |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL` | Tells the browser SDK which Auth emulator to connect to | `http://localhost:9099` (auto-injected by `scripts/dev.mjs`; falls back to default if absent) |
 | `FIREBASE_ADMIN_PROJECT_ID` | Admin SDK project ID (server-only) | `demo-poker-ledger` |
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | Service account email (production only) | *(blank for local)* |
 | `FIREBASE_ADMIN_PRIVATE_KEY` | Service account private key (production only) | *(blank for local)* |
@@ -183,7 +218,8 @@ A linter rule for `window.location.reload()` is desirable but not yet configured
 | `npm run dev` fails to start | Java not found | Install Java 11+ (`brew install openjdk`) |
 | Firestore writes fail | Emulator not running | Ensure `npm run dev` is running; check port 8080 |
 | Type errors | Missing dependencies or outdated types | `npm install` then `npm run typecheck` |
-| Port 3000 already in use | Another dev server running | Kill the other process or use `PORT=3001 npm run dev` |
+| Port 3000 already in use | Another dev server running | `npm run dev` auto-picks a per-worktree offset; the printed banner shows the bound ports. To force a fresh offset, delete `.devports` and re-run. |
+| `npm run dev` exits "Could not find a free dev-port offset" | Too many parallel worktrees, or a stale `.devports` collision | Stop another worktree's `npm run dev`, or delete `.devports` and re-run. As a last resort, hand-edit `.devports` (`OFFSET=<n>` where `n` is a multiple of 100 in `[100, 5000]`). |
 
 ---
 

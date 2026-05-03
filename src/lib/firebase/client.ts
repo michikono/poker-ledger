@@ -17,8 +17,11 @@ function createClientAuth() {
   const auth = getAuth(app);
 
   if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.startsWith("demo-")) {
+    const emulatorUrl =
+      process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL ??
+      "http://localhost:9099";
     try {
-      connectAuthEmulator(auth, "http://localhost:9099", {
+      connectAuthEmulator(auth, emulatorUrl, {
         disableWarnings: true,
       });
     } catch {

@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm:dev:emulator\" \"npm:dev:next\"",
-    "dev:emulator": "firebase emulators:start --project demo-poker-ledger --import .emulator-data --export-on-exit .emulator-data",
-    "dev:next": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
     "format": "biome format --write .",
