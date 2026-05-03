@@ -10,12 +10,32 @@ Define all screens, their states, and their interactions. This doc drives compon
 
 ## Design system
 
-shadcn/ui + Tailwind CSS v4. Define and reuse components. Centralize all CTA language and copy strings to ensure consistency. Mobile-first.
+shadcn/ui (`base-nova` style) + Tailwind CSS v4. Define and reuse components. Centralize all CTA language and copy strings to ensure consistency. Mobile-first.
+
+**Brand palette** (defined as CSS custom properties in `src/app/globals.css`, exposed as Tailwind utilities via `@theme inline`):
+- `--felt` — deep poker-table green; primary brand color (logomark, primary CTA hover, focus accents).
+- `--chip-gold` — warm gold; accent highlights, icon glyphs inside the logomark.
+- `--suit-red` — card-suit red; reserved for future use (e.g., negative balances, losses).
+- `--suit-black` — card-suit near-black; reserved for future use.
+
+Brand tokens are layered on top of the neutral shadcn chrome and used sparingly. Status colors (below) are intentionally separate from brand colors so semantic meaning never collides with branding.
+
+**Logomark:** `<CardIcon>` (`src/components/icons/card-icon.tsx`) — a rounded-rectangle playing-card outline with a centered spade glyph, themed with `--felt` and `--chip-gold`. Mirrored as a static favicon at `src/app/icon.svg`. The two must stay in visual sync (favicons can't read CSS variables).
+
+**Status tokens:** `--status-in-progress` (emerald), `--status-settling` (amber), `--status-settled` (slate-muted), `--status-archived` (neutral). Consumed exclusively by `<StatusBadge>`.
 
 **Casing convention:**
 - Status enum values in code: `in_progress`, `settling`, `settled`, `archived` (snake_case).
 - Status displayed in UI: `In progress`, `Settling`, `Settled`, `Archived` (sentence case).
-- Implementation: a single helper `formatStatus(status: SessionStatus): string` is the only thing that maps enum → display string.
+- Implementation: a single helper `formatStatus(status: SessionStatus): string` is the only thing that maps enum → display string. Implemented at `src/lib/sessions/format-status.ts`.
+
+**App shell** (implemented in spec 0009):
+- `<AppShell>` wraps every authenticated page; receives `firstName` for the user menu.
+- Composed from `<SideRail>` (≥ 768px), `<Header>` (< 768px), and a `<main>` content area.
+- `<SideRail>` shows the logomark + title at the top, the six nav items in the middle, and the user menu at the bottom.
+- `<Header>` shows a hamburger that opens a left-side `<Sheet>` drawer with the same six nav items (sourced from `src/components/layout/nav-items.ts`).
+
+**Toaster:** `<Toaster />` (sonner) is mounted in the root layout at `bottom-right`. Toasts auto-dismiss after 4s.
 
 ---
 

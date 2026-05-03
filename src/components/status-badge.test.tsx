@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { StatusBadge } from "./status-badge";
 
 describe("StatusBadge", () => {
-  it("renders the in_progress label", () => {
+  it("renders the in_progress label via formatStatus", () => {
     render(<StatusBadge status="in_progress" />);
-    expect(screen.getByText("In Progress")).toBeInTheDocument();
+    expect(screen.getByText("In progress")).toBeInTheDocument();
   });
 
   it("renders the settling label", () => {

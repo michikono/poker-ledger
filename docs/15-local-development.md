@@ -150,6 +150,21 @@ After setup or after a significant change:
 
 ---
 
+## Form interactions — no hard refreshes
+
+All forms in the app submit via Server Actions; no form should trigger a full-page reload. This keeps client state (modals, drawers, scroll position) intact across mutations.
+
+**Rules:**
+- Forms submit via Server Actions — `<form action={serverAction}>` or `useFormState` — never via `<form action="/api/...">` POSTs.
+- Pending states use `useFormStatus()` (in client child components) or `useTransition()` (when the trigger is a non-form button).
+- After a successful mutation, the action calls `revalidatePath(path)` or `revalidateTag(tag)`. Do not call `router.refresh()` unless `revalidate*` is structurally impossible.
+- **Never** call `window.location.reload()` or `router.replace(window.location.href)` to refresh after a mutation.
+- Modal/dialog dismissal is controlled by React state, not by navigation.
+
+A linter rule for `window.location.reload()` is desirable but not yet configured; manual review enforces this for now.
+
+---
+
 ## Keeping local dev independent from production
 
 - Use `.env.local` for all local config — it points at the emulator, not production Firebase.
