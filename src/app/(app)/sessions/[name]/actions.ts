@@ -708,6 +708,7 @@ export async function markPaymentPaid(
             to_player_id: paymentData.to_player_id,
             amount_cents: paymentData.amount_cents,
           },
+          seq: 0,
           created_at: FieldValue.serverTimestamp(),
         });
       }
@@ -729,6 +730,7 @@ export async function markPaymentPaid(
             to: "settled",
             reason: "payment_marked",
           },
+          seq: 1,
           created_at: FieldValue.serverTimestamp(),
         });
       } else {

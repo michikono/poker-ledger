@@ -23,7 +23,7 @@ function SearchDropdown({ results, activeIndex, navigate }: DropdownProps) {
       id="session-search-listbox"
       role="listbox"
       tabIndex={-1}
-      className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover shadow-md"
+      className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
     >
       {results.map((result, i) => (
         <div
