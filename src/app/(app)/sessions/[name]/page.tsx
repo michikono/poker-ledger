@@ -126,7 +126,18 @@ export default async function SessionPage({
     };
   });
 
-  const log: SessionLogView[] = logSnap.docs.map((doc) => {
+  const sortedLogDocs = [...logSnap.docs].sort((a, b) => {
+    const aData = a.data();
+    const bData = b.data();
+    const aTime = aData.created_at?.toMillis?.() ?? 0;
+    const bTime = bData.created_at?.toMillis?.() ?? 0;
+    if (bTime !== aTime) return bTime - aTime;
+    const aSeq = typeof aData.seq === "number" ? aData.seq : 0;
+    const bSeq = typeof bData.seq === "number" ? bData.seq : 0;
+    return bSeq - aSeq;
+  });
+
+  const log: SessionLogView[] = sortedLogDocs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
