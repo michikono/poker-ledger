@@ -1,4 +1,4 @@
-const RE = /^\$?\s*(\d+)(?:[.,](\d{1,2}))?\s*$/;
+const RE = /^\$?\s*(\d+)(?:[.,](\d{0,2}))?\s*$/;
 
 export function parseDollars(input: string): number | null {
   const trimmed = input.trim();

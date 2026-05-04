@@ -62,4 +62,8 @@ describe("parseDollars", () => {
   it("zero-pads single-digit cent values", () => {
     expect(parseDollars("1.5")).toBe(150);
   });
+
+  it("parses trailing decimal as whole dollars", () => {
+    expect(parseDollars("25.")).toBe(2500);
+  });
 });
