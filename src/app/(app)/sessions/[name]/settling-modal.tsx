@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
+import { formatCurrencyInput } from "@/lib/currency/format-input";
 import { setCashOut, transitionToSettling } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
@@ -201,7 +202,10 @@ export function SettlingModal({
                         inputMode="decimal"
                         value={drafts[p.id] ?? ""}
                         onChange={(e) =>
-                          setDrafts((d) => ({ ...d, [p.id]: e.target.value }))
+                          setDrafts((d) => ({
+                            ...d,
+                            [p.id]: formatCurrencyInput(e.target.value),
+                          }))
                         }
                         aria-invalid={
                           (!p.valid && p.rawDraft !== "") || undefined

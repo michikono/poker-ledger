@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
+import { formatCurrencyInput } from "@/lib/currency/format-input";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
 import type { SessionStatus } from "@/lib/sessions/types";
@@ -32,18 +33,6 @@ function redirectToSignIn() {
   if (typeof window !== "undefined") {
     window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
   }
-}
-
-function formatCurrencyInput(raw: string): string {
-  const cleaned = raw.replace(/[^0-9.]/g, "");
-  const firstDot = cleaned.indexOf(".");
-  if (firstDot === -1) return cleaned;
-  const intPart = cleaned.slice(0, firstDot);
-  const decPart = cleaned
-    .slice(firstDot + 1)
-    .replace(/\./g, "")
-    .slice(0, 2);
-  return `${intPart}.${decPart}`;
 }
 
 export function PlayerTable({
@@ -130,8 +119,7 @@ export function PlayerTable({
     }
   }
 
-  async function handleUpdateDefaultBuyIn(e: FormEvent) {
-    e.preventDefault();
+  async function handleUpdateDefaultBuyIn() {
     if (defaultBuyInBusy) return;
     setDefaultBuyInError(null);
 
@@ -260,10 +248,7 @@ export function PlayerTable({
             {!error && defaultBuyInCents && defaultBuyInCents > 0 && (
               <div className="flex items-center gap-1">
                 {editingDefaultBuyIn ? (
-                  <form
-                    className="flex items-center gap-1"
-                    onSubmit={handleUpdateDefaultBuyIn}
-                  >
+                  <div className="flex items-center gap-1">
                     <Input
                       type="text"
                       inputMode="decimal"
@@ -274,12 +259,23 @@ export function PlayerTable({
                           formatCurrencyInput(e.target.value),
                         )
                       }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleUpdateDefaultBuyIn();
+                        }
+                      }}
                       disabled={defaultBuyInBusy}
                       aria-invalid={defaultBuyInError ? true : undefined}
                       className="h-7 w-24 text-xs"
                       autoFocus
                     />
-                    <Button type="submit" size="sm" disabled={defaultBuyInBusy}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleUpdateDefaultBuyIn()}
+                      disabled={defaultBuyInBusy}
+                    >
                       {defaultBuyInBusy && (
                         <Loader2 className="mr-1 size-3 animate-spin" />
                       )}
@@ -288,7 +284,7 @@ export function PlayerTable({
                     <Button
                       type="button"
                       size="sm"
-                      variant="secondary"
+                      variant="outline"
                       onClick={() => {
                         setEditingDefaultBuyIn(false);
                         setDefaultBuyInDraft(
@@ -307,7 +303,7 @@ export function PlayerTable({
                         {defaultBuyInError}
                       </span>
                     )}
-                  </form>
+                  </div>
                 ) : (
                   <>
                     <p className="text-xs text-muted-foreground">

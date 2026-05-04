@@ -152,7 +152,7 @@ function SessionListFiltered({
             ) : (
               <Link
                 href={pageUrl(filter, currentPage - 1)}
-                className={buttonVariants({ variant: "secondary", size: "sm" })}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 Previous
               </Link>
@@ -169,7 +169,7 @@ function SessionListFiltered({
             ) : (
               <Link
                 href={pageUrl(filter, currentPage + 1)}
-                className={buttonVariants({ variant: "secondary", size: "sm" })}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 Next
               </Link>
