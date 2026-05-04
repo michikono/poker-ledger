@@ -3,6 +3,7 @@ import {
   CheckIcon,
   CircleDotIcon,
   HourglassIcon,
+  ListIcon,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
@@ -14,6 +15,11 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: readonly NavItem[] = [
+  {
+    label: "All sessions",
+    href: "/sessions",
+    icon: ListIcon,
+  },
   {
     label: "In Progress",
     href: "/sessions?status=in_progress",

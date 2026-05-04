@@ -86,5 +86,7 @@ export async function GET(req: Request): Promise<Response> {
     }
   }
 
+  results.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
   return NextResponse.json(results);
 }

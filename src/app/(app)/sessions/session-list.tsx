@@ -62,7 +62,7 @@ type DefaultProps = {
 
 type FilteredProps = {
   mode: "filtered";
-  filter: SessionStatus;
+  filter?: SessionStatus;
   sessions: readonly SerializableSession[];
   currentPage: number;
   totalCount: number;
@@ -101,6 +101,11 @@ function SessionListDefault({ groups }: DefaultProps) {
   );
 }
 
+function pageUrl(filter: SessionStatus | undefined, page: number): string {
+  if (filter) return `/sessions?status=${filter}&page=${page}`;
+  return `/sessions?page=${page}`;
+}
+
 function SessionListFiltered({
   filter,
   sessions,
@@ -111,11 +116,15 @@ function SessionListFiltered({
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
   const deserialized = useMemo(() => deserialize(sessions), [sessions]);
 
+  const emptyMessage = filter
+    ? STATUS_EMPTY_MESSAGES[filter]
+    : "No sessions yet.";
+
   return (
     <div className="flex flex-col gap-4">
       {deserialized.length === 0 ? (
         <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
-          {STATUS_EMPTY_MESSAGES[filter]}
+          {emptyMessage}
         </div>
       ) : (
         <ul className="rounded-lg border bg-card">
@@ -142,7 +151,7 @@ function SessionListFiltered({
               </span>
             ) : (
               <Link
-                href={`/sessions?status=${filter}&page=${currentPage - 1}`}
+                href={pageUrl(filter, currentPage - 1)}
                 className={buttonVariants({ variant: "secondary", size: "sm" })}
               >
                 Previous
@@ -159,7 +168,7 @@ function SessionListFiltered({
               </span>
             ) : (
               <Link
-                href={`/sessions?status=${filter}&page=${currentPage + 1}`}
+                href={pageUrl(filter, currentPage + 1)}
                 className={buttonVariants({ variant: "secondary", size: "sm" })}
               >
                 Next

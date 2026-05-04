@@ -43,6 +43,14 @@ export async function fetchAllStatusGroups(): Promise<
   return { in_progress, settling, settled, archived };
 }
 
+export async function fetchAllSessions(): Promise<SessionSummary[]> {
+  const snap = await adminDb
+    .collection("sessions")
+    .orderBy("created_at", "desc")
+    .get();
+  return Promise.all(snap.docs.map(docToSummary));
+}
+
 export async function fetchNavCounts(): Promise<NavCounts> {
   const [inProgressSnap, settlingSnap] = await Promise.all([
     adminDb
