@@ -12,19 +12,19 @@ export function SessionRow({ session }: { session: SessionSummary }) {
   const playerLabel =
     session.playerCount === 1 ? "1 player" : `${session.playerCount} players`;
   return (
-    <li className="flex items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0">
-      <div className="min-w-0 flex-1">
-        <Link
-          href={`/sessions/${session.name}`}
-          className="font-medium text-foreground hover:underline"
-        >
-          {session.name}
-        </Link>
-        <div className="text-sm text-muted-foreground">
-          {DATE_FORMAT.format(session.createdAt)} · {playerLabel}
+    <li className="border-b last:border-b-0">
+      <Link
+        href={`/sessions/${session.name}`}
+        className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="font-medium text-foreground">{session.name}</div>
+          <div className="text-sm text-muted-foreground">
+            {DATE_FORMAT.format(session.createdAt)} · {playerLabel}
+          </div>
         </div>
-      </div>
-      <StatusBadge status={session.status} />
+        <StatusBadge status={session.status} />
+      </Link>
     </li>
   );
 }

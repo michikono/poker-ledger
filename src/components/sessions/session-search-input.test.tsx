@@ -41,6 +41,7 @@ function mockFetchSuccess(results = RESULTS) {
 }
 
 async function typeAndWait(input: HTMLElement, value: string) {
+  fireEvent.focus(input);
   await act(async () => {
     fireEvent.change(input, { target: { value } });
     vi.advanceTimersByTime(300);
@@ -230,5 +231,55 @@ describe("SessionSearchInput", () => {
       fireEvent.keyDown(input, { key: "ArrowDown" });
     });
     expect(options[0]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("shows a spinner while a query is being fetched", async () => {
+    render(<SessionSearchInput />);
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "cr" } });
+    expect(screen.getByTestId("session-search-spinner")).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(
+      screen.queryByTestId("session-search-spinner"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show a spinner for queries below the min length", () => {
+    render(<SessionSearchInput />);
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "c" } });
+    expect(
+      screen.queryByTestId("session-search-spinner"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("blur hides the dropdown but keeps the query text", async () => {
+    render(<SessionSearchInput />);
+    const input = screen.getByRole("combobox");
+    await typeAndWait(input, "cr");
+    expect(screen.getByText("crispy-salmon-001")).toBeInTheDocument();
+    act(() => {
+      fireEvent.blur(input);
+    });
+    expect(screen.queryByText("crispy-salmon-001")).not.toBeInTheDocument();
+    expect(input).toHaveValue("cr");
+  });
+
+  it("refocusing the input restores the dropdown when results exist", async () => {
+    render(<SessionSearchInput />);
+    const input = screen.getByRole("combobox");
+    await typeAndWait(input, "cr");
+    act(() => {
+      fireEvent.blur(input);
+    });
+    expect(screen.queryByText("crispy-salmon-001")).not.toBeInTheDocument();
+    act(() => {
+      fireEvent.focus(input);
+    });
+    expect(screen.getByText("crispy-salmon-001")).toBeInTheDocument();
   });
 });
