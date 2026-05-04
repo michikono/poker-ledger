@@ -1,5 +1,6 @@
 import {
-  fetchAllStatusGroups,
+  fetchAllSessions,
+  fetchNavCounts,
   fetchSessionsByStatus,
 } from "@/lib/sessions/queries";
 import {
@@ -31,50 +32,39 @@ export default async function SessionsPage({ searchParams }: Props) {
     ? status
     : undefined;
 
-  if (filter) {
-    const allSessions = await fetchSessionsByStatus(filter);
-    const totalCount = allSessions.length;
-    const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-    const currentPage = Math.min(
-      Math.max(1, Number.parseInt(page ?? "1", 10) || 1),
-      pageCount,
-    );
-    const pageSlice = allSessions.slice(
-      (currentPage - 1) * PAGE_SIZE,
-      currentPage * PAGE_SIZE,
-    );
+  const counts = await fetchNavCounts();
 
-    return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-        <h1 className="text-2xl font-semibold">Sessions</h1>
-        <SessionsHeader />
-        <FilterPills activeFilter={filter} />
-        <SessionList
-          mode="filtered"
-          filter={filter}
-          sessions={serialize(pageSlice)}
-          currentPage={currentPage}
-          totalCount={totalCount}
-          pageSize={PAGE_SIZE}
-        />
-      </div>
-    );
-  }
+  const allSessions = filter
+    ? await fetchSessionsByStatus(filter)
+    : await fetchAllSessions();
 
-  const groups = await fetchAllStatusGroups();
-  const serializableGroups = Object.fromEntries(
-    (Object.keys(groups) as SessionStatus[]).map((s) => [
-      s,
-      serialize(groups[s]),
-    ]),
-  ) as Record<SessionStatus, SerializableSession[]>;
+  const totalCount = allSessions.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = Math.min(
+    Math.max(1, Number.parseInt(page ?? "1", 10) || 1),
+    pageCount,
+  );
+  const pageSlice = allSessions.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">Sessions</h1>
       <SessionsHeader />
-      <FilterPills />
-      <SessionList mode="all" groups={serializableGroups} />
+      <FilterPills
+        {...(filter !== undefined ? { activeFilter: filter } : {})}
+        counts={counts}
+      />
+      <SessionList
+        mode="filtered"
+        {...(filter !== undefined ? { filter } : {})}
+        sessions={serialize(pageSlice)}
+        currentPage={currentPage}
+        totalCount={totalCount}
+        pageSize={PAGE_SIZE}
+      />
     </div>
   );
 }
