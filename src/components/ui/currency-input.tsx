@@ -4,8 +4,6 @@ import type { ComponentPropsWithoutRef } from "react";
 import { parseDollars } from "@/lib/currency/parse";
 import { Input } from "./input";
 
-const MAX_CENTS = 9_999_999; // $99,999.99
-
 type Props = Omit<
   ComponentPropsWithoutRef<typeof Input>,
   "type" | "inputMode" | "onChange"
@@ -14,77 +12,79 @@ type Props = Omit<
   onChange: (value: string) => void;
 };
 
-function centsToDisplay(cents: number): string {
-  return cents > 0 ? (cents / 100).toFixed(2) : "";
-}
-
-export function CurrencyInput({ value, onChange, onKeyDown, ...props }: Props) {
-  const cents = parseDollars(value) ?? 0;
-
+export function CurrencyInput({
+  value,
+  onChange,
+  onKeyDown,
+  onBlur,
+  ...props
+}: Props) {
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    // Pass navigation/modifier keys through to caller
+    if (e.metaKey || e.ctrlKey || e.altKey) {
+      onKeyDown?.(e);
+      return;
+    }
+    const { key } = e;
+    if (key === "." && value.includes(".")) {
+      e.preventDefault();
+      return;
+    }
     if (
-      e.key === "Tab" ||
-      e.key === "Enter" ||
-      e.key === "Escape" ||
-      e.key.startsWith("Arrow") ||
-      e.key === "Home" ||
-      e.key === "End" ||
-      e.metaKey ||
-      e.ctrlKey ||
-      e.altKey
+      (key >= "0" && key <= "9") ||
+      key === "." ||
+      key === "Backspace" ||
+      key === "Delete" ||
+      key === "Tab" ||
+      key === "Enter" ||
+      key === "Escape" ||
+      key.startsWith("Arrow") ||
+      key === "Home" ||
+      key === "End"
     ) {
       onKeyDown?.(e);
       return;
     }
-
     e.preventDefault();
-
-    if (e.key >= "0" && e.key <= "9") {
-      const input = e.currentTarget;
-      // If the user has selected all text and types, start fresh
-      const isAllSelected =
-        input.selectionStart === 0 &&
-        input.selectionEnd === input.value.length &&
-        input.value.length > 0;
-      const baseCents = isAllSelected ? 0 : cents;
-      const digit = Number.parseInt(e.key, 10);
-      onChange(centsToDisplay(Math.min(baseCents * 10 + digit, MAX_CENTS)));
-    } else if (e.key === "Backspace" || e.key === "Delete") {
-      onChange(centsToDisplay(Math.floor(cents / 10)));
-    }
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    // Handles fireEvent.change in tests and direct DOM mutations
-    const raw = e.target.value;
-    if (raw === "") {
-      onChange("");
-      return;
+    let raw = e.target.value.replace(/[^0-9.]/g, "");
+    const dotIdx = raw.indexOf(".");
+    if (dotIdx !== -1) {
+      const integer = raw.slice(0, dotIdx);
+      const decimal = raw
+        .slice(dotIdx + 1)
+        .replace(/\./g, "")
+        .slice(0, 2);
+      raw = `${integer === "" ? "0" : integer}.${decimal}`;
     }
-    const parsed = parseDollars(raw);
-    if (parsed !== null) {
-      onChange(centsToDisplay(Math.min(parsed, MAX_CENTS)));
+    onChange(raw);
+  }
+
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    if (value !== "") {
+      const parsed = parseDollars(value);
+      if (parsed !== null) onChange((parsed / 100).toFixed(2));
     }
+    onBlur?.(e);
   }
 
   function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
     e.preventDefault();
     const text = e.clipboardData.getData("text");
     const parsed = parseDollars(text);
-    if (parsed !== null) {
-      onChange(centsToDisplay(Math.min(parsed, MAX_CENTS)));
-    }
+    if (parsed !== null) onChange((parsed / 100).toFixed(2));
   }
 
   return (
     <Input
       {...props}
       type="text"
-      inputMode="numeric"
+      inputMode="decimal"
       value={value}
       onChange={handleChange}
       onKeyDown={handleKeyDown}
+      onBlur={handleBlur}
       onPaste={handlePaste}
     />
   );
