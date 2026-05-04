@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
@@ -64,22 +65,28 @@ export function SessionSearchInput({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [focused, setFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const hadResultsRef = useRef(false);
 
+  const open =
+    focused && results.length > 0 && query.length >= MIN_QUERY_LENGTH;
+
   useEffect(() => {
     if (query.length < MIN_QUERY_LENGTH) {
       setResults([]);
-      setOpen(false);
       setActiveIndex(-1);
+      setLoading(false);
       hadResultsRef.current = false;
+      if (abortRef.current) abortRef.current.abort();
       return;
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    setLoading(true);
 
     const delay = hadResultsRef.current ? 0 : DEBOUNCE_MS;
     debounceRef.current = setTimeout(async () => {
@@ -88,7 +95,10 @@ export function SessionSearchInput({
       abortRef.current = controller;
 
       const token = (await getClientAuth().currentUser?.getIdToken()) ?? "";
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const res = await fetch(
@@ -98,14 +108,17 @@ export function SessionSearchInput({
             signal: controller.signal,
           },
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          setLoading(false);
+          return;
+        }
         const data: SearchResult[] = await res.json();
         setResults(data);
-        setOpen(data.length > 0);
         setActiveIndex(-1);
         if (data.length > 0) hadResultsRef.current = true;
+        setLoading(false);
       } catch {
-        // aborted or network error — ignore
+        // aborted: leave loading state to the next request
       }
     }, delay);
 
@@ -116,8 +129,8 @@ export function SessionSearchInput({
 
   function navigate(name: string) {
     setQuery("");
-    setOpen(false);
     setActiveIndex(-1);
+    setFocused(false);
     onSelect?.();
     router.push(`/sessions/${name}`);
   }
@@ -137,7 +150,8 @@ export function SessionSearchInput({
       if (result) navigate(result.name);
     } else if (e.key === "Escape") {
       e.preventDefault();
-      setOpen(false);
+      setFocused(false);
+      e.currentTarget.blur();
     }
   }
 
@@ -154,9 +168,18 @@ export function SessionSearchInput({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="h-8 text-sm"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="h-8 pr-8 text-sm"
         autoComplete="off"
       />
+      {loading && (
+        <Loader2
+          aria-hidden
+          data-testid="session-search-spinner"
+          className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+        />
+      )}
       {open && (
         <SearchDropdown
           results={results}
