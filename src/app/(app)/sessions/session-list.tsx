@@ -135,8 +135,8 @@ function SessionListFiltered({
       )}
 
       {totalCount > pageSize && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
             Page {currentPage} of {pageCount} · {totalCount} sessions
           </span>
           <div className="flex gap-2">
