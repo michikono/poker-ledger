@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
+import { formatCurrencyInput } from "@/lib/currency/format-input";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
 import { cn } from "@/lib/utils";
@@ -41,17 +42,6 @@ function redirectToSignIn() {
   }
 }
 
-function formatCurrencyInput(raw: string): string {
-  const cleaned = raw.replace(/[^0-9.]/g, "");
-  const firstDot = cleaned.indexOf(".");
-  if (firstDot === -1) return cleaned;
-  const intPart = cleaned.slice(0, firstDot);
-  const decPart = cleaned
-    .slice(firstDot + 1)
-    .replace(/\./g, "")
-    .slice(0, 2);
-  return `${intPart}.${decPart}`;
-}
 
 export function PlayerRow({
   sessionId,
@@ -260,7 +250,7 @@ export function PlayerRow({
               <Button
                 type="button"
                 size="sm"
-                variant="secondary"
+                variant="outline"
                 onClick={() => {
                   setEditingName(false);
                   setNameDraft(player.name);
