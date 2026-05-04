@@ -29,7 +29,7 @@ export function NavLink({ href, children, className, onClick }: NavLinkProps) {
         "group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
         isActive
           ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         className,
       )}
     >
