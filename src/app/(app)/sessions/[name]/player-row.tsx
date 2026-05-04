@@ -42,6 +42,7 @@ function redirectToSignIn() {
   }
 }
 
+
 export function PlayerRow({
   sessionId,
   status,

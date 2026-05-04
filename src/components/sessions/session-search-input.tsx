@@ -68,17 +68,20 @@ export function SessionSearchInput({
   const [activeIndex, setActiveIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const hadResultsRef = useRef(false);
 
   useEffect(() => {
     if (query.length < MIN_QUERY_LENGTH) {
       setResults([]);
       setOpen(false);
       setActiveIndex(-1);
+      hadResultsRef.current = false;
       return;
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
+    const delay = hadResultsRef.current ? 0 : DEBOUNCE_MS;
     debounceRef.current = setTimeout(async () => {
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
@@ -100,10 +103,11 @@ export function SessionSearchInput({
         setResults(data);
         setOpen(data.length > 0);
         setActiveIndex(-1);
+        if (data.length > 0) hadResultsRef.current = true;
       } catch {
         // aborted or network error — ignore
       }
-    }, DEBOUNCE_MS);
+    }, delay);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);

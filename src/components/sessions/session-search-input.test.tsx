@@ -88,6 +88,22 @@ describe("SessionSearchInput", () => {
     );
   });
 
+  it("fires immediately (no debounce) when results are already showing", async () => {
+    render(<SessionSearchInput />);
+    const input = screen.getByRole("combobox");
+    // First fetch — needs 300ms debounce
+    await typeAndWait(input, "cr");
+    expect(global.fetch).toHaveBeenCalledOnce();
+    vi.clearAllMocks();
+    mockFetchSuccess();
+    // Second keystroke — should fire without waiting 300ms
+    await act(async () => {
+      fireEvent.change(input, { target: { value: "cri" } });
+      vi.advanceTimersByTime(0);
+    });
+    expect(global.fetch).toHaveBeenCalledOnce();
+  });
+
   it("only fires one fetch for rapid typing (debounce)", async () => {
     render(<SessionSearchInput />);
     const input = screen.getByRole("combobox");
