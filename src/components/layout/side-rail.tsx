@@ -64,12 +64,12 @@ export function SideRail({ firstName, navCounts, className }: SideRailProps) {
                     fallback={
                       <Link
                         href={item.href}
-                        className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       >
-                        <Icon className="size-4 text-felt" />
+                        <Icon className="size-4 text-sidebar-foreground/60" />
                         <span className="flex-1">{item.label}</span>
                         {count != null && count > 0 && (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-felt/15 px-1.5 text-xs font-medium text-felt tabular-nums">
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-foreground/15 px-1.5 text-xs font-medium text-sidebar-foreground tabular-nums">
                             {count}
                           </span>
                         )}
@@ -77,10 +77,10 @@ export function SideRail({ firstName, navCounts, className }: SideRailProps) {
                     }
                   >
                     <NavLink href={item.href}>
-                      <Icon className="size-4 text-felt" />
+                      <Icon className="size-4 text-sidebar-foreground/60" />
                       <span className="flex-1">{item.label}</span>
                       {count != null && count > 0 && (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-felt/15 px-1.5 text-xs font-medium text-felt tabular-nums">
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-foreground/15 px-1.5 text-xs font-medium text-sidebar-foreground tabular-nums">
                           {count}
                         </span>
                       )}

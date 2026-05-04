@@ -12,11 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
-import { formatCurrencyInput } from "@/lib/currency/format-input";
 import { setCashOut, transitionToSettling } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
@@ -197,15 +196,10 @@ export function SettlingModal({
                       {formatCents(totalIn)}
                     </td>
                     <td className="p-2 text-right">
-                      <Input
-                        type="text"
-                        inputMode="decimal"
+                      <CurrencyInput
                         value={drafts[p.id] ?? ""}
-                        onChange={(e) =>
-                          setDrafts((d) => ({
-                            ...d,
-                            [p.id]: formatCurrencyInput(e.target.value),
-                          }))
+                        onChange={(v) =>
+                          setDrafts((d) => ({ ...d, [p.id]: v }))
                         }
                         aria-invalid={
                           (!p.valid && p.rawDraft !== "") || undefined

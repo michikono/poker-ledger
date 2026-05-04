@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
-import { formatCurrencyInput } from "@/lib/currency/format-input";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
 import type { SessionStatus } from "@/lib/sessions/types";
@@ -249,16 +249,10 @@ export function PlayerTable({
               <div className="flex items-center gap-1">
                 {editingDefaultBuyIn ? (
                   <div className="flex items-center gap-1">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="e.g. 25"
+                    <CurrencyInput
+                      placeholder="0.00"
                       value={defaultBuyInDraft}
-                      onChange={(e) =>
-                        setDefaultBuyInDraft(
-                          formatCurrencyInput(e.target.value),
-                        )
-                      }
+                      onChange={setDefaultBuyInDraft}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();

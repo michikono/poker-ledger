@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
-import { formatCurrencyInput } from "@/lib/currency/format-input";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
 import { cn } from "@/lib/utils";
@@ -298,14 +298,10 @@ export function PlayerRow({
       {editable && (
         <td className="p-3">
           <form className="flex items-center gap-1" onSubmit={handleAddBuyIn}>
-            <Input
-              type="text"
-              inputMode="decimal"
-              placeholder="amount"
+            <CurrencyInput
+              placeholder="0.00"
               value={buyInDraft}
-              onChange={(e) =>
-                setBuyInDraft(formatCurrencyInput(e.target.value))
-              }
+              onChange={setBuyInDraft}
               disabled={busy}
               aria-invalid={buyInError ? true : undefined}
               className="h-7 w-24 text-xs"
@@ -365,14 +361,10 @@ export function PlayerRow({
         {editable ? (
           <div className="flex flex-col items-end gap-1">
             <div className="relative">
-              <Input
-                type="text"
-                inputMode="decimal"
+              <CurrencyInput
                 placeholder="—"
                 value={cashOutDraft}
-                onChange={(e) =>
-                  setCashOutDraft(formatCurrencyInput(e.target.value))
-                }
+                onChange={setCashOutDraft}
                 onBlur={() => void commitCashOut()}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
