@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { adminAuth } from "@/lib/auth/admin";
 import { verifyIdToken } from "@/lib/auth/verify-token";
+import { archiveStaleSessionsOnLogin } from "@/lib/sessions/garbage-collect";
 
 const SESSION_DURATION_MS = 60 * 60 * 24 * 5 * 1000; // 5 days
 const SESSION_DURATION_S = 60 * 60 * 24 * 5;
@@ -21,6 +22,7 @@ export async function createSession(idToken: string): Promise<void> {
     maxAge: SESSION_DURATION_S,
     path: "/",
   });
+  await archiveStaleSessionsOnLogin();
 }
 
 export async function signOut(): Promise<void> {
