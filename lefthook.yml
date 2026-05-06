@@ -6,3 +6,20 @@ pre-commit:
       run: npm run lint
     test:
       run: npm run test
+
+pre-push:
+  commands:
+    # The repo merges PRs via rebase, so every commit on a feature branch
+    # lands on main as a permanent commit. Block pushes that contain
+    # autosquash markers (fixup!/squash!/amend!) or WIP/tmp/temp subjects —
+    # they should be consolidated via `git rebase --autosquash main` before
+    # merge. Bypass with `git push --no-verify` for legitimate WIP shares.
+    fixup-guard:
+      run: |
+        base=$(git merge-base HEAD origin/main 2>/dev/null) || base=""
+        if [ -z "$base" ]; then exit 0; fi
+        sloppy=$(git log --format='%h %s' "$base..HEAD" 2>/dev/null | grep -Ei '^[a-f0-9]+ (fixup!|squash!|amend!|(wip|tmp|temp)([: !]|$))' || true)
+        if [ -n "$sloppy" ]; then
+          printf '\nRefusing to push: unflushed fixup/wip commits detected:\n%s\n\nConsolidate before pushing for merge:\n  git rebase --autosquash main      # folds fixup!/squash! into their targets\n  git rebase -i main                # manual squash/reword\n  git commit --amend                # for the most recent commit only\n\nThen push with --force-with-lease. To bypass (e.g. sharing a WIP branch),\nuse: git push --no-verify\n\n' "$sloppy" >&2
+          exit 1
+        fi
