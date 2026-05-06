@@ -52,6 +52,7 @@ A named participant in a session. Not tied to a Firebase Auth account — anyone
 | session_id | string | Foreign key to Session |
 | name | string | Display name (e.g., "Billy"); 1–50 chars; unique within session (case-insensitive) |
 | name_lower | string | Lowercased + trimmed copy of `name`; denormalized for case-insensitive uniqueness |
+| venmo_username | string \| null | Optional Venmo handle (canonical form, no leading `@`); 5–30 chars, `[A-Za-z0-9_.-]`; null when unset; powers per-payment Venmo deep-links |
 | cash_out_cents | integer \| null | Final cash-out amount in cents; null until set; 0 means "busted out" (valid distinct from null) |
 | created_by_uid | string | Firebase Auth UID of whoever added this player |
 | created_at | timestamp | |
@@ -67,6 +68,7 @@ A named participant in a session. Not tied to a Firebase Auth account — anyone
 - `cash_out_cents` must be null or 0 ≤ value ≤ 2_000_000.
 - Players cannot be added once the session is `settling` or `settled`.
 - A player can be renamed in any non-archived state. Existing changelog entries are NOT rewritten — they snapshot the prior name.
+- `venmo_username` may be added, changed, or cleared in any non-archived state. The handle string itself is never written to the changelog (only `had_handle`/`has_handle` booleans).
 
 ---
 
@@ -169,6 +171,7 @@ erDiagram
         string id PK
         string session_id FK
         string name
+        string venmo_username
         int cash_out_cents
         string created_by_uid
         timestamp created_at

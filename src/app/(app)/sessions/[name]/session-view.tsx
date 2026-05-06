@@ -230,6 +230,8 @@ export function SessionView({
             <PaymentList
               sessionId={session.id}
               status={status}
+              sessionName={session.name}
+              sessionCreatedAtIso={session.createdAt}
               players={players}
               payments={payments}
             />

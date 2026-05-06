@@ -178,7 +178,6 @@ export function PlayerTable({
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="p-3">Player</th>
-                {editable && <th className="p-3">Add buy-in</th>}
                 <th className="p-3">Buy-ins</th>
                 <th className="p-3 text-right">Total in</th>
                 <th className="p-3 text-right">Cash out</th>
@@ -198,7 +197,6 @@ export function PlayerTable({
             <tfoot className="border-t bg-muted/30">
               <tr>
                 <td className="p-3 font-medium">Totals</td>
-                {editable && <td className="p-3" />}
                 <td className="p-3" />
                 <td className="p-3 text-right font-medium">
                   {formatCents(totals.totalBuyInCents)}

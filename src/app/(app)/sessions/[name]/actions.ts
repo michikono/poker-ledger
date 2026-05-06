@@ -7,6 +7,7 @@ import { formatCents } from "@/lib/currency/format";
 import { adminDb } from "@/lib/firebase/admin";
 import { computeSettlement } from "@/lib/settlement/compute";
 import type { SessionStatus } from "@/lib/sessions/types";
+import { parseVenmoHandle } from "@/lib/venmo/url";
 
 const MAX_NAME_LENGTH = 50;
 const MIN_NAME_LENGTH = 1;
@@ -36,6 +37,8 @@ const ERR_MESSAGES: Record<string, string> = {
   SESSION_NOT_EDITABLE: "This session can't be edited in its current state.",
   INVALID_STATE_TRANSITION: "Can't perform that action right now.",
   DUPLICATE_PLAYER_NAME: "A player with that name already exists.",
+  INVALID_VENMO_USERNAME:
+    "Venmo username must be 5–30 characters: letters, digits, _ . or -.",
   PAYMENT_NOT_FOUND: "That payment no longer exists.",
   PLAYER_NOT_FOUND: "That player no longer exists.",
   BUY_IN_NOT_FOUND: "That buy-in no longer exists.",
@@ -389,16 +392,17 @@ export async function setCashOut(
   }
 }
 
-// ============ updatePlayerName ============
+// ============ updatePlayer ============
 
-export type UpdatePlayerNameInput = {
+export type UpdatePlayerInput = {
   sessionId: string;
   playerId: string;
   name: string;
+  venmoUsername: string | null;
 };
 
-export async function updatePlayerName(
-  input: UpdatePlayerNameInput,
+export async function updatePlayer(
+  input: UpdatePlayerInput,
   token: string,
 ): Promise<ActionResult<void>> {
   const auth = await authenticate(token);
@@ -408,6 +412,21 @@ export async function updatePlayerName(
   if (!validated.ok) return fail(validated.code, validated.message);
 
   const { trimmed, nameLower } = validated;
+
+  let normalizedHandle: string | null;
+  if (input.venmoUsername === null) {
+    normalizedHandle = null;
+  } else {
+    const trimmedHandle = input.venmoUsername.trim();
+    if (trimmedHandle === "" || trimmedHandle === "@") {
+      normalizedHandle = null;
+    } else {
+      const parsed = parseVenmoHandle(trimmedHandle);
+      if (parsed === null) return errFromCode("INVALID_VENMO_USERNAME");
+      normalizedHandle = parsed;
+    }
+  }
+
   const actorName = getActorFirstName(auth.decoded);
 
   try {
@@ -426,11 +445,22 @@ export async function updatePlayerName(
       const playerSnap = await tx.get(playerRef);
       if (!playerSnap.exists) throw new Error("PLAYER_NOT_FOUND");
 
-      const oldName = (playerSnap.data()?.name as string) ?? "";
+      const oldData = playerSnap.data() ?? {};
+      const oldName = (oldData.name as string) ?? "";
+      const oldNameLower = (oldData.name_lower as string) ?? "";
+      const oldHandle =
+        typeof oldData.venmo_username === "string"
+          ? oldData.venmo_username
+          : null;
 
-      // Skip dupe check if name is unchanged (case-insensitive)
-      const oldNameLower = (playerSnap.data()?.name_lower as string) ?? "";
-      if (oldNameLower !== nameLower) {
+      const nameChanged = oldNameLower !== nameLower;
+      const handleChanged = oldHandle !== normalizedHandle;
+
+      if (!nameChanged && !handleChanged) {
+        return;
+      }
+
+      if (nameChanged) {
         const dupeQuery = await tx.get(
           playersRef.where("name_lower", "==", nameLower).limit(2),
         );
@@ -440,25 +470,56 @@ export async function updatePlayerName(
         if (collides) throw new Error("DUPLICATE_PLAYER_NAME");
       }
 
-      tx.update(playerRef, {
-        name: trimmed,
-        name_lower: nameLower,
+      const updateFields: Record<string, unknown> = {
         updated_at: FieldValue.serverTimestamp(),
-      });
+      };
+      if (nameChanged) {
+        updateFields.name = trimmed;
+        updateFields.name_lower = nameLower;
+      }
+      if (handleChanged) {
+        updateFields.venmo_username = normalizedHandle;
+      }
+      tx.update(playerRef, updateFields);
 
-      const changelogRef = sessionRef.collection("change_log").doc();
-      tx.set(changelogRef, {
-        actor_uid: auth.decoded.uid,
-        actor_name: actorName,
-        action_type: "player_renamed",
-        description: `${actorName} renamed ${oldName} to ${trimmed}.`,
-        metadata: {
-          player_id: input.playerId,
-          from: oldName,
-          to: trimmed,
-        },
-        created_at: FieldValue.serverTimestamp(),
-      });
+      if (nameChanged) {
+        const renameRef = sessionRef.collection("change_log").doc();
+        tx.set(renameRef, {
+          actor_uid: auth.decoded.uid,
+          actor_name: actorName,
+          action_type: "player_renamed",
+          description: `${actorName} renamed ${oldName} to ${trimmed}.`,
+          metadata: {
+            player_id: input.playerId,
+            from: oldName,
+            to: trimmed,
+          },
+          created_at: FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (handleChanged) {
+        const hadHandle = oldHandle !== null;
+        const hasHandle = normalizedHandle !== null;
+        const description = !hadHandle
+          ? `${actorName} added a Venmo handle for ${trimmed}.`
+          : !hasHandle
+            ? `${actorName} cleared the Venmo handle for ${trimmed}.`
+            : `${actorName} updated the Venmo handle for ${trimmed}.`;
+        const venmoRef = sessionRef.collection("change_log").doc();
+        tx.set(venmoRef, {
+          actor_uid: auth.decoded.uid,
+          actor_name: actorName,
+          action_type: "player_venmo_updated",
+          description,
+          metadata: {
+            player_id: input.playerId,
+            had_handle: hadHandle,
+            has_handle: hasHandle,
+          },
+          created_at: FieldValue.serverTimestamp(),
+        });
+      }
 
       tx.update(sessionRef, { updated_at: FieldValue.serverTimestamp() });
     });
