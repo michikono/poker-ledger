@@ -231,4 +231,60 @@ describe("PlayerRow — imperative handle", () => {
 
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
+
+  it("openEdit({ focus: 'venmo' }) focuses the Venmo handle field", async () => {
+    const handle = { current: null as PlayerRowHandle | null };
+    render(
+      <table>
+        <tbody>
+          <PlayerRow
+            sessionId="s1"
+            status="in_progress"
+            player={makePlayer({ id: "p1", name: "Alice" })}
+            ref={(h) => {
+              handle.current = h;
+            }}
+          />
+        </tbody>
+      </table>,
+    );
+
+    act(() => {
+      handle.current?.openEdit({ focus: "venmo" });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Venmo handle (optional)")).toHaveFocus();
+    });
+  });
+});
+
+describe("PlayerRow — name validation", () => {
+  it("rejects a punctuation-only name with 'letter or emoji' message", async () => {
+    renderRow(makePlayer({ id: "p1", name: "Alice" }));
+
+    fireEvent.click(screen.getByText("Alice"));
+    const nameInput = screen.getByLabelText("Name");
+    fireEvent.change(nameInput, { target: { value: "." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/letter or emoji/i)).toBeInTheDocument();
+    });
+    expect(mocks.updatePlayer).not.toHaveBeenCalled();
+  });
+});
+
+describe("PlayerRow — collapsed-state affordances", () => {
+  it("shows a Venmo icon next to the name when the player has a handle", () => {
+    renderRow(
+      makePlayer({ id: "p1", name: "Alice", venmoUsername: "alice123" }),
+    );
+    expect(screen.getByLabelText("Venmo: @alice123")).toBeInTheDocument();
+  });
+
+  it("does not show the Venmo icon when no handle is set", () => {
+    renderRow(makePlayer({ id: "p1", name: "Alice" }));
+    expect(screen.queryByLabelText(/Venmo:/)).not.toBeInTheDocument();
+  });
 });
