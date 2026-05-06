@@ -144,6 +144,16 @@ _Flow 3: Mark as settling — cash-outs entered in modal, balance validated befo
 3. If unpaid payments remain: row updates to "Paid." Done.
 4. If this was the last payment: session **immediately and automatically** transitions to `settled`. No confirmation dialog. All rows now show "Paid."
 
+### Pay-via-Venmo / QR-code paths (session is `settling` or `settled`, payment unpaid)
+
+These are optional shortcuts that exist alongside Mark Paid; neither replaces it nor mutates server state on its own.
+
+- **Pay** button (rendered only when the payee has `venmo_username` set): opens `https://venmo.com/<handle>?txn=pay&amount=<dollars>&note=Poker on YYYY-MM-DD (<session name>)` in a new tab. On mobile this universal-links into the Venmo app with the recipient and amount pre-filled. The user still has to confirm in Venmo, then return here and click **Mark Paid**.
+- **QR** button (same gate): opens a modal with a scannable QR code encoding the same URL, plus payee name/handle/amount caption. Useful when the host wants to show their phone to the payer at the table.
+- When the payee has no `venmo_username`: only an **Add Venmo for {payee}** affordance is rendered. Clicking it scrolls to that player's row and opens the player edit form so the handle can be entered. After saving, a refresh shows the Pay/QR buttons.
+
+Once a payment is marked paid, **Pay** and **QR** are both hidden from that row.
+
 ### Unmark path (session is `settling` or `settled`)
 
 1. User clicks "Unmark" on a payment row that was previously marked paid.
@@ -158,11 +168,20 @@ _Flow 3: Mark as settling — cash-outs entered in modal, balance validated befo
 flowchart TD
     A([Session settling]) --> B{Signed in?}
     B -- No --> C[Sign-in prompt]
-    B -- Yes --> D{Mark or Unmark?}
+    B -- Yes --> D{Action?}
+
+    D -- Pay (Venmo) --> P1{Payee has\nvenmo_username?}
+    P1 -- Yes --> P2[Open venmo.com link\nin new tab/app]
+    P1 -- No --> P3([Add Venmo for payee\nopens player edit form])
+    P2 --> P4([User confirms in Venmo\nthen clicks Mark Paid])
+
+    D -- QR --> Q1{Payee has\nvenmo_username?}
+    Q1 -- Yes --> Q2[Open QR modal with\nencoded venmo.com URL]
+    Q1 -- No --> P3
 
     D -- Mark as Paid --> E[Server marks payment paid\nWrite changelog]
     E --> F{Last unpaid\npayment?}
-    F -- No --> G([Row shows Paid])
+    F -- No --> G([Row shows Paid;\nPay/QR hidden])
     F -- Yes --> H([Session auto-transitions\nto settled])
 
     D -- Unmark --> I[Server clears payment paid\nWrite changelog]
@@ -170,7 +189,7 @@ flowchart TD
     J -- No --> K([Row shows Unpaid\nSession stays settling])
     J -- Yes --> L([Session auto-transitions\nback to settling])
 ```
-_Flow 4: Payment marking is bidirectional — last mark auto-settles; any unmark from settled auto-unstettles._
+_Flow 4: Payment marking is bidirectional — last mark auto-settles; any unmark from settled auto-unsettles. Pay (Venmo deep-link) and QR (modal) are optional shortcuts that don't mutate state on their own; the user must still click Mark Paid afterward._
 
 ---
 

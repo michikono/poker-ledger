@@ -28,6 +28,7 @@ function tsToIso(value: unknown): string {
 export type SessionPlayerView = {
   id: string;
   name: string;
+  venmoUsername: string | null;
   cashOutCents: number | null;
   createdAt: string;
   buyIns: Array<{ id: string; amountCents: number; createdAt: string }>;
@@ -105,6 +106,8 @@ export default async function SessionPage({
     return {
       id: doc.id,
       name: (data.name as string) ?? "",
+      venmoUsername:
+        typeof data.venmo_username === "string" ? data.venmo_username : null,
       cashOutCents:
         typeof data.cash_out_cents === "number" ? data.cash_out_cents : null,
       createdAt: tsToIso(data.created_at),

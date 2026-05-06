@@ -234,23 +234,33 @@ returns: ActionResult<{
 
 ---
 
-### `updatePlayerName(input, token)`
+### `updatePlayer(input, token)`
 
 **Auth required:** Yes
-**Purpose:** Rename a player. Allowed in all non-archived states.
+**Purpose:** Update a player's name and/or Venmo handle in a single atomic write. Allowed in all non-archived states.
 
 ```ts
 input: {
   sessionId: string;
   playerId: string;
-  name: string; // 1–50 chars, trimmed
+  name: string;                  // 1–50 chars, trimmed
+  venmoUsername: string | null;  // null clears; otherwise validated handle
 }
 
 returns: ActionResult<void>
 ```
 
-**Validation:** Session must not be `archived`; name must be unique within session (case-insensitive via `name_lower`); non-empty after trim; ≤ 50 chars.
-**Side effects:** Updates `Player.name` and `Player.name_lower`; writes `ChangeLogEntry` (`player_renamed`, with `metadata = { player_id, from, to }`). Existing changelog entries are NOT rewritten — they retain the old name as a snapshot.
+**Validation:**
+- Session must not be `archived`.
+- `name`: non-empty after trim; ≤ 50 chars; unique within session (case-insensitive via `name_lower`).
+- `venmoUsername`: trimmed; leading `@` stripped; if non-empty after stripping, must match `/^[A-Za-z0-9_.-]{5,30}$/`. Empty string and the literal `@` are normalized to `null` (clear). Invalid handles reject with `INVALID_VENMO_USERNAME`.
+
+**Side effects:** Conditionally updates only the fields that changed:
+- If `name` changed: updates `Player.name` and `Player.name_lower`; writes a `ChangeLogEntry` (`player_renamed`, with `metadata = { player_id, from, to }`).
+- If `venmo_username` changed: updates `Player.venmo_username`; writes a `ChangeLogEntry` (`player_venmo_updated`, with `metadata = { player_id, had_handle, has_handle }` — booleans only; the handle string itself is **never** written to the changelog).
+- If neither changed: no-op (no writes).
+
+Existing changelog entries are NOT rewritten — they retain prior values as a snapshot. When both fields change, two changelog entries are written in the same transaction.
 
 ---
 

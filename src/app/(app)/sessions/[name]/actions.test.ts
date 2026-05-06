@@ -132,7 +132,7 @@ import {
   transitionToSettling,
   unarchiveSession,
   unmarkPaymentPaid,
-  updatePlayerName,
+  updatePlayer,
 } from "./actions";
 
 // ============ Helpers ============
@@ -480,14 +480,19 @@ describe("setCashOut", () => {
   });
 });
 
-// ============ updatePlayerName ============
+// ============ updatePlayer ============
 
-describe("updatePlayerName", () => {
+describe("updatePlayer", () => {
   it("returns UNAUTHENTICATED on bad token", async () => {
     verifyIdToken.mockReset();
     verifyIdToken.mockRejectedValueOnce(new Error("bad"));
-    const result = await updatePlayerName(
-      { sessionId: "s1", playerId: "p1", name: "Charlie" },
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Charlie",
+        venmoUsername: null,
+      },
       "bad",
     );
     expect(result.success).toBe(false);
@@ -495,18 +500,59 @@ describe("updatePlayerName", () => {
   });
 
   it("returns INVALID_PLAYER_NAME for empty", async () => {
-    const result = await updatePlayerName(
-      { sessionId: "s1", playerId: "p1", name: "  " },
+    const result = await updatePlayer(
+      { sessionId: "s1", playerId: "p1", name: "  ", venmoUsername: null },
       "tok",
     );
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error.code).toBe("INVALID_PLAYER_NAME");
   });
 
+  it("returns INVALID_VENMO_USERNAME for malformed handle", async () => {
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Charlie",
+        venmoUsername: "no spaces",
+      },
+      "tok",
+    );
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.error.code).toBe("INVALID_VENMO_USERNAME");
+  });
+
+  it("treats empty/whitespace/single-@ handle as null (clearing)", async () => {
+    queueGets(
+      snap({ status: "in_progress" }),
+      snap({ name: "Bob", name_lower: "bob", venmo_username: "alice123" }),
+    );
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Bob",
+        venmoUsername: "  ",
+      },
+      "tok",
+    );
+    expect(result.success).toBe(true);
+    const update = txUpdate.mock.calls.find(
+      (c) => (c[1] as Record<string, unknown>).venmo_username === null,
+    );
+    expect(update).toBeDefined();
+  });
+
   it("returns SESSION_NOT_EDITABLE when archived", async () => {
     queueGets(snap({ status: "archived" }));
-    const result = await updatePlayerName(
-      { sessionId: "s1", playerId: "p1", name: "Charlie" },
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Charlie",
+        venmoUsername: null,
+      },
       "tok",
     );
     expect(result.success).toBe(false);
@@ -515,8 +561,13 @@ describe("updatePlayerName", () => {
 
   it("returns PLAYER_NOT_FOUND when missing", async () => {
     queueGets(snap({ status: "in_progress" }), snap(null));
-    const result = await updatePlayerName(
-      { sessionId: "s1", playerId: "p1", name: "Charlie" },
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Charlie",
+        venmoUsername: null,
+      },
       "tok",
     );
     expect(result.success).toBe(false);
@@ -531,8 +582,13 @@ describe("updatePlayerName", () => {
         { id: "p2", data: { name: "Charlie", name_lower: "charlie" } },
       ]),
     );
-    const result = await updatePlayerName(
-      { sessionId: "s1", playerId: "p1", name: "Charlie" },
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Charlie",
+        venmoUsername: null,
+      },
       "tok",
     );
     expect(result.success).toBe(false);
@@ -540,36 +596,120 @@ describe("updatePlayerName", () => {
       expect(result.error.code).toBe("DUPLICATE_PLAYER_NAME");
   });
 
-  it("succeeds and emits player_renamed with old and new names", async () => {
+  it("succeeds and emits player_renamed when only name changes", async () => {
     queueGets(
       snap({ status: "in_progress" }),
-      snap({ name: "Bob", name_lower: "bob" }),
-      querySnap([]), // no dupes
+      snap({ name: "Bob", name_lower: "bob", venmo_username: null }),
+      querySnap([]),
     );
-    const result = await updatePlayerName(
-      { sessionId: "s1", playerId: "p1", name: "Charlie" },
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Charlie",
+        venmoUsername: null,
+      },
       "tok",
     );
     expect(result.success).toBe(true);
-    const changelog = txSet.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(changelog).toMatchObject({
+    const renameLog = txSet.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .find((d) => d.action_type === "player_renamed");
+    expect(renameLog).toMatchObject({
       action_type: "player_renamed",
       metadata: { player_id: "p1", from: "Bob", to: "Charlie" },
     });
+    const venmoLog = txSet.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .find((d) => d.action_type === "player_venmo_updated");
+    expect(venmoLog).toBeUndefined();
   });
 
-  it("skips dupe check when name is unchanged (case-insensitive)", async () => {
+  it("emits player_venmo_updated with booleans only when handle is added", async () => {
     queueGets(
       snap({ status: "in_progress" }),
-      snap({ name: "Bob", name_lower: "bob" }),
+      snap({ name: "Bob", name_lower: "bob", venmo_username: null }),
     );
-    const result = await updatePlayerName(
-      { sessionId: "s1", playerId: "p1", name: "BOB" },
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Bob",
+        venmoUsername: "alice123",
+      },
       "tok",
     );
     expect(result.success).toBe(true);
-    // Only 2 gets: session + player. No dupe query.
-    expect(txGet).toHaveBeenCalledTimes(2);
+    const venmoLog = txSet.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .find((d) => d.action_type === "player_venmo_updated");
+    expect(venmoLog).toMatchObject({
+      action_type: "player_venmo_updated",
+      metadata: { player_id: "p1", had_handle: false, has_handle: true },
+    });
+    expect(JSON.stringify(venmoLog)).not.toContain("alice123");
+  });
+
+  it("emits player_venmo_updated when handle is cleared (had → none)", async () => {
+    queueGets(
+      snap({ status: "in_progress" }),
+      snap({
+        name: "Bob",
+        name_lower: "bob",
+        venmo_username: "alice123",
+      }),
+    );
+    const result = await updatePlayer(
+      { sessionId: "s1", playerId: "p1", name: "Bob", venmoUsername: null },
+      "tok",
+    );
+    expect(result.success).toBe(true);
+    const venmoLog = txSet.mock.calls
+      .map((c) => c[1] as Record<string, unknown>)
+      .find((d) => d.action_type === "player_venmo_updated");
+    expect(venmoLog).toMatchObject({
+      metadata: { had_handle: true, has_handle: false },
+    });
+  });
+
+  it("strips a leading @ from the handle before persisting", async () => {
+    queueGets(
+      snap({ status: "in_progress" }),
+      snap({ name: "Bob", name_lower: "bob", venmo_username: null }),
+    );
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Bob",
+        venmoUsername: "@alice123",
+      },
+      "tok",
+    );
+    expect(result.success).toBe(true);
+    const update = txUpdate.mock.calls.find(
+      (c) => (c[1] as Record<string, unknown>).venmo_username === "alice123",
+    );
+    expect(update).toBeDefined();
+  });
+
+  it("is a no-op when neither name nor handle changed", async () => {
+    queueGets(
+      snap({ status: "in_progress" }),
+      snap({ name: "Bob", name_lower: "bob", venmo_username: "alice123" }),
+    );
+    const result = await updatePlayer(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "BOB",
+        venmoUsername: "@alice123",
+      },
+      "tok",
+    );
+    expect(result.success).toBe(true);
+    expect(txSet).not.toHaveBeenCalled();
+    expect(txUpdate).not.toHaveBeenCalled();
   });
 });
 

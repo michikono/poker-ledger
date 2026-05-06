@@ -65,10 +65,11 @@ Document ID = session name (e.g., `crispy-salmon-042`) — serves as the URL slu
 |---|---|---|---|
 | `name` | `string` | No | 1–50 chars; trimmed; unique within session (case-insensitive) |
 | `name_lower` | `string` | No | Lowercased + trimmed copy of `name`; denormalized for case-insensitive uniqueness query |
+| `venmo_username` | `string` | Yes | Optional Venmo handle (canonical form, no leading `@`); 5–30 chars matching `[A-Za-z0-9_.-]`; null when unset |
 | `cash_out_cents` | `number` | Yes | Non-negative integer or null |
 | `created_by_uid` | `string` | No | Firebase Auth UID |
 | `created_at` | `Timestamp` | No | |
-| `updated_at` | `Timestamp` | No | Updated when `name`, `name_lower`, or `cash_out_cents` changes |
+| `updated_at` | `Timestamp` | No | Updated when `name`, `name_lower`, `venmo_username`, or `cash_out_cents` changes |
 
 **Uniqueness:** enforced inside a Firestore transaction by querying `players` for `name_lower == <new_name_lower>` before write. Firestore cannot do case-insensitive equality on `name` directly; the `name_lower` denormalization is the workaround.
 
@@ -170,6 +171,7 @@ erDiagram
     PLAYERS {
         string id PK
         string name
+        string venmo_username
         number cash_out_cents
         string created_by_uid
         Timestamp created_at
