@@ -52,6 +52,7 @@ export function PaymentList({
   sessionCreatedAtIso,
   players,
   payments,
+  onRequestEditPlayer,
 }: {
   sessionId: string;
   status: SessionStatus;
@@ -59,6 +60,7 @@ export function PaymentList({
   sessionCreatedAtIso: string;
   players: SessionPlayerView[];
   payments: SessionPaymentView[];
+  onRequestEditPlayer?: (playerId: string) => void;
 }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -96,17 +98,6 @@ export function PaymentList({
       return;
     }
     toast.error(GENERIC_ERROR);
-  }
-
-  function focusEditPlayer(playerId: string) {
-    if (typeof document === "undefined") return;
-    const row = document.querySelector(
-      `[data-testid="player-row-${playerId}"]`,
-    );
-    if (!row) return;
-    row.scrollIntoView({ behavior: "smooth", block: "center" });
-    const button = row.querySelector("button");
-    if (button instanceof HTMLButtonElement) button.click();
   }
 
   return (
@@ -187,10 +178,10 @@ export function PaymentList({
                     </Button>
                   </>
                 )}
-                {!p.paid && !venmoUrl && toPlayer && (
+                {!p.paid && !venmoUrl && toPlayer && onRequestEditPlayer && (
                   <button
                     type="button"
-                    onClick={() => focusEditPlayer(toPlayer.id)}
+                    onClick={() => onRequestEditPlayer(toPlayer.id)}
                     className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                     data-testid={`add-venmo-cta-${p.id}`}
                   >
