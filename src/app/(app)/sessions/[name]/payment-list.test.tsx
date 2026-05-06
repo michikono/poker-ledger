@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -104,7 +104,7 @@ describe("PaymentList — Venmo affordances", () => {
     expect(pay.getAttribute("href")).toContain("https://venmo.com/bob123");
     expect(pay.getAttribute("href")).toContain("amount=12.50");
     expect(pay.getAttribute("href")).toContain(
-      "Poker+on+2026-05-04+(friday-game)",
+      "Poker%C2%A0on%C2%A02026-05-04%C2%A0(friday-game)",
     );
     expect(screen.getByTestId("venmo-qr-pay-1")).toBeInTheDocument();
     expect(screen.queryByTestId("add-venmo-cta-pay-1")).not.toBeInTheDocument();
@@ -251,5 +251,135 @@ describe("PaymentList — Venmo affordances", () => {
     const qr = screen.getByTestId("qr-svg");
     expect(qr.getAttribute("data-value")).toContain("https://venmo.com/bob123");
     expect(qr.getAttribute("data-value")).toContain("amount=12.50");
+  });
+
+  it("opens the confirm modal when the Pay link is clicked (without auto-marking paid)", () => {
+    render(
+      <PaymentList
+        sessionId="s1"
+        status="settling"
+        sessionName={sessionName}
+        sessionCreatedAtIso={sessionCreatedAt}
+        players={[
+          makePlayer({ id: "alice", name: "Alice" }),
+          makePlayer({
+            id: "bob",
+            name: "Bob",
+            venmoUsername: "bob123",
+          }),
+        ]}
+        payments={[
+          makePayment({
+            id: "pay-1",
+            fromPlayerId: "alice",
+            toPlayerId: "bob",
+          }),
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("venmo-pay-pay-1"));
+    expect(screen.getByTestId("venmo-confirm-dialog")).toBeInTheDocument();
+    expect(mocks.markPaymentPaid).not.toHaveBeenCalled();
+  });
+
+  it("opens the confirm modal when the QR modal's Done button is clicked", () => {
+    render(
+      <PaymentList
+        sessionId="s1"
+        status="settling"
+        sessionName={sessionName}
+        sessionCreatedAtIso={sessionCreatedAt}
+        players={[
+          makePlayer({ id: "alice", name: "Alice" }),
+          makePlayer({
+            id: "bob",
+            name: "Bob",
+            venmoUsername: "bob123",
+          }),
+        ]}
+        payments={[
+          makePayment({
+            id: "pay-1",
+            fromPlayerId: "alice",
+            toPlayerId: "bob",
+          }),
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("venmo-qr-pay-1"));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.getByTestId("venmo-confirm-dialog")).toBeInTheDocument();
+    expect(mocks.markPaymentPaid).not.toHaveBeenCalled();
+  });
+
+  it("calls markPaymentPaid when the confirm modal's Mark paid is clicked", async () => {
+    mocks.markPaymentPaid.mockResolvedValue({ success: true });
+    render(
+      <PaymentList
+        sessionId="s1"
+        status="settling"
+        sessionName={sessionName}
+        sessionCreatedAtIso={sessionCreatedAt}
+        players={[
+          makePlayer({ id: "alice", name: "Alice" }),
+          makePlayer({
+            id: "bob",
+            name: "Bob",
+            venmoUsername: "bob123",
+          }),
+        ]}
+        payments={[
+          makePayment({
+            id: "pay-1",
+            fromPlayerId: "alice",
+            toPlayerId: "bob",
+          }),
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("venmo-pay-pay-1"));
+    fireEvent.click(screen.getByTestId("venmo-confirm-mark-paid"));
+    await waitFor(() => {
+      expect(mocks.markPaymentPaid).toHaveBeenCalledWith(
+        { sessionId: "s1", paymentId: "pay-1" },
+        "tok",
+      );
+    });
+  });
+
+  it("does NOT mark paid when 'Did not pay yet' is clicked", () => {
+    render(
+      <PaymentList
+        sessionId="s1"
+        status="settling"
+        sessionName={sessionName}
+        sessionCreatedAtIso={sessionCreatedAt}
+        players={[
+          makePlayer({ id: "alice", name: "Alice" }),
+          makePlayer({
+            id: "bob",
+            name: "Bob",
+            venmoUsername: "bob123",
+          }),
+        ]}
+        payments={[
+          makePayment({
+            id: "pay-1",
+            fromPlayerId: "alice",
+            toPlayerId: "bob",
+          }),
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("venmo-pay-pay-1"));
+    fireEvent.click(screen.getByTestId("venmo-confirm-not-yet"));
+    expect(mocks.markPaymentPaid).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("venmo-confirm-dialog"),
+    ).not.toBeInTheDocument();
   });
 });

@@ -20,14 +20,7 @@ export function buildVenmoPayUrl(args: {
   if (!Number.isInteger(args.amountCents) || args.amountCents <= 0) return null;
 
   const dollars = (args.amountCents / 100).toFixed(2);
-  // Venmo's deep-link parser is form-urlencoded: it shows `+` literally for
-  // spaces encoded as `%20`, so we encode spaces as `+` instead. Parens and
-  // commas are not encoded; Venmo accepts them raw.
-  const note = encodeURIComponent(args.note)
-    .replace(/%20/g, "+")
-    .replace(/%2C/g, ",")
-    .replace(/%28/g, "(")
-    .replace(/%29/g, ")");
+  const note = encodeURIComponent(args.note);
   return `https://venmo.com/${handle}?txn=pay&amount=${dollars}&note=${note}`;
 }
 
@@ -42,5 +35,12 @@ export function formatVenmoNote(session: {
   name: string;
   createdAt: Date;
 }): string {
-  return `Poker on ${formatLocalIsoDate(session.createdAt)} (${session.name})`;
+  // Venmo's mobile UI re-renders regular spaces (encoded as %20 or +) as a
+  // literal `+` in the recipient's note. Non-breaking spaces (U+00A0,
+  // encoded as %C2%A0) survive the round-trip and render as a normal-looking
+  // space. The session name's own whitespace is normalized to NBSP for the
+  // same reason.
+  const NBSP = " ";
+  const safeName = session.name.replace(/\s+/g, NBSP);
+  return `Poker${NBSP}on${NBSP}${formatLocalIsoDate(session.createdAt)}${NBSP}(${safeName})`;
 }
