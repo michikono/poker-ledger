@@ -3,7 +3,7 @@
 import { FirebaseError } from "firebase/app";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { CardIcon } from "@/components/icons/card-icon";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,18 +29,25 @@ function SignInFormInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pre-warm Firebase auth on mount so the click handler can open the OAuth
+  // popup synchronously within the user-activation window. Awaiting auth
+  // state inside the click handler made the first click race with IndexedDB
+  // persistence init, exhausting the gesture window and causing the popup
+  // to be suppressed; the second click then worked because state was cached.
+  useEffect(() => {
+    getClientAuth()
+      .authStateReady()
+      .catch(() => {});
+  }, []);
+
   async function handleSignIn() {
     setLoading(true);
     setError(null);
+    const auth = getClientAuth();
+    const provider = new GoogleAuthProvider();
+    const popupPromise = signInWithPopup(auth, provider);
     try {
-      const auth = getClientAuth();
-      // Wait for Firebase to finish restoring any persisted auth state before
-      // opening the OAuth popup. Without this, the very first click after a
-      // cold page load can race with IndexedDB/persistence init and surface
-      // as a popup/auth error, while a second click (state now ready) works.
-      await auth.authStateReady();
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const result = await popupPromise;
       const idToken = await result.user.getIdToken();
       await createSession(idToken);
       router.push(from);
