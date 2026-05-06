@@ -19,10 +19,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(signIn);
   }
 
-  if (isPublicPath(pathname) && session) {
-    return NextResponse.redirect(new URL("/sessions", request.url));
-  }
-
+  // Note: we deliberately do NOT redirect `/sign-in -> /sessions` based on
+  // cookie presence. The cookie may be present but invalid (expired, revoked,
+  // or wiped on the server side). A presence-only redirect causes a loop with
+  // the (app) layout, which redirects back to /sign-in when verification
+  // fails. The /sign-in page server component handles the
+  // "already signed in" redirect using full cryptographic verification.
   return NextResponse.next();
 }
 
