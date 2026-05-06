@@ -64,8 +64,27 @@ describe("buildVenmoPayUrl", () => {
       note: "Poker on 2026-05-04 (Friday game)",
     });
     expect(url).toBe(
-      "https://venmo.com/alice123?txn=pay&amount=12.50&note=Poker%20on%202026-05-04%20(Friday%20game)",
+      "https://venmo.com/alice123?txn=pay&amount=12.50&note=Poker+on+2026-05-04+(Friday+game)",
     );
+  });
+
+  it("encodes spaces as + (form-urlencoded) so Venmo's note UI renders them as spaces", () => {
+    const url = buildVenmoPayUrl({
+      handle: "alice123",
+      amountCents: 100,
+      note: "hello world",
+    });
+    expect(url).toContain("note=hello+world");
+    expect(url).not.toContain("%20");
+  });
+
+  it("encodes a literal + in the note as %2B so it survives form-urlencoded decoding", () => {
+    const url = buildVenmoPayUrl({
+      handle: "alice123",
+      amountCents: 100,
+      note: "a + b",
+    });
+    expect(url).toContain("note=a+%2B+b");
   });
 
   it("formats the amount with two decimals", () => {
@@ -92,7 +111,7 @@ describe("buildVenmoPayUrl", () => {
       amountCents: 100,
       note: "café night",
     });
-    expect(url).toContain("note=caf%C3%A9%20night");
+    expect(url).toContain("note=caf%C3%A9+night");
   });
 
   it("strips a leading @ from the handle", () => {

@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getClientAuth } from "@/lib/firebase/client";
+import { formatLocalIsoDate } from "@/lib/venmo/url";
 import { ActivityLog } from "./activity-log";
 import {
   archiveSession,
@@ -166,7 +167,8 @@ export function SessionView({
             <StatusBadge status={status} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Created by {session.createdByName}
+            Created by {session.createdByName} on{" "}
+            {formatLocalIsoDate(new Date(session.createdAt))}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
