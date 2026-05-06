@@ -104,7 +104,7 @@ describe("PaymentList — Venmo affordances", () => {
     expect(pay.getAttribute("href")).toContain("https://venmo.com/bob123");
     expect(pay.getAttribute("href")).toContain("amount=12.50");
     expect(pay.getAttribute("href")).toContain(
-      "Poker%20on%202026-05-04%20(friday-game)",
+      "Poker+on+2026-05-04+(friday-game)",
     );
     expect(screen.getByTestId("venmo-qr-pay-1")).toBeInTheDocument();
     expect(screen.queryByTestId("add-venmo-cta-pay-1")).not.toBeInTheDocument();

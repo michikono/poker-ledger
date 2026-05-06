@@ -20,19 +20,27 @@ export function buildVenmoPayUrl(args: {
   if (!Number.isInteger(args.amountCents) || args.amountCents <= 0) return null;
 
   const dollars = (args.amountCents / 100).toFixed(2);
-  const note = encodeURIComponent(args.note).replace(/%2C/g, ",");
-  // encodeURIComponent encodes parens; Venmo handles them fine and tests
-  // expect raw parens to round-trip, so decode them back for readability.
-  const friendly = note.replace(/%28/g, "(").replace(/%29/g, ")");
-  return `https://venmo.com/${handle}?txn=pay&amount=${dollars}&note=${friendly}`;
+  // Venmo's deep-link parser is form-urlencoded: it shows `+` literally for
+  // spaces encoded as `%20`, so we encode spaces as `+` instead. Parens and
+  // commas are not encoded; Venmo accepts them raw.
+  const note = encodeURIComponent(args.note)
+    .replace(/%20/g, "+")
+    .replace(/%2C/g, ",")
+    .replace(/%28/g, "(")
+    .replace(/%29/g, ")");
+  return `https://venmo.com/${handle}?txn=pay&amount=${dollars}&note=${note}`;
+}
+
+export function formatLocalIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function formatVenmoNote(session: {
   name: string;
   createdAt: Date;
 }): string {
-  const y = session.createdAt.getFullYear();
-  const m = String(session.createdAt.getMonth() + 1).padStart(2, "0");
-  const d = String(session.createdAt.getDate()).padStart(2, "0");
-  return `Poker on ${y}-${m}-${d} (${session.name})`;
+  return `Poker on ${formatLocalIsoDate(session.createdAt)} (${session.name})`;
 }
