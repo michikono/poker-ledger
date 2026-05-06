@@ -39,6 +39,7 @@ function makePlayer(
   return {
     id,
     name,
+    venmoUsername: null,
     cashOutCents,
     createdAt: new Date().toISOString(),
     buyIns:

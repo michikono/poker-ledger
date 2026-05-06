@@ -1,7 +1,7 @@
 # Change 0014: Venmo payment links and player edit form
 
 ## Status
-Proposed
+Accepted
 
 ## Owner
 Michi Kono
@@ -254,3 +254,4 @@ These are non-blocking; they can be resolved during implementation review withou
 | Date | Status | Notes |
 |---|---|---|
 | 2026-05-04 | Proposed | Initial draft |
+| 2026-05-04 | Accepted | Accepted by owner; implementation begins on `feature/0014-venmo-payment-links` |

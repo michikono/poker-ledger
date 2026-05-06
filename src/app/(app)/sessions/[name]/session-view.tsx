@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import type {
   SessionViewModel,
 } from "./page";
 import { PaymentList } from "./payment-list";
+import type { PlayerRowHandle } from "./player-row";
 import { PlayerTable } from "./player-table";
 import { SettlingModal } from "./settling-modal";
 
@@ -83,6 +84,7 @@ export function SessionView({
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [settlingOpen, setSettlingOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const playerRowsRef = useRef<Map<string, PlayerRowHandle>>(new Map());
 
   const status = session.status;
   const isInProgress = status === "in_progress";
@@ -217,6 +219,7 @@ export function SessionView({
         status={status}
         defaultBuyInCents={session.defaultBuyInCents}
         players={players}
+        playerRowsRef={playerRowsRef}
       />
 
       {(isSettling || isSettled) && (
@@ -230,8 +233,13 @@ export function SessionView({
             <PaymentList
               sessionId={session.id}
               status={status}
+              sessionName={session.name}
+              sessionCreatedAtIso={session.createdAt}
               players={players}
               payments={payments}
+              onRequestEditPlayer={(playerId) =>
+                playerRowsRef.current.get(playerId)?.openEdit()
+              }
             />
           )}
         </section>
