@@ -240,7 +240,9 @@ export function SessionView({
               players={players}
               payments={payments}
               onRequestEditPlayer={(playerId) =>
-                playerRowsRef.current.get(playerId)?.openEdit()
+                playerRowsRef.current
+                  .get(playerId)
+                  ?.openEdit({ focus: "venmo" })
               }
             />
           )}

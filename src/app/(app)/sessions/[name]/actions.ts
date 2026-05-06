@@ -5,12 +5,14 @@ import { adminAuth } from "@/lib/auth/admin";
 import { getActorFirstName } from "@/lib/auth/actor-name";
 import { formatCents } from "@/lib/currency/format";
 import { adminDb } from "@/lib/firebase/admin";
+import {
+  describePlayerNameError,
+  validatePlayerName,
+} from "@/lib/players/name";
 import { computeSettlement } from "@/lib/settlement/compute";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { parseVenmoHandle } from "@/lib/venmo/url";
 
-const MAX_NAME_LENGTH = 50;
-const MIN_NAME_LENGTH = 1;
 const MAX_AMOUNT_CENTS = 2_000_000;
 
 export type ActionResult<T> =
@@ -65,22 +67,19 @@ function validateName(
 ):
   | { ok: true; trimmed: string; nameLower: string }
   | { ok: false; code: "INVALID_PLAYER_NAME"; message: string } {
-  const trimmed = raw.trim();
-  if (!trimmed || trimmed.length < MIN_NAME_LENGTH) {
+  const result = validatePlayerName(raw);
+  if (!result.ok) {
     return {
       ok: false,
       code: "INVALID_PLAYER_NAME",
-      message: "Name is required.",
+      message: describePlayerNameError(result.error),
     };
   }
-  if (trimmed.length > MAX_NAME_LENGTH) {
-    return {
-      ok: false,
-      code: "INVALID_PLAYER_NAME",
-      message: `Name must be ${MAX_NAME_LENGTH} characters or less.`,
-    };
-  }
-  return { ok: true, trimmed, nameLower: trimmed.toLowerCase() };
+  return {
+    ok: true,
+    trimmed: result.trimmed,
+    nameLower: result.trimmed.toLowerCase(),
+  };
 }
 
 // ============ addPlayer ============

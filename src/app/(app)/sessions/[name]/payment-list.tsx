@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -198,9 +199,10 @@ export function PaymentList({
                   <button
                     type="button"
                     onClick={() => onRequestEditPlayer(toPlayer.id)}
-                    className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                     data-testid={`add-venmo-cta-${p.id}`}
                   >
+                    <VenmoIcon size={14} title="Venmo" />
                     Add Venmo for {toName}
                   </button>
                 )}

@@ -220,6 +220,24 @@ describe("addPlayer", () => {
     if (!result.success) expect(result.error.code).toBe("INVALID_PLAYER_NAME");
   });
 
+  it("returns INVALID_PLAYER_NAME for a punctuation-only name like '.'", async () => {
+    const result = await addPlayer({ sessionId: "s1", name: "." }, "tok");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe("INVALID_PLAYER_NAME");
+      expect(result.error.message).toContain("letter or emoji");
+    }
+  });
+
+  it("accepts an emoji-only player name", async () => {
+    queueGets(snap({ status: "in_progress" }), querySnap([]));
+    const result = await addPlayer(
+      { sessionId: "s1", name: "\u{1F3B2}" },
+      "tok",
+    );
+    expect(result.success).toBe(true);
+  });
+
   it("returns SESSION_NOT_FOUND when session does not exist", async () => {
     queueGets(snap(null));
     const result = await addPlayer({ sessionId: "s1", name: "Bob" }, "tok");

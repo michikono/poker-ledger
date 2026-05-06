@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Pencil, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   type FormEvent,
@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -24,6 +25,10 @@ import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
+import {
+  describePlayerNameError,
+  validatePlayerName,
+} from "@/lib/players/name";
 import { cn } from "@/lib/utils";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { parseVenmoHandle } from "@/lib/venmo/url";
@@ -58,7 +63,7 @@ function redirectToSignIn() {
 }
 
 export type PlayerRowHandle = {
-  openEdit: () => void;
+  openEdit: (options?: { focus?: "name" | "venmo" }) => void;
 };
 
 export function PlayerRow({
@@ -76,7 +81,10 @@ export function PlayerRow({
   const editable = status === "in_progress";
 
   const rowRef = useRef<HTMLTableRowElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const venmoInputRef = useRef<HTMLInputElement | null>(null);
   const [editing, setEditing] = useState(false);
+  const [editFocus, setEditFocus] = useState<"name" | "venmo">("name");
   const [nameDraft, setNameDraft] = useState(player.name);
   const [venmoDraft, setVenmoDraft] = useState(player.venmoUsername ?? "");
   const [editError, setEditError] = useState<{
@@ -122,16 +130,24 @@ export function PlayerRow({
 
   // Imperative API for parent-driven actions (e.g., the "Add Venmo for X"
   // affordance on a payment row asks the matching player's row to enter
-  // edit mode and scroll itself into view). Re-creating the handle on
-  // every render keeps the closure's state references current.
+  // edit mode focused on the Venmo handle field). Re-creating the handle
+  // on every render keeps the closure's state references current.
   useImperativeHandle(ref, () => ({
-    openEdit: () => {
+    openEdit: (options) => {
       if (status === "archived") return;
       setNameDraft(player.name);
       setVenmoDraft(player.venmoUsername ?? "");
       setEditError(null);
+      setEditFocus(options?.focus ?? "name");
       setEditing(true);
       rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      // The form mounts on the next render; focus once it's there.
+      requestAnimationFrame(() => {
+        const target =
+          options?.focus === "venmo" ? venmoInputRef : nameInputRef;
+        target.current?.focus();
+        target.current?.select?.();
+      });
     },
   }));
 
@@ -139,18 +155,15 @@ export function PlayerRow({
     e.preventDefault();
     if (busy) return;
 
-    const trimmedName = nameDraft.trim();
-    if (!trimmedName) {
-      setEditError({ field: "name", message: "Name is required." });
-      return;
-    }
-    if (trimmedName.length > 50) {
+    const nameResult = validatePlayerName(nameDraft);
+    if (!nameResult.ok) {
       setEditError({
         field: "name",
-        message: "Name must be 1–50 characters.",
+        message: describePlayerNameError(nameResult.error),
       });
       return;
     }
+    const trimmedName = nameResult.trimmed;
 
     const trimmedVenmo = venmoDraft.trim();
     let venmoToSend: string | null;
@@ -320,9 +333,10 @@ export function PlayerRow({
           >
             <div className="flex flex-col gap-1">
               <Input
+                ref={nameInputRef}
                 value={nameDraft}
                 onChange={(e) => setNameDraft(e.target.value)}
-                autoFocus
+                autoFocus={editFocus === "name"}
                 maxLength={50}
                 aria-label="Name"
                 aria-invalid={editError?.field === "name" ? true : undefined}
@@ -336,6 +350,7 @@ export function PlayerRow({
             </div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1">
+                <VenmoIcon size={16} className="shrink-0" title="Venmo" />
                 <span
                   className="text-sm text-muted-foreground"
                   aria-hidden="true"
@@ -343,8 +358,10 @@ export function PlayerRow({
                   @
                 </span>
                 <Input
+                  ref={venmoInputRef}
                   value={venmoDraft}
                   onChange={(e) => setVenmoDraft(e.target.value)}
+                  autoFocus={editFocus === "venmo"}
                   maxLength={31}
                   aria-label="Venmo handle (optional)"
                   aria-invalid={editError?.field === "venmo" ? true : undefined}
@@ -393,15 +410,32 @@ export function PlayerRow({
         ) : (
           <button
             type="button"
-            className="text-left font-medium underline-offset-4 hover:underline disabled:no-underline"
+            className="group flex items-center gap-1.5 text-left font-medium hover:text-primary disabled:hover:text-foreground"
             onClick={() => {
               if (status === "archived") return;
               resetEditDraft();
+              setEditFocus("name");
               setEditing(true);
             }}
             disabled={status === "archived"}
+            aria-label={`Edit ${player.name}`}
           >
-            {player.name}
+            <span className="underline-offset-4 group-hover:underline group-disabled:no-underline">
+              {player.name}
+            </span>
+            {player.venmoUsername && (
+              <VenmoIcon
+                size={14}
+                className="shrink-0 opacity-90"
+                title={`Venmo: @${player.venmoUsername}`}
+              />
+            )}
+            {status !== "archived" && (
+              <Pencil
+                aria-hidden="true"
+                className="size-3 shrink-0 text-muted-foreground transition-opacity group-hover:text-primary"
+              />
+            )}
           </button>
         )}
 

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   setCashOut: vi.fn(),
   transitionToSettling: vi.fn(),
+  updatePlayer: vi.fn(),
   getClientAuth: vi.fn(),
   toastError: vi.fn(),
   refresh: vi.fn(),
@@ -13,6 +14,7 @@ vi.mock("./actions", () => ({
   setCashOut: (...args: unknown[]) => mocks.setCashOut(...args),
   transitionToSettling: (...args: unknown[]) =>
     mocks.transitionToSettling(...args),
+  updatePlayer: (...args: unknown[]) => mocks.updatePlayer(...args),
 }));
 
 vi.mock("@/lib/firebase/client", () => ({
@@ -58,6 +60,7 @@ function makePlayer(
 beforeEach(() => {
   mocks.setCashOut.mockReset();
   mocks.transitionToSettling.mockReset();
+  mocks.updatePlayer.mockReset();
   mocks.toastError.mockReset();
   mocks.refresh.mockReset();
   mocks.getClientAuth.mockReturnValue({
@@ -174,5 +177,65 @@ describe("SettlingModal", () => {
       "tok",
     );
     expect(mocks.transitionToSettling).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists Venmo handle changes via updatePlayer before transitioning", async () => {
+    mocks.updatePlayer.mockResolvedValueOnce({ success: true });
+    mocks.transitionToSettling.mockResolvedValueOnce({
+      success: true,
+      data: { finalStatus: "settling", payments: [] },
+    });
+    render(
+      <SettlingModal
+        open
+        onOpenChange={() => {}}
+        sessionId="s1"
+        players={[makePlayer("p1", "Alice", 5000, 5000)]}
+      />,
+    );
+
+    const venmoInput = screen.getByTestId(
+      "settling-venmo-p1",
+    ) as HTMLInputElement;
+    fireEvent.change(venmoInput, { target: { value: "alice123" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("settling-confirm"));
+    });
+
+    expect(mocks.updatePlayer).toHaveBeenCalledWith(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Alice",
+        venmoUsername: "alice123",
+      },
+      "tok",
+    );
+    expect(mocks.transitionToSettling).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks confirm and shows an inline error when a Venmo handle is invalid", async () => {
+    render(
+      <SettlingModal
+        open
+        onOpenChange={() => {}}
+        sessionId="s1"
+        players={[makePlayer("p1", "Alice", 5000, 5000)]}
+      />,
+    );
+
+    const venmoInput = screen.getByTestId(
+      "settling-venmo-p1",
+    ) as HTMLInputElement;
+    fireEvent.change(venmoInput, { target: { value: "no spaces" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("settling-confirm"));
+    });
+
+    expect(mocks.updatePlayer).not.toHaveBeenCalled();
+    expect(mocks.transitionToSettling).not.toHaveBeenCalled();
+    expect(screen.getByText(/5–30 characters/)).toBeInTheDocument();
   });
 });

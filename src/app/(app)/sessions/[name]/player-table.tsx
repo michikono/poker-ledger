@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
+import {
+  describePlayerNameError,
+  validatePlayerName,
+} from "@/lib/players/name";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { addPlayer, updateDefaultBuyIn } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
@@ -76,15 +80,12 @@ export function PlayerTable({
     if (submitting) return;
     setError(null);
 
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Name is required.");
+    const validated = validatePlayerName(name);
+    if (!validated.ok) {
+      setError(describePlayerNameError(validated.error));
       return;
     }
-    if (trimmed.length > 50) {
-      setError("Name must be 1–50 characters.");
-      return;
-    }
+    const trimmed = validated.trimmed;
 
     setSubmitting(true);
     const token = await getToken();

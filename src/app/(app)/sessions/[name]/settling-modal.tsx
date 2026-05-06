@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,10 +14,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Input } from "@/components/ui/input";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { getClientAuth } from "@/lib/firebase/client";
-import { setCashOut, transitionToSettling } from "./actions";
+import { parseVenmoHandle } from "@/lib/venmo/url";
+import { setCashOut, transitionToSettling, updatePlayer } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
 import { computeSessionTotals, settleReadiness } from "./totals";
@@ -50,6 +53,14 @@ function initialDrafts(players: SessionPlayerView[]): DraftMap {
   return out;
 }
 
+function initialVenmoDrafts(players: SessionPlayerView[]): DraftMap {
+  const out: DraftMap = {};
+  for (const p of players) {
+    out[p.id] = p.venmoUsername ?? "";
+  }
+  return out;
+}
+
 export function SettlingModal({
   open,
   onOpenChange,
@@ -63,10 +74,18 @@ export function SettlingModal({
 }) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<DraftMap>(() => initialDrafts(players));
+  const [venmoDrafts, setVenmoDrafts] = useState<DraftMap>(() =>
+    initialVenmoDrafts(players),
+  );
+  const [venmoErrors, setVenmoErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (open) setDrafts(initialDrafts(players));
+    if (open) {
+      setDrafts(initialDrafts(players));
+      setVenmoDrafts(initialVenmoDrafts(players));
+      setVenmoErrors({});
+    }
   }, [open, players]);
 
   const parsedPlayers = useMemo(
@@ -115,9 +134,41 @@ export function SettlingModal({
             : "Enter a valid amount for each player.",
       } as const);
 
+  // Validate every Venmo draft that differs from what's saved on the player.
+  // Returns null if valid, or a map of {playerId: errorMessage} if any failed.
+  function collectVenmoChanges():
+    | { ok: true; changes: Array<{ playerId: string; handle: string | null }> }
+    | { ok: false; errors: Record<string, string> } {
+    const changes: Array<{ playerId: string; handle: string | null }> = [];
+    const errors: Record<string, string> = {};
+    for (const p of players) {
+      const draft = (venmoDrafts[p.id] ?? "").trim();
+      const stripped = draft.startsWith("@") ? draft.slice(1) : draft;
+      const isEmpty = stripped === "";
+      const next = isEmpty ? null : parseVenmoHandle(stripped);
+      if (!isEmpty && next === null) {
+        errors[p.id] =
+          "Use 5–30 characters: letters, digits, _ . or - (no spaces).";
+        continue;
+      }
+      if (next !== (p.venmoUsername ?? null)) {
+        changes.push({ playerId: p.id, handle: next });
+      }
+    }
+    if (Object.keys(errors).length > 0) return { ok: false, errors };
+    return { ok: true, changes };
+  }
+
   async function handleConfirm() {
     if (submitting) return;
     if (!readiness.ok) return;
+
+    const venmoCheck = collectVenmoChanges();
+    if (!venmoCheck.ok) {
+      setVenmoErrors(venmoCheck.errors);
+      return;
+    }
+    setVenmoErrors({});
 
     setSubmitting(true);
     const token = await getToken();
@@ -134,6 +185,26 @@ export function SettlingModal({
       if (p.cashOutCents === original.cashOutCents) continue;
       const result = await setCashOut(
         { sessionId, playerId: p.id, amountCents: p.cashOutCents },
+        token,
+      );
+      if (!result.success) {
+        setSubmitting(false);
+        toast.error(GENERIC_ERROR);
+        return;
+      }
+    }
+
+    // Persist any Venmo handle changes.
+    for (const change of venmoCheck.changes) {
+      const original = players.find((x) => x.id === change.playerId);
+      if (!original) continue;
+      const result = await updatePlayer(
+        {
+          sessionId,
+          playerId: change.playerId,
+          name: original.name,
+          venmoUsername: change.handle,
+        },
         token,
       );
       if (!result.success) {
@@ -181,6 +252,12 @@ export function SettlingModal({
                 <th className="p-2">Player</th>
                 <th className="p-2 text-right">Total in</th>
                 <th className="p-2 text-right">Cash out</th>
+                <th className="p-2">
+                  <span className="inline-flex items-center gap-1">
+                    <VenmoIcon size={14} />
+                    Venmo
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -189,8 +266,9 @@ export function SettlingModal({
                   (sum, b) => sum + b.amountCents,
                   0,
                 );
+                const venmoErr = venmoErrors[p.id];
                 return (
-                  <tr key={p.id} className="border-t">
+                  <tr key={p.id} className="border-t align-top">
                     <td className="p-2">{p.name}</td>
                     <td className="p-2 text-right tabular-nums">
                       {formatCents(totalIn)}
@@ -209,6 +287,39 @@ export function SettlingModal({
                         className="h-8 w-24 text-right"
                         data-testid={`settling-cashout-${p.id}`}
                       />
+                    </td>
+                    <td className="p-2">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          <span
+                            className="text-sm text-muted-foreground"
+                            aria-hidden="true"
+                          >
+                            @
+                          </span>
+                          <Input
+                            value={venmoDrafts[p.id] ?? ""}
+                            onChange={(e) =>
+                              setVenmoDrafts((d) => ({
+                                ...d,
+                                [p.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="optional"
+                            maxLength={31}
+                            aria-label={`Venmo handle for ${p.name}`}
+                            aria-invalid={venmoErr ? true : undefined}
+                            disabled={submitting}
+                            className="h-8 w-36"
+                            data-testid={`settling-venmo-${p.id}`}
+                          />
+                        </div>
+                        {venmoErr && (
+                          <span className="text-xs text-destructive">
+                            {venmoErr}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
