@@ -14,7 +14,7 @@ import type { SessionStatus } from "@/lib/sessions/types";
 import { addPlayer, updateDefaultBuyIn } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
-import { PlayerRow } from "./player-row";
+import { PlayerRow, type PlayerRowHandle } from "./player-row";
 import { computeSessionTotals } from "./totals";
 
 const GENERIC_ERROR = "Something went wrong — please try again.";
@@ -40,11 +40,13 @@ export function PlayerTable({
   status,
   defaultBuyInCents,
   players,
+  playerRowsRef,
 }: {
   sessionId: string;
   status: SessionStatus;
   defaultBuyInCents: number | null;
   players: SessionPlayerView[];
+  playerRowsRef?: { current: Map<string, PlayerRowHandle> };
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -191,6 +193,14 @@ export function PlayerTable({
                   sessionId={sessionId}
                   status={status}
                   player={p}
+                  ref={(handle) => {
+                    if (!playerRowsRef) return;
+                    if (handle) {
+                      playerRowsRef.current.set(p.id, handle);
+                    } else {
+                      playerRowsRef.current.delete(p.id);
+                    }
+                  }}
                 />
               ))}
             </tbody>

@@ -31,8 +31,8 @@ export function formatVenmoNote(session: {
   name: string;
   createdAt: Date;
 }): string {
-  const y = session.createdAt.getUTCFullYear();
-  const m = String(session.createdAt.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(session.createdAt.getUTCDate()).padStart(2, "0");
+  const y = session.createdAt.getFullYear();
+  const m = String(session.createdAt.getMonth() + 1).padStart(2, "0");
+  const d = String(session.createdAt.getDate()).padStart(2, "0");
   return `Poker on ${y}-${m}-${d} (${session.name})`;
 }

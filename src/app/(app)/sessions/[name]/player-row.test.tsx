@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -31,7 +37,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: () => mocks.refresh() }),
 }));
 
-import { PlayerRow } from "./player-row";
+import { PlayerRow, type PlayerRowHandle } from "./player-row";
 import type { SessionPlayerView } from "./page";
 
 function makePlayer(
@@ -163,5 +169,66 @@ describe("PlayerRow — buy-in column", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.getByTestId("add-buy-in-cta-p1")).toBeInTheDocument();
+  });
+});
+
+describe("PlayerRow — imperative handle", () => {
+  it("calling openEdit() on the ref opens the edit form", () => {
+    const handle = { current: null as PlayerRowHandle | null };
+    render(
+      <table>
+        <tbody>
+          <PlayerRow
+            sessionId="s1"
+            status="in_progress"
+            player={makePlayer({
+              id: "p1",
+              name: "Alice",
+              venmoUsername: "alice123",
+            })}
+            ref={(h) => {
+              handle.current = h;
+            }}
+          />
+        </tbody>
+      </table>,
+    );
+
+    // No edit form yet
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+
+    act(() => {
+      handle.current?.openEdit();
+    });
+
+    // Edit form appeared with name and existing handle
+    expect(screen.getByLabelText("Name")).toHaveValue("Alice");
+    expect(screen.getByLabelText("Venmo handle (optional)")).toHaveValue(
+      "alice123",
+    );
+  });
+
+  it("openEdit() is a no-op for archived sessions", () => {
+    const handle = { current: null as PlayerRowHandle | null };
+    render(
+      <table>
+        <tbody>
+          <PlayerRow
+            sessionId="s1"
+            status="archived"
+            player={makePlayer({ id: "p1", name: "Alice" })}
+            ref={(h) => {
+              handle.current = h;
+            }}
+          />
+        </tbody>
+      </table>,
+    );
+
+    act(() => {
+      handle.current?.openEdit();
+    });
+
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
 });

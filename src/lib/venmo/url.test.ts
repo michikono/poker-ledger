@@ -131,31 +131,32 @@ describe("buildVenmoPayUrl", () => {
 });
 
 describe("formatVenmoNote", () => {
-  it("formats a session as 'Poker on YYYY-MM-DD (name)' using UTC", () => {
+  it("formats a session as 'Poker on YYYY-MM-DD (name)' using the runtime's local date", () => {
+    // new Date(year, monthIndex, day) constructs a local-time Date, so the
+    // year/month/day we pass in are exactly what the formatter should emit
+    // regardless of the test runner's TZ.
     expect(
       formatVenmoNote({
         name: "friday-game",
-        createdAt: new Date("2026-05-04T22:00:00.000Z"),
+        createdAt: new Date(2026, 4, 4, 12, 0, 0),
       }),
     ).toBe("Poker on 2026-05-04 (friday-game)");
   });
 
-  it("uses the UTC date even when the local TZ would shift the day", () => {
-    // 2026-05-05 00:30 UTC → in PST (UTC-8) this is still 2026-05-04 16:30 local.
-    // We want UTC for stability.
+  it("zero-pads single-digit months and days", () => {
     expect(
       formatVenmoNote({
         name: "x",
-        createdAt: new Date("2026-05-05T00:30:00.000Z"),
+        createdAt: new Date(2026, 0, 9, 12, 0, 0),
       }),
-    ).toBe("Poker on 2026-05-05 (x)");
+    ).toBe("Poker on 2026-01-09 (x)");
   });
 
   it("preserves the session name verbatim (no encoding here — that is buildVenmoPayUrl's job)", () => {
     expect(
       formatVenmoNote({
         name: "Friday Night (deluxe)",
-        createdAt: new Date("2026-05-04T00:00:00.000Z"),
+        createdAt: new Date(2026, 4, 4, 12, 0, 0),
       }),
     ).toBe("Poker on 2026-05-04 (Friday Night (deluxe))");
   });

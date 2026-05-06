@@ -2,7 +2,13 @@
 
 import { Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import {
+  type FormEvent,
+  type Ref,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -51,18 +57,25 @@ function redirectToSignIn() {
   }
 }
 
+export type PlayerRowHandle = {
+  openEdit: () => void;
+};
+
 export function PlayerRow({
   sessionId,
   status,
   player,
+  ref,
 }: {
   sessionId: string;
   status: SessionStatus;
   player: SessionPlayerView;
+  ref?: Ref<PlayerRowHandle>;
 }) {
   const router = useRouter();
   const editable = status === "in_progress";
 
+  const rowRef = useRef<HTMLTableRowElement | null>(null);
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState(player.name);
   const [venmoDraft, setVenmoDraft] = useState(player.venmoUsername ?? "");
@@ -106,6 +119,21 @@ export function PlayerRow({
     setVenmoDraft(player.venmoUsername ?? "");
     setEditError(null);
   }
+
+  // Imperative API for parent-driven actions (e.g., the "Add Venmo for X"
+  // affordance on a payment row asks the matching player's row to enter
+  // edit mode and scroll itself into view). Re-creating the handle on
+  // every render keeps the closure's state references current.
+  useImperativeHandle(ref, () => ({
+    openEdit: () => {
+      if (status === "archived") return;
+      setNameDraft(player.name);
+      setVenmoDraft(player.venmoUsername ?? "");
+      setEditError(null);
+      setEditing(true);
+      rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+  }));
 
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
@@ -278,7 +306,11 @@ export function PlayerRow({
   }
 
   return (
-    <tr className="border-t" data-testid={`player-row-${player.id}`}>
+    <tr
+      ref={rowRef}
+      className="border-t"
+      data-testid={`player-row-${player.id}`}
+    >
       <td className="p-3">
         {editing ? (
           <form

@@ -128,6 +128,7 @@ describe("PaymentList — Venmo affordances", () => {
             toPlayerId: "bob",
           }),
         ]}
+        onRequestEditPlayer={() => {}}
       />,
     );
 
@@ -136,6 +137,57 @@ describe("PaymentList — Venmo affordances", () => {
     );
     expect(screen.queryByTestId("venmo-pay-pay-1")).not.toBeInTheDocument();
     expect(screen.queryByTestId("venmo-qr-pay-1")).not.toBeInTheDocument();
+  });
+
+  it("clicking the Add Venmo CTA calls onRequestEditPlayer with the payee's id", () => {
+    const onRequestEditPlayer = vi.fn();
+    render(
+      <PaymentList
+        sessionId="s1"
+        status="settling"
+        sessionName={sessionName}
+        sessionCreatedAtIso={sessionCreatedAt}
+        players={[
+          makePlayer({ id: "alice", name: "Alice" }),
+          makePlayer({ id: "bob", name: "Bob" }),
+        ]}
+        payments={[
+          makePayment({
+            id: "pay-1",
+            fromPlayerId: "alice",
+            toPlayerId: "bob",
+          }),
+        ]}
+        onRequestEditPlayer={onRequestEditPlayer}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("add-venmo-cta-pay-1"));
+    expect(onRequestEditPlayer).toHaveBeenCalledWith("bob");
+  });
+
+  it("hides the Add Venmo CTA when no onRequestEditPlayer prop is provided", () => {
+    render(
+      <PaymentList
+        sessionId="s1"
+        status="settling"
+        sessionName={sessionName}
+        sessionCreatedAtIso={sessionCreatedAt}
+        players={[
+          makePlayer({ id: "alice", name: "Alice" }),
+          makePlayer({ id: "bob", name: "Bob" }),
+        ]}
+        payments={[
+          makePayment({
+            id: "pay-1",
+            fromPlayerId: "alice",
+            toPlayerId: "bob",
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.queryByTestId("add-venmo-cta-pay-1")).not.toBeInTheDocument();
   });
 
   it("hides Pay, QR, and Add Venmo CTA once a payment is marked paid", () => {
