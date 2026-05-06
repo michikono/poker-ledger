@@ -61,30 +61,12 @@ describe("buildVenmoPayUrl", () => {
     const url = buildVenmoPayUrl({
       handle: "alice123",
       amountCents: 1250,
-      note: "Poker on 2026-05-04 (Friday game)",
+      // U+00A0 between words — see formatVenmoNote for why.
+      note: "Poker on 2026-05-04 (Friday game)",
     });
     expect(url).toBe(
-      "https://venmo.com/alice123?txn=pay&amount=12.50&note=Poker+on+2026-05-04+(Friday+game)",
+      "https://venmo.com/alice123?txn=pay&amount=12.50&note=Poker%C2%A0on%C2%A02026-05-04%C2%A0(Friday%C2%A0game)",
     );
-  });
-
-  it("encodes spaces as + (form-urlencoded) so Venmo's note UI renders them as spaces", () => {
-    const url = buildVenmoPayUrl({
-      handle: "alice123",
-      amountCents: 100,
-      note: "hello world",
-    });
-    expect(url).toContain("note=hello+world");
-    expect(url).not.toContain("%20");
-  });
-
-  it("encodes a literal + in the note as %2B so it survives form-urlencoded decoding", () => {
-    const url = buildVenmoPayUrl({
-      handle: "alice123",
-      amountCents: 100,
-      note: "a + b",
-    });
-    expect(url).toContain("note=a+%2B+b");
   });
 
   it("formats the amount with two decimals", () => {
@@ -105,13 +87,13 @@ describe("buildVenmoPayUrl", () => {
     expect(url).toContain("amount=50.00");
   });
 
-  it("URL-encodes notes with spaces and unicode", () => {
+  it("percent-encodes unicode characters in the note", () => {
     const url = buildVenmoPayUrl({
       handle: "alice123",
       amountCents: 100,
-      note: "café night",
+      note: "café",
     });
-    expect(url).toContain("note=caf%C3%A9+night");
+    expect(url).toContain("note=caf%C3%A9");
   });
 
   it("strips a leading @ from the handle", () => {
@@ -150,7 +132,7 @@ describe("buildVenmoPayUrl", () => {
 });
 
 describe("formatVenmoNote", () => {
-  it("formats a session as 'Poker on YYYY-MM-DD (name)' using the runtime's local date", () => {
+  it("uses non-breaking spaces between segments so Venmo's note UI renders them as spaces", () => {
     // new Date(year, monthIndex, day) constructs a local-time Date, so the
     // year/month/day we pass in are exactly what the formatter should emit
     // regardless of the test runner's TZ.
@@ -159,7 +141,7 @@ describe("formatVenmoNote", () => {
         name: "friday-game",
         createdAt: new Date(2026, 4, 4, 12, 0, 0),
       }),
-    ).toBe("Poker on 2026-05-04 (friday-game)");
+    ).toBe("Poker on 2026-05-04 (friday-game)");
   });
 
   it("zero-pads single-digit months and days", () => {
@@ -168,15 +150,15 @@ describe("formatVenmoNote", () => {
         name: "x",
         createdAt: new Date(2026, 0, 9, 12, 0, 0),
       }),
-    ).toBe("Poker on 2026-01-09 (x)");
+    ).toBe("Poker on 2026-01-09 (x)");
   });
 
-  it("preserves the session name verbatim (no encoding here — that is buildVenmoPayUrl's job)", () => {
+  it("normalizes whitespace inside the session name to NBSP", () => {
     expect(
       formatVenmoNote({
         name: "Friday Night (deluxe)",
         createdAt: new Date(2026, 4, 4, 12, 0, 0),
       }),
-    ).toBe("Poker on 2026-05-04 (Friday Night (deluxe))");
+    ).toBe("Poker on 2026-05-04 (Friday Night (deluxe))");
   });
 });

@@ -39,10 +39,17 @@ function redirectToSignIn() {
 }
 
 type QrModalState = {
+  paymentId: string;
   payeeName: string;
   payeeHandle: string;
   amountCents: number;
   url: string;
+};
+
+type ConfirmModalState = {
+  paymentId: string;
+  payeeName: string;
+  amountCents: number;
 };
 
 export function PaymentList({
@@ -65,6 +72,9 @@ export function PaymentList({
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [qrModal, setQrModal] = useState<QrModalState | null>(null);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalState | null>(
+    null,
+  );
 
   const playerById = new Map(players.map((p) => [p.id, p]));
   const note = formatVenmoNote({
@@ -100,6 +110,12 @@ export function PaymentList({
     toast.error(GENERIC_ERROR);
   }
 
+  async function markPaidById(paymentId: string) {
+    const payment = payments.find((p) => p.id === paymentId);
+    if (!payment || payment.paid) return;
+    await toggle(payment);
+  }
+
   return (
     <>
       <ul className="flex flex-col gap-2" data-testid="payment-list">
@@ -126,29 +142,21 @@ export function PaymentList({
               data-testid={`payment-row-${p.id}`}
               data-paid={p.paid ? "true" : "false"}
             >
-              <span className="flex flex-wrap items-center gap-1.5 text-sm">
-                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
-                  {fromName}
-                </span>
-                <span className="text-muted-foreground">pays</span>
-                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
-                  {toName}
-                </span>
-                <strong className="text-base tabular-nums">
-                  {formatCents(p.amountCents)}
-                </strong>
-              </span>
               <div className="flex flex-wrap items-center gap-2">
-                {p.paid && (
-                  <span
-                    className="text-xs text-emerald-700 dark:text-emerald-400"
-                    aria-label="paid"
-                  >
-                    Paid
+                <span className="flex flex-wrap items-center gap-1.5 text-sm">
+                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
+                    {fromName}
                   </span>
-                )}
+                  <span className="text-muted-foreground">pays</span>
+                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
+                    {toName}
+                  </span>
+                  <strong className="text-base tabular-nums">
+                    {formatCents(p.amountCents)}
+                  </strong>
+                </span>
                 {!p.paid && venmoUrl && (
-                  <>
+                  <div className="flex flex-wrap items-center gap-2">
                     <a
                       href={venmoUrl}
                       target="_blank"
@@ -156,6 +164,13 @@ export function PaymentList({
                       data-testid={`venmo-pay-${p.id}`}
                       aria-label={`Pay ${toName} ${formatCents(p.amountCents)} on Venmo`}
                       className={buttonVariants({ size: "sm" })}
+                      onClick={() => {
+                        setConfirmModal({
+                          paymentId: p.id,
+                          payeeName: toName,
+                          amountCents: p.amountCents,
+                        });
+                      }}
                     >
                       Pay
                     </a>
@@ -166,6 +181,7 @@ export function PaymentList({
                       onClick={() => {
                         if (!payeeHandle) return;
                         setQrModal({
+                          paymentId: p.id,
                           payeeName: toName,
                           payeeHandle,
                           amountCents: p.amountCents,
@@ -176,7 +192,7 @@ export function PaymentList({
                     >
                       QR
                     </Button>
-                  </>
+                  </div>
                 )}
                 {!p.paid && !venmoUrl && toPlayer && onRequestEditPlayer && (
                   <button
@@ -187,6 +203,16 @@ export function PaymentList({
                   >
                     Add Venmo for {toName}
                   </button>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {p.paid && (
+                  <span
+                    className="text-xs text-emerald-700 dark:text-emerald-400"
+                    aria-label="paid"
+                  >
+                    Paid
+                  </span>
                 )}
                 {status === "settled" || p.paid ? (
                   <Button
@@ -204,6 +230,7 @@ export function PaymentList({
                     size="sm"
                     onClick={() => void toggle(p)}
                     disabled={isBusy}
+                    data-testid={`mark-paid-${p.id}`}
                   >
                     {isBusy ? "Working…" : "Mark paid"}
                   </Button>
@@ -217,7 +244,16 @@ export function PaymentList({
       <Dialog
         open={qrModal !== null}
         onOpenChange={(open) => {
-          if (!open) setQrModal(null);
+          if (open || !qrModal) return;
+          // When the QR modal closes, hand off to the confirm modal so the
+          // user has to explicitly choose whether they paid.
+          const next: ConfirmModalState = {
+            paymentId: qrModal.paymentId,
+            payeeName: qrModal.payeeName,
+            amountCents: qrModal.amountCents,
+          };
+          setQrModal(null);
+          setConfirmModal(next);
         }}
       >
         <DialogContent data-testid="venmo-qr-dialog" className="sm:max-w-xs">
@@ -244,7 +280,8 @@ export function PaymentList({
                 />
               </div>
               <p className="text-center text-xs text-muted-foreground">
-                Tap or scan to open Venmo with the payment pre-filled.
+                Scanning opens Venmo only — you'll still need to mark this
+                payment paid here after.
               </p>
             </div>
           )}
@@ -252,9 +289,66 @@ export function PaymentList({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setQrModal(null)}
+              onClick={() => {
+                if (!qrModal) return;
+                const next: ConfirmModalState = {
+                  paymentId: qrModal.paymentId,
+                  payeeName: qrModal.payeeName,
+                  amountCents: qrModal.amountCents,
+                };
+                setQrModal(null);
+                setConfirmModal(next);
+              }}
             >
-              Close
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmModal !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmModal(null);
+        }}
+      >
+        <DialogContent
+          data-testid="venmo-confirm-dialog"
+          className="sm:max-w-sm"
+        >
+          <DialogHeader>
+            <DialogTitle>Did you complete the Venmo payment?</DialogTitle>
+            {confirmModal && (
+              <DialogDescription>
+                Opening Venmo doesn't mark this payment paid in the ledger. If
+                you finished sending {confirmModal.payeeName}{" "}
+                <strong className="tabular-nums">
+                  {formatCents(confirmModal.amountCents)}
+                </strong>
+                , mark it paid now.
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <DialogFooter className="sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmModal(null)}
+              data-testid="venmo-confirm-not-yet"
+            >
+              Did not pay yet
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!confirmModal) return;
+                const id = confirmModal.paymentId;
+                setConfirmModal(null);
+                void markPaidById(id);
+              }}
+              data-testid="venmo-confirm-mark-paid"
+            >
+              Mark paid
             </Button>
           </DialogFooter>
         </DialogContent>
