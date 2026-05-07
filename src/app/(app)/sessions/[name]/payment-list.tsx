@@ -14,30 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { getToken, redirectToSignIn } from "@/lib/auth/client-token";
 import { formatCents } from "@/lib/currency/format";
-import { getClientAuth } from "@/lib/firebase/client";
+import { describeErrorCode } from "@/lib/errors/messages";
 import { buildVenmoPayUrl, formatVenmoNote } from "@/lib/venmo/url";
 import { markPaymentPaid, unmarkPaymentPaid } from "./actions";
 import type { SessionPaymentView, SessionPlayerView } from "./page";
 import type { SessionStatus } from "@/lib/sessions/types";
-
-const GENERIC_ERROR = "Something went wrong — please try again.";
-
-async function getToken(): Promise<string | null> {
-  try {
-    const auth = getClientAuth();
-    await auth.authStateReady();
-    return (await auth.currentUser?.getIdToken()) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function redirectToSignIn() {
-  if (typeof window !== "undefined") {
-    window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
-  }
-}
 
 type QrModalState = {
   paymentId: string;
@@ -108,7 +91,7 @@ export function PaymentList({
       redirectToSignIn();
       return;
     }
-    toast.error(GENERIC_ERROR);
+    toast.error(describeErrorCode(result.error.code));
   }
 
   async function markPaidById(paymentId: string) {

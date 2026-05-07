@@ -7,9 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
+import { getToken, redirectToSignIn } from "@/lib/auth/client-token";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
-import { getClientAuth } from "@/lib/firebase/client";
+import { describeErrorCode } from "@/lib/errors/messages";
 import {
   describePlayerNameError,
   validatePlayerName,
@@ -20,24 +21,6 @@ import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
 import { PlayerRow, type PlayerRowHandle } from "./player-row";
 import { computeSessionTotals } from "./totals";
-
-const GENERIC_ERROR = "Something went wrong — please try again.";
-
-async function getToken(): Promise<string | null> {
-  try {
-    const auth = getClientAuth();
-    await auth.authStateReady();
-    return (await auth.currentUser?.getIdToken()) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function redirectToSignIn() {
-  if (typeof window !== "undefined") {
-    window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
-  }
-}
 
 export function PlayerTable({
   sessionId,
@@ -104,21 +87,20 @@ export function PlayerTable({
       return;
     }
 
+    // Field-level errors stay inline; everything else flows through the
+    // shared describeErrorCode mapper.
     switch (result.error.code) {
       case "INVALID_PLAYER_NAME":
         setError(result.error.message);
         return;
       case "DUPLICATE_PLAYER_NAME":
-        setError("A player with that name already exists.");
+        setError(describeErrorCode(result.error.code));
         return;
       case "UNAUTHENTICATED":
         redirectToSignIn();
         return;
-      case "SESSION_NOT_EDITABLE":
-        toast.error("This session can't be edited in its current state.");
-        return;
       default:
-        toast.error(GENERIC_ERROR);
+        toast.error(describeErrorCode(result.error.code));
     }
   }
 
@@ -159,7 +141,7 @@ export function PlayerTable({
       router.refresh();
       return;
     }
-    toast.error(GENERIC_ERROR);
+    toast.error(describeErrorCode(result.error.code));
   }
 
   return (
