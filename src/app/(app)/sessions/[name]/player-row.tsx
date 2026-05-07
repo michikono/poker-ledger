@@ -57,9 +57,11 @@ type BuyInError =
   | { kind: "generic"; message: string; retry: () => void }
   | null;
 
-type RemoveBuyInError =
-  | { buyInId: string; message: string; retry: () => void }
-  | null;
+type RemoveBuyInError = {
+  buyInId: string;
+  message: string;
+  retry: () => void;
+} | null;
 
 type CashOutError =
   | { kind: "validation"; message: string }
@@ -125,18 +127,16 @@ export function PlayerRow({
   const [busyRemovingId, setBusyRemovingId] = useState<string | null>(null);
   const busy = busyOp !== null || busyRemovingId !== null;
 
-  // Flash trigger: incremented on every successful edit save. The effect
-  // re-applies the animation class on the row, forcing the keyframes to
-  // restart even when the same row is edited twice in a row.
-  const [flashCount, setFlashCount] = useState(0);
-  useEffect(() => {
-    if (flashCount === 0) return;
+  // Force-restart the flash keyframes by toggling the class off-then-on with
+  // a layout read in between. Called from event handlers, not an effect, so
+  // the trigger doesn't need to round-trip through state.
+  function flashRow() {
     const el = rowRef.current;
     if (!el) return;
     el.classList.remove("player-row-flash");
     void el.offsetWidth;
     el.classList.add("player-row-flash");
-  }, [flashCount]);
+  }
 
   const totals = computePlayerTotals(
     player.buyIns.map((b) => ({ amountCents: b.amountCents })),
@@ -233,7 +233,7 @@ export function PlayerRow({
     if (!result) return;
     if (result.success) {
       setEditing(false);
-      setFlashCount((c) => c + 1);
+      flashRow();
       router.refresh();
       return;
     }
@@ -449,9 +449,7 @@ export function PlayerRow({
           <DialogContent
             data-testid={`edit-player-dialog-${player.id}`}
             showCloseButton={busyOp !== "save"}
-            initialFocus={
-              editFocus === "venmo" ? venmoInputRef : nameInputRef
-            }
+            initialFocus={editFocus === "venmo" ? venmoInputRef : nameInputRef}
           >
             <form onSubmit={handleSaveEdit} aria-label={`Edit ${player.name}`}>
               <DialogHeader>
