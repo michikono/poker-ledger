@@ -22,9 +22,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { withToken } from "@/lib/auth/client-token";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
-import { getClientAuth } from "@/lib/firebase/client";
+import { describeErrorCode } from "@/lib/errors/messages";
 import {
   describePlayerNameError,
   validatePlayerName,
@@ -41,8 +42,6 @@ import {
 } from "./actions";
 import type { SessionPlayerView } from "./page";
 import { computePlayerTotals } from "./totals";
-
-const GENERIC_ERROR = "Something went wrong — please try again.";
 
 type BusyOp = "cashOut" | "buyIn" | "save" | "delete" | null;
 
@@ -67,22 +66,6 @@ type CashOutError =
   | { kind: "validation"; message: string }
   | { kind: "generic"; message: string; retry: () => void }
   | null;
-
-async function getToken(): Promise<string | null> {
-  try {
-    const auth = getClientAuth();
-    await auth.authStateReady();
-    return (await auth.currentUser?.getIdToken()) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function redirectToSignIn() {
-  if (typeof window !== "undefined") {
-    window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
-  }
-}
 
 export type PlayerRowHandle = {
   openEdit: (options?: { focus?: "name" | "venmo" }) => void;
@@ -142,17 +125,6 @@ export function PlayerRow({
     player.buyIns.map((b) => ({ amountCents: b.amountCents })),
     player.cashOutCents,
   );
-
-  async function withToken<T>(
-    fn: (token: string) => Promise<T>,
-  ): Promise<T | null> {
-    const token = await getToken();
-    if (!token) {
-      redirectToSignIn();
-      return null;
-    }
-    return await fn(token);
-  }
 
   function resetEditDraft() {
     setNameDraft(player.name);
@@ -263,7 +235,7 @@ export function PlayerRow({
     }
     setEditError({
       kind: "generic",
-      message: GENERIC_ERROR,
+      message: describeErrorCode(result.error.code),
       retry: () => {
         void handleSaveEdit();
       },
@@ -286,7 +258,7 @@ export function PlayerRow({
       return;
     }
     setDeleteError({
-      message: GENERIC_ERROR,
+      message: describeErrorCode(result.error.code),
       retry: () => {
         void handleConfirmDelete();
       },
@@ -326,7 +298,7 @@ export function PlayerRow({
     }
     setBuyInError({
       kind: "generic",
-      message: GENERIC_ERROR,
+      message: describeErrorCode(result.error.code),
       retry: () => {
         void handleAddBuyIn();
       },
@@ -348,7 +320,7 @@ export function PlayerRow({
     }
     setRemoveError({
       buyInId,
-      message: GENERIC_ERROR,
+      message: describeErrorCode(result.error.code),
       retry: () => {
         void handleRemoveBuyIn(buyInId);
       },
@@ -392,7 +364,7 @@ export function PlayerRow({
     }
     setCashOutError({
       kind: "generic",
-      message: GENERIC_ERROR,
+      message: describeErrorCode(result.error.code),
       retry: () => {
         void commitCashOut();
       },

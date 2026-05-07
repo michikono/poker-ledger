@@ -15,13 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getToken, redirectToSignIn } from "@/lib/auth/client-token";
 import { parseDollars } from "@/lib/currency/parse";
-import { getClientAuth } from "@/lib/firebase/client";
+import { describeErrorCode } from "@/lib/errors/messages";
 import { createSession } from "./actions";
 
 const AMOUNT_ERROR = "Enter a valid amount, e.g., 25 or 25.00.";
 const NAME_COLLISION_TOAST = "Couldn't create a session — please try again.";
-const GENERIC_ERROR_TOAST = "Something went wrong — please try again.";
 
 export function CreateSessionDialog({
   trigger,
@@ -57,21 +57,10 @@ export function CreateSessionDialog({
     }
 
     setSubmitting(true);
-    let token: string | undefined;
-    try {
-      const auth = getClientAuth();
-      await auth.authStateReady();
-      token = await auth.currentUser?.getIdToken();
-    } catch {
-      setSubmitting(false);
-      toast.error(GENERIC_ERROR_TOAST);
-      return;
-    }
+    const token = await getToken();
     if (!token) {
       setSubmitting(false);
-      window.location.href = `/sign-in?from=${encodeURIComponent(
-        window.location.pathname,
-      )}`;
+      redirectToSignIn();
       return;
     }
 
@@ -95,12 +84,10 @@ export function CreateSessionDialog({
         toast.error(NAME_COLLISION_TOAST);
         return;
       case "UNAUTHENTICATED":
-        window.location.href = `/sign-in?from=${encodeURIComponent(
-          window.location.pathname,
-        )}`;
+        redirectToSignIn();
         return;
       default:
-        toast.error(GENERIC_ERROR_TOAST);
+        toast.error(describeErrorCode(result.error.code));
     }
   }
 

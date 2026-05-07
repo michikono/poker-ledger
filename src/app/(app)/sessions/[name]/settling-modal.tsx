@@ -15,32 +15,15 @@ import {
 } from "@/components/ui/dialog";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
+import { getToken, redirectToSignIn } from "@/lib/auth/client-token";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
-import { getClientAuth } from "@/lib/firebase/client";
+import { describeErrorCode } from "@/lib/errors/messages";
 import { parseVenmoHandle } from "@/lib/venmo/url";
 import { setCashOut, transitionToSettling, updatePlayer } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
 import { computeSessionTotals, settleReadiness } from "./totals";
-
-const GENERIC_ERROR = "Something went wrong — please try again.";
-
-async function getToken(): Promise<string | null> {
-  try {
-    const auth = getClientAuth();
-    await auth.authStateReady();
-    return (await auth.currentUser?.getIdToken()) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function redirectToSignIn() {
-  if (typeof window !== "undefined") {
-    window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
-  }
-}
 
 type DraftMap = Record<string, string>;
 
@@ -189,7 +172,7 @@ export function SettlingModal({
       );
       if (!result.success) {
         setSubmitting(false);
-        toast.error(GENERIC_ERROR);
+        toast.error(describeErrorCode(result.error.code));
         return;
       }
     }
@@ -209,7 +192,7 @@ export function SettlingModal({
       );
       if (!result.success) {
         setSubmitting(false);
-        toast.error(GENERIC_ERROR);
+        toast.error(describeErrorCode(result.error.code));
         return;
       }
     }
@@ -227,11 +210,7 @@ export function SettlingModal({
       redirectToSignIn();
       return;
     }
-    if (result.error.code === "BALANCE_OUT_OF_RANGE") {
-      toast.error("Cash-outs and buy-ins are out of balance.");
-      return;
-    }
-    toast.error(GENERIC_ERROR);
+    toast.error(describeErrorCode(result.error.code));
   }
 
   return (

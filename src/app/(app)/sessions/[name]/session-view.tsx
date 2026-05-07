@@ -13,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getClientAuth } from "@/lib/firebase/client";
+import { withToken } from "@/lib/auth/client-token";
+import { describeErrorCode } from "@/lib/errors/messages";
 import { formatLocalIsoDate } from "@/lib/venmo/url";
 import { ActivityLog } from "./activity-log";
 import {
@@ -31,43 +32,6 @@ import { PaymentList } from "./payment-list";
 import type { PlayerRowHandle } from "./player-row";
 import { PlayerTable } from "./player-table";
 import { SettlingModal } from "./settling-modal";
-
-const GENERIC_ERROR = "Something went wrong — please try again.";
-
-async function getToken(): Promise<string | null> {
-  try {
-    const auth = getClientAuth();
-    await auth.authStateReady();
-    return (await auth.currentUser?.getIdToken()) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function redirectToSignIn() {
-  if (typeof window !== "undefined") {
-    window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
-  }
-}
-
-export function handleErrorCode(code: string): string {
-  switch (code) {
-    case "UNAUTHENTICATED":
-      return "Session expired — please sign in again.";
-    case "SESSION_NOT_FOUND":
-      return "Session not found.";
-    case "SESSION_NOT_EDITABLE":
-      return "This session can't be edited in its current state.";
-    case "INVALID_STATE_TRANSITION":
-      return "Can't perform that action right now.";
-    case "PAYMENT_NOT_FOUND":
-    case "PLAYER_NOT_FOUND":
-    case "BUY_IN_NOT_FOUND":
-      return "Some data is out of date — refreshing.";
-    default:
-      return GENERIC_ERROR;
-  }
-}
 
 export function SessionView({
   session,
@@ -93,17 +57,6 @@ export function SessionView({
   const isSettled = status === "settled";
   const isArchived = status === "archived";
 
-  async function withToken<T>(
-    fn: (token: string) => Promise<T>,
-  ): Promise<T | null> {
-    const token = await getToken();
-    if (!token) {
-      redirectToSignIn();
-      return null;
-    }
-    return await fn(token);
-  }
-
   async function handleArchive() {
     if (submitting) return;
     setSubmitting(true);
@@ -116,7 +69,7 @@ export function SessionView({
     if (result.success) {
       router.refresh();
     } else {
-      toast.error(handleErrorCode(result.error.code));
+      toast.error(describeErrorCode(result.error.code));
     }
   }
 
@@ -131,7 +84,7 @@ export function SessionView({
     if (result.success) {
       router.refresh();
     } else {
-      toast.error(handleErrorCode(result.error.code));
+      toast.error(describeErrorCode(result.error.code));
     }
   }
 
@@ -151,7 +104,7 @@ export function SessionView({
     if (result.success) {
       router.refresh();
     } else {
-      toast.error(handleErrorCode(result.error.code));
+      toast.error(describeErrorCode(result.error.code));
     }
   }
 
