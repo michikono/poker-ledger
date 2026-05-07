@@ -139,9 +139,7 @@ describe("PlayerRow — edit form", () => {
     expect(retry).toBeInTheDocument();
 
     fireEvent.click(retry);
-    await waitFor(() =>
-      expect(mocks.updatePlayer).toHaveBeenCalledTimes(2),
-    );
+    await waitFor(() => expect(mocks.updatePlayer).toHaveBeenCalledTimes(2));
   });
 
   it("Delete player opens a confirmation dialog rather than deleting immediately", () => {
