@@ -1,7 +1,7 @@
 # Change 0016: Test coverage and structural cleanup
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -204,3 +204,4 @@ None — all resolved during pass-2 review.
 | 2026-05-07 | Proposed | Revised after pass-2 review: dropped optional rename track; verified all duplicates byte-identical; added `getSessionUser` extraction + `firebase/admin` regression test; replaced loose acceptance criteria with executable greps; documented emulator-config rename for `queries.ts` tests. |
 | 2026-05-07 | Proposed | Pass-3 review: committed to deleting `(app)/page.tsx` (no investigation step); split track D into D1/D2/D3 PRs; added CI job rename to track D; clarified PR-order is preference, not dependency graph; strengthened `firebase/admin` regression test with order-of-operations smoke call; trimmed Goal; dropped the now-empty Open Questions; dropped the redundant "Spec PRs link this file" pitfall. |
 | 2026-05-07 | Accepted | Approved after three review passes. |
+| 2026-05-07 | Implemented | All five implementation PRs merged: #57 (track A), #58 (C+D3), #59 (D1), #60 (D2), #61 (B). |
