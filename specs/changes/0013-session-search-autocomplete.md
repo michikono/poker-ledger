@@ -1,7 +1,7 @@
 # Change 0013: Session Search Autocomplete
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -247,3 +247,4 @@ None.
 | Date | Status | Notes |
 |---|---|---|
 | 2026-05-03 | Accepted | Initial draft; accepted by owner |
+| 2026-05-07 | Implemented | Shipped across PRs #30, #33, #38, #39. API route, `SessionSearchInput`, and nav + sessions-page wiring all in place; `src/lib/sessions/filter.ts` and `initialQuery` plumbing removed. |

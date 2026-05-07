@@ -1,7 +1,7 @@
 # Change 0014: Venmo payment links and player edit form
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -255,3 +255,4 @@ These are non-blocking; they can be resolved during implementation review withou
 |---|---|---|
 | 2026-05-04 | Proposed | Initial draft |
 | 2026-05-04 | Accepted | Accepted by owner; implementation begins on `feature/0014-venmo-payment-links` |
+| 2026-05-07 | Implemented | Shipped in PR #43 (`feat: venmo payment links and consolidated player edit form`) plus follow-on UX fixes #44–#50. Venmo URL helpers, `qrcode.react` QR modal, `updatePlayer` action with `venmoUsername`, `player_venmo_updated` changelog entry, and the buy-in column restructuring are all in place. |
