@@ -54,17 +54,17 @@
 **Blocks merge:** Yes
 **Tool:** Vitest
 **Coverage:** Full coverage of business logic required. Settlement calculation must be 100%. See `09-test-strategy.md`.
-**Notes:** Tests run against pure functions or with `vi.mock()` — no emulator required. The Firestore rules suite (`firestore-rules.test.ts`) is intentionally excluded from this run and runs separately under "Firestore rules tests" below.
+**Notes:** Tests run against pure functions or with `vi.mock()` — no emulator required. Emulator-backed tests (`firestore-rules.test.ts` and `*.emulator.test.ts`) are intentionally excluded from this run and run separately under "Emulator-backed tests" below.
 
 ---
 
-### Firestore rules tests
+### Emulator-backed tests
 
-**Command:** `npm run test:rules`
-**Blocks local completion:** Yes when `firestore.rules` changes
-**Blocks merge:** Yes when `firestore.rules` changes
-**Tool:** Vitest + `@firebase/rules-unit-testing` against the Firestore emulator
-**Notes:** Uses a dedicated Vitest config (`vitest.rules.config.ts`). Requires the Firestore emulator on the default port `8080`. CI runs this in the `Firestore Rules Tests` job, which starts an emulator-only Firestore via `firebase-tools`. The job is a required check on PRs that touch `firestore.rules`.
+**Command:** `npm run test:emulator`
+**Blocks local completion:** Yes when `firestore.rules` or any data-layer module under `src/lib/` changes
+**Blocks merge:** Yes when `firestore.rules` or any data-layer module under `src/lib/` changes
+**Tool:** Vitest against the Firestore emulator. Includes both the rules suite (`firestore-rules.test.ts`, via `@firebase/rules-unit-testing`) and module-level data-layer tests (`src/**/*.emulator.test.ts`, via the Firebase Admin SDK).
+**Notes:** Uses a dedicated Vitest config (`vitest.emulator.config.ts`). Requires the Firestore emulator on the default port `8080`. CI runs this in the `Emulator Tests` job, which starts an emulator-only Firestore via `firebase-tools`.
 
 ---
 
