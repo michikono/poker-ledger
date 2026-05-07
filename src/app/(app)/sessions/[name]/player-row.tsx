@@ -546,19 +546,8 @@ export function PlayerRow({
                   </div>
                 )}
               </div>
-              <DialogFooter className="mt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditing(false);
-                    resetEditDraft();
-                  }}
-                  disabled={busy}
-                >
-                  Cancel
-                </Button>
-                {editable && (
+              <DialogFooter className="mt-4 sm:justify-between">
+                {editable ? (
                   <Button
                     type="button"
                     variant="destructive"
@@ -567,13 +556,28 @@ export function PlayerRow({
                   >
                     Delete player
                   </Button>
+                ) : (
+                  <div className="hidden sm:block" />
                 )}
-                <Button type="submit" disabled={busy}>
-                  {busyOp === "save" && (
-                    <Loader2 className="mr-1 size-3 animate-spin" />
-                  )}
-                  Save
-                </Button>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setEditing(false);
+                      resetEditDraft();
+                    }}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={busy}>
+                    {busyOp === "save" && (
+                      <Loader2 className="mr-1 size-3 animate-spin" />
+                    )}
+                    Save
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           </DialogContent>
