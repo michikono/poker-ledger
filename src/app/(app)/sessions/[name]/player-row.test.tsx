@@ -94,6 +94,56 @@ describe("PlayerRow — edit form", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the edit form inside a modal dialog", () => {
+    renderRow(makePlayer({ id: "p1", name: "Alice" }));
+    fireEvent.click(screen.getByText("Alice"));
+    expect(screen.getByTestId("edit-player-dialog-p1")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Edit player" }),
+    ).toBeInTheDocument();
+  });
+
+  it("flashes the row after a successful edit save", async () => {
+    mocks.updatePlayer.mockResolvedValue({ success: true, data: undefined });
+
+    renderRow(makePlayer({ id: "p1", name: "Alice" }));
+    fireEvent.click(screen.getByText("Alice"));
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Alice B." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("player-row-p1")).toHaveClass(
+        "player-row-flash",
+      ),
+    );
+  });
+
+  it("shows an inline error with a Retry button when the save fails generically", async () => {
+    mocks.updatePlayer.mockResolvedValueOnce({
+      success: false,
+      error: { code: "INTERNAL", message: "boom" },
+    });
+    mocks.updatePlayer.mockResolvedValueOnce({
+      success: true,
+      data: undefined,
+    });
+
+    renderRow(makePlayer({ id: "p1", name: "Alice" }));
+    fireEvent.click(screen.getByText("Alice"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    expect(retry).toBeInTheDocument();
+
+    fireEvent.click(retry);
+    await waitFor(() =>
+      expect(mocks.updatePlayer).toHaveBeenCalledTimes(2),
+    );
+  });
+
   it("Delete player opens a confirmation dialog rather than deleting immediately", () => {
     renderRow(makePlayer({ id: "p1", name: "Alice" }));
 
