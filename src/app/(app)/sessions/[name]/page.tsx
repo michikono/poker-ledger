@@ -1,29 +1,8 @@
 import { notFound } from "next/navigation";
 import { adminDb } from "@/lib/firebase/admin";
+import { asSessionStatus, tsToIso } from "@/lib/firestore/serialize";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { SessionView } from "./session-view";
-
-const VALID_STATUSES: ReadonlySet<SessionStatus> = new Set([
-  "in_progress",
-  "settling",
-  "settled",
-  "archived",
-]);
-
-function asSessionStatus(value: unknown): SessionStatus {
-  return typeof value === "string" && VALID_STATUSES.has(value as SessionStatus)
-    ? (value as SessionStatus)
-    : "in_progress";
-}
-
-function tsToIso(value: unknown): string {
-  if (value && typeof value === "object" && "toDate" in value) {
-    const d = (value as { toDate: () => Date }).toDate();
-    return d.toISOString();
-  }
-  if (value instanceof Date) return value.toISOString();
-  return new Date(0).toISOString();
-}
 
 export type SessionPlayerView = {
   id: string;
