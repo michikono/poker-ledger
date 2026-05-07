@@ -32,8 +32,8 @@ jobs:
       - run: npm ci
       - run: npm run test
 
-  firestore-rules:
-    name: Firestore Rules Tests
+  emulator:
+    name: Emulator Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
             > /tmp/emulator.log 2>&1 &
       - name: Wait for Firestore emulator
         run: until curl -sf http://localhost:8080; do sleep 1; done
-      - run: npm run test:rules
+      - run: npm run test:emulator
 
   e2e:
     name: E2E Tests
