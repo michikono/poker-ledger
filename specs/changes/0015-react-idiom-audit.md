@@ -1,7 +1,7 @@
 # Change 0015: React-idiom audit and cleanup
 
 ## Status
-Proposed
+In Progress
 
 ## Owner
 Michi Kono
@@ -94,6 +94,72 @@ grep -rn "setTimeout\|requestAnimationFrame" src/
 grep -rn "useSearchParams\|useState" src/   # cross-reference for duplication
 ```
 
+## Audit findings (2026-05-07)
+
+Methodology: ran the suggested grep queries plus manual review of every `useEffect` and `useRef` site in `src/`. `src/test/` and `*.test.tsx?` files were excluded from the production-code findings.
+
+| # | Pattern | Result | Action |
+|---|---|---|---|
+| 1 | `document.querySelector` / `document.getElementById` in component code | **None.** The only production smell of this kind (the original 0014 *Add Venmo for X* affordance) is already gone. | None — clean. |
+| 2 | `useEffect` whose deps are an event-shaped value (nonce / `Date.now()` / boolean flipped on click) | **1 finding.** See F1 below. | Refactor in a follow-up PR. |
+| 3 | `useState` that duplicates URL state | **None.** `nav-link.tsx` is the only `useSearchParams` consumer in client code and reads the param directly. | None — clean. |
+| 4 | Manual `setTimeout` / `requestAnimationFrame` for "do X after render" | **2 findings**, both deliberate. See F2 + F3. | Keep, with comments already present. |
+| 5 | Mutation of refs inside the render body | **None.** All ref writes are inside effects, event handlers, or `useImperativeHandle`. | None — clean. |
+| 6 | Cross-component coordination via `data-testid` | **None.** Production-code `data-testid` attributes are present on many elements as test markers, but no production code path queries them. | None — clean. |
+| 7 | Manual scroll / focus management | **3 findings**, all event-driven (not render-driven). See F4. | Keep. |
+| 8 | `forwardRef` boilerplate | **None.** Project is on React 19; no `forwardRef` references in `src/`. | None — clean. |
+
+### F1 — `flashCount` is a `useEffect` masquerading as an event handler  *(actionable)*
+
+`src/app/(app)/sessions/[name]/player-row.tsx:131-139` declares a `flashCount` counter that is incremented (`setFlashCount((c) => c + 1)`) only from the success branch of `handleSaveEdit`. A `useEffect` keyed on `flashCount` then strips and re-applies the `player-row-flash` CSS class on `rowRef`. The state value is never read for rendering — it exists purely to retrigger the effect.
+
+This is the exact anti-pattern called out in [*You Might Not Need an Effect → "Resetting all state when a prop changes"*](https://react.dev/learn/you-might-not-need-an-effect#resetting-all-state-when-a-prop-changes) (event-shaped state). The idiomatic shape is a plain function called directly from the success handler:
+
+```ts
+function flashRow() {
+  const el = rowRef.current;
+  if (!el) return;
+  el.classList.remove("player-row-flash");
+  void el.offsetWidth; // force reflow so the keyframes restart
+  el.classList.add("player-row-flash");
+}
+
+// in handleSaveEdit success branch:
+setEditing(false);
+flashRow();
+router.refresh();
+```
+
+This removes one `useState`, one `useEffect`, and the `flashCount` import path.
+
+### F2 — `setTimeout` debounce in `SessionSearchInput`  *(intentional, keep)*
+
+`src/components/sessions/session-search-input.tsx:88-128` uses `setTimeout` to debounce the search query. Spec 0013 explicitly requires a 300 ms debounce; there is no React-native primitive for debouncing, and adding `use-debounce` or similar is out of scope for this spec (the audit doesn't migrate libraries). Keep as-is.
+
+### F3 — `requestAnimationFrame` to select input contents after dialog mount  *(intentional, keep)*
+
+`src/app/(app)/sessions/[name]/player-row.tsx:177-184` schedules `target.current?.select?.()` via rAF after `editing` becomes `true`. The reason — already documented in a code comment — is that base-ui's `Dialog` runs its `initialFocus` on mount; rAF sequences our `select()` *after* base-ui's focus has landed. Removing this re-introduces a focus race. Keep with the existing comment.
+
+### F4 — Manual scroll / focus, all in event handlers  *(intentional, keep)*
+
+- `player-row.tsx:171` — `rowRef.current?.scrollIntoView(...)` inside `useImperativeHandle`'s `openEdit` callback (parent-driven imperative). Event-shaped, not render-shaped. Keep.
+- `player-row.tsx:788` — `e.currentTarget.blur()` on Enter inside the buy-in input's `onKeyDown`. Native DOM event handler. Keep.
+- `session-search-input.tsx:154` — `e.currentTarget.blur()` on Escape inside the combobox `onKeyDown`. Native DOM event handler. Keep.
+
+### Other `useEffect` sites reviewed (not flagged)
+
+- `error.tsx:14` — `console.error(error)` on mount. Standard Next.js error-boundary pattern. Keep.
+- `settling-modal.tsx:83-89` — re-initializes drafts when `open` flips true. Could in principle be replaced by a `key` on the modal so it remounts, but that costs identity (focus, scroll position) and the current shape is the documented React idiom for "reset state when a prop changes is rare." Keep.
+- `sign-in-form.tsx:37-41` — pre-warms Firebase auth on mount. Classic legitimate effect (initialize external system once). Already commented with the why. Keep.
+
+## Punch-list summary
+
+- **Actionable:** 1 finding (F1 — `flashCount` → plain function).
+- **Intentional / explicitly kept:** 5 findings (F2, F3, three under F4).
+- **All other patterns:** clean — codebase is already idiomatic on the remaining six audit categories.
+
+The next PR for this spec implements F1; after that the spec moves to `Implemented` (since no other patterns surfaced).
+
 ## Open questions
 
 1. **One mega-PR or one-per-pattern?** Recommendation: one-per-pattern, per the project's "small reviewable PRs" rule. Mega-PRs are explicitly discouraged in `CLAUDE.md`.
@@ -110,3 +176,4 @@ grep -rn "useSearchParams\|useState" src/   # cross-reference for duplication
 | Date | Status | Notes |
 |---|---|---|
 | 2026-05-04 | Proposed | Spawned out of 0014 implementation review |
+| 2026-05-07 | In Progress | Punch list produced (see *Audit findings*); 1 actionable finding (F1), 5 intentional/keep findings, remaining 6 patterns clean. |
