@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { HelpButtons, HELP_ENABLED } from "./help-buttons";
 
 describe("HELP_ENABLED flag", () => {
-  it("defaults to false until tracks 4 and 5 ship", () => {
-    expect(HELP_ENABLED).toBe(false);
+  it("is enabled now that content tracks have shipped", () => {
+    expect(HELP_ENABLED).toBe(true);
   });
 });
 
