@@ -174,16 +174,37 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
           </p>
         </Section>
 
-        <Section title="The minimum raise">
+        <Section title="The minimum bet and minimum raise">
           <p>
-            A raise has to be <em>at least</em> as large as the most recent bet
-            or raise on this round. Pre-flop, the first raise has to be at least
-            double the big blind.
+            Two related rules govern how big your wager has to be when you put
+            chips in.
+          </p>
+          <p>
+            <strong>Minimum bet.</strong> When you're the first player this
+            round to put chips in (you're <em>betting</em>, not raising), the
+            bet has to be at least the size of the big blind. Anything smaller
+            isn't allowed.
+          </p>
+          <p>
+            <strong>Minimum raise.</strong> When there's already a bet in front
+            of you and you want to increase it, your raise has to be{" "}
+            <em>at least</em> as large as the most recent bet or raise on this
+            round. Pre-flop, the first raise has to be at least double the big
+            blind (because the big blind is the "bet" everyone else is calling).
           </p>
           <Example>
             <p>
-              The big blind is <strong>$2</strong>. The first player to act
-              raises the bet from $2 up to <strong>$6</strong> — a raise of $4.
+              The big blind is <strong>$2</strong>.
+            </p>
+            <p>
+              <strong>Minimum bet, post-flop.</strong> The flop has been dealt;
+              everyone has checked to you. If you want to bet, the smallest
+              legal bet is <strong>$2</strong> (one big blind). You can always
+              go higher — $5, $20, all-in — but you can't bet $1.
+            </p>
+            <p>
+              <strong>Minimum raise, pre-flop.</strong> The first player to act
+              raises the bet from $2 up to <strong>$6</strong> — a $4 raise.
             </p>
             <p>
               You want to re-raise. The most recent raise was $4, so your raise
