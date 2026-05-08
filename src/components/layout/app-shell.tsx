@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { NavCounts } from "@/lib/sessions/queries";
 import { Header } from "./header";
+import { HelpButtons, HELP_ENABLED } from "./help-buttons";
 import { SideRail } from "./side-rail";
 
 export type AppShellProps = {
@@ -22,7 +23,17 @@ export function AppShell({ firstName, navCounts, children }: AppShellProps) {
         navCounts={navCounts}
         className="md:hidden"
       />
-      <main className="flex-1 min-w-0">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {HELP_ENABLED && (
+          <div
+            data-slot="app-top-bar"
+            className="hidden h-12 items-center justify-end gap-1 border-b border-border bg-background px-3 md:flex"
+          >
+            <HelpButtons />
+          </div>
+        )}
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
   );
 }
