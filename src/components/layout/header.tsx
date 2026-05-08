@@ -43,7 +43,10 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
         >
           <MenuIcon className="size-5" />
         </SheetTrigger>
-        <SheetContent side="left" className="flex w-72 flex-col p-0">
+        <SheetContent
+          side="left"
+          className="flex w-72 flex-col bg-sidebar p-0 text-sidebar-foreground"
+        >
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <CardIcon size={24} />
@@ -79,7 +82,7 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
                           <Link
                             href={item.href}
                             onClick={() => setOpen(false)}
-                            className="group flex items-center gap-2 rounded-md px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                            className="group flex items-center gap-2 rounded-md px-2 py-2 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                           >
                             <Icon className="size-4 text-felt" />
                             <span className="flex-1">{item.label}</span>
