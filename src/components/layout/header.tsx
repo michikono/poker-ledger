@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { NavCounts } from "@/lib/sessions/queries";
+import { HelpButtons, HELP_ENABLED } from "./help-buttons";
 import { NavLink } from "./nav-link";
 import { NavSearch } from "./nav-search";
 import { NewSessionButton } from "./new-session-button";
@@ -128,10 +129,16 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
         className="flex items-center gap-2 font-heading font-semibold"
       >
         <CardIcon size={20} />
-        <span>Poker Ledger</span>
+        {!HELP_ENABLED && <span>Poker Ledger</span>}
       </Link>
 
-      <UserMenu firstName={firstName} />
+      {HELP_ENABLED ? (
+        <div className="flex items-center gap-1">
+          <HelpButtons />
+        </div>
+      ) : (
+        <UserMenu firstName={firstName} />
+      )}
     </header>
   );
 }
