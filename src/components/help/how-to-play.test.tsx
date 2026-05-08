@@ -12,7 +12,7 @@ const SECTION_HEADINGS = [
   "Burn cards",
   "What you can do on your turn — the betting actions",
   "How big can you bet? (No-limit)",
-  "The minimum raise",
+  "The minimum bet and minimum raise",
   "All-in and side pots",
   "Showdown — who wins",
   "Buying in",
