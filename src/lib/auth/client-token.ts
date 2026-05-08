@@ -12,7 +12,11 @@ export async function getToken(): Promise<string | null> {
 
 export function redirectToSignIn(): void {
   if (typeof window !== "undefined") {
-    window.location.href = `/sign-in?from=${encodeURIComponent(window.location.pathname)}`;
+    // Preserve both pathname and search so deep links (e.g.
+    // /sessions/abc?help=rules) survive a server-action-triggered
+    // sign-in round-trip.
+    const fullPath = `${window.location.pathname}${window.location.search}`;
+    window.location.href = `/sign-in?from=${encodeURIComponent(fullPath)}`;
   }
 }
 

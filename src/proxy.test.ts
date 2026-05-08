@@ -28,15 +28,22 @@ describe("isPublicPath", () => {
 });
 
 type FakeRequest = {
-  nextUrl: { pathname: string };
+  nextUrl: { pathname: string; search: string };
   url: string;
+  headers: Headers;
   cookies: { get: (name: string) => { value: string } | undefined };
 };
 
-function makeRequest(pathname: string, sessionCookie?: string): FakeRequest {
+function makeRequest(
+  pathnameWithSearch: string,
+  sessionCookie?: string,
+): FakeRequest {
+  const [pathname, ...rest] = pathnameWithSearch.split("?");
+  const search = rest.length > 0 ? `?${rest.join("?")}` : "";
   return {
-    nextUrl: { pathname },
-    url: `http://localhost:3000${pathname}`,
+    nextUrl: { pathname: pathname ?? "/", search },
+    url: `http://localhost:3000${pathnameWithSearch}`,
+    headers: new Headers(),
     cookies: {
       get: (name: string) =>
         name === "session" && sessionCookie !== undefined
@@ -54,6 +61,25 @@ describe("proxy", () => {
     const location = res.headers.get("location") ?? "";
     expect(location).toContain("/sign-in");
     expect(location).toContain("from=%2Fsessions");
+  });
+
+  it("preserves search params (e.g. deep-link ?help=rules) in the from value", () => {
+    const req = makeRequest("/sessions/abc?help=rules");
+    const res = proxy(req as unknown as Parameters<typeof proxy>[0]);
+    expect(res.status).toBe(307);
+    const location = res.headers.get("location") ?? "";
+    const url = new URL(location);
+    expect(url.searchParams.get("from")).toBe("/sessions/abc?help=rules");
+  });
+
+  it("preserves multiple search params in the from value", () => {
+    const req = makeRequest("/sessions?status=in_progress&page=2");
+    const res = proxy(req as unknown as Parameters<typeof proxy>[0]);
+    const location = res.headers.get("location") ?? "";
+    const url = new URL(location);
+    expect(url.searchParams.get("from")).toBe(
+      "/sessions?status=in_progress&page=2",
+    );
   });
 
   it("does NOT redirect away from /sign-in when a session cookie is present", () => {
