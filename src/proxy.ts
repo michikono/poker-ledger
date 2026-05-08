@@ -3,6 +3,16 @@ import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/sign-in"];
 
+/**
+ * Header set on every request that lets server components recover the
+ * pathname + search string of the original URL. Next.js's App Router
+ * deliberately does not expose the request URL to layouts/pages; we forward
+ * it via this header so `(app)/layout.tsx` can build a `from=…` redirect
+ * that preserves the user's full URL — including search params like
+ * `?help=…` — across an invalid-cookie redirect to /sign-in.
+ */
+export const CURRENT_URL_HEADER = "x-current-url";
+
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
@@ -10,12 +20,15 @@ export function isPublicPath(pathname: string): boolean {
 }
 
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   const session = request.cookies.get("session")?.value;
+  const fullPath = `${pathname}${search}`;
 
   if (!isPublicPath(pathname) && !session) {
     const signIn = new URL("/sign-in", request.url);
-    signIn.searchParams.set("from", pathname);
+    // Preserve both pathname and search so deep links
+    // (e.g. /sessions/abc?help=rules) survive the sign-in round-trip.
+    signIn.searchParams.set("from", fullPath);
     return NextResponse.redirect(signIn);
   }
 
@@ -25,7 +38,13 @@ export function proxy(request: NextRequest) {
   // the (app) layout, which redirects back to /sign-in when verification
   // fails. The /sign-in page server component handles the
   // "already signed in" redirect using full cryptographic verification.
-  return NextResponse.next();
+
+  // Forward the full URL on every request so server components can recover
+  // it (see `(app)/layout.tsx` building `from=…` for invalid-cookie
+  // redirects).
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(CURRENT_URL_HEADER, fullPath);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

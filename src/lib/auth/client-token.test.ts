@@ -55,6 +55,7 @@ describe("redirectToSignIn", () => {
       value: {
         href: original,
         pathname: "/sessions/my session",
+        search: "",
       },
       writable: true,
     });
@@ -63,6 +64,23 @@ describe("redirectToSignIn", () => {
 
     expect(window.location.href).toBe(
       "/sign-in?from=%2Fsessions%2Fmy%20session",
+    );
+  });
+
+  it("preserves search params (deep links) in the from value", () => {
+    Object.defineProperty(window, "location", {
+      value: {
+        href: "",
+        pathname: "/sessions/abc",
+        search: "?help=rules",
+      },
+      writable: true,
+    });
+
+    redirectToSignIn();
+
+    expect(window.location.href).toBe(
+      "/sign-in?from=%2Fsessions%2Fabc%3Fhelp%3Drules",
     );
   });
 });
@@ -83,7 +101,7 @@ describe("withToken", () => {
   it("redirects and returns null when no token is available", async () => {
     currentUser = null;
     Object.defineProperty(window, "location", {
-      value: { href: "", pathname: "/sessions" },
+      value: { href: "", pathname: "/sessions", search: "" },
       writable: true,
     });
     const fn = vi.fn();

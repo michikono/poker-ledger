@@ -22,10 +22,33 @@ const SILENT_POPUP_ERRORS = new Set([
   "auth/user-cancelled",
 ]);
 
+/**
+ * Guards against open-redirect via the `from` query param. We only accept
+ * values that are unambiguous internal paths:
+ *   - must start with a single "/"
+ *   - must not start with "//" (protocol-relative URL → external host)
+ *   - must not contain "://" (absolute URL with protocol → external host)
+ *   - must not start with "/\\" (some browsers normalise this to "//")
+ *   - capped at a sane length
+ *
+ * Anything else falls back to /sessions.
+ */
+export function isSafeInternalPath(value: string): boolean {
+  if (typeof value !== "string") return false;
+  if (value.length === 0 || value.length > 1000) return false;
+  if (!value.startsWith("/")) return false;
+  if (value.startsWith("//")) return false;
+  if (value.startsWith("/\\")) return false;
+  if (value.includes("://")) return false;
+  return true;
+}
+
 function SignInFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") ?? "/sessions";
+  const fromParam = searchParams.get("from");
+  const from =
+    fromParam && isSafeInternalPath(fromParam) ? fromParam : "/sessions";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
