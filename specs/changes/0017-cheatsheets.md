@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented
 
 ## Owner
 
@@ -308,5 +308,7 @@ None — all resolved during pre-spec discussion.
 | 2026-05-07 | Proposed | Initial draft following clarification round (NL Hold'em, no straddles, re-buy any time, 7-card odds, top-right icon buttons, bundled mobile-sheet color fix).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 2026-05-07 | Proposed | Revision after content-feedback pass: rewrote the *How to play* outline as newbie-friendly prose (terminology rule: plain-English first with the term-of-art parenthesised on first use). Added six expandable worked examples (`<details>`/`<summary>`) for the trickier sections; added jargon-introduction smoke test and example-toggle test to track 5's test plan.                                                                                                                                                                                                                                                                                                                                 |
 | 2026-05-07 | Proposed | Renamed throughout: the *How to play* content is a **guide**, not a cheatsheet — the term "cheatsheet" now refers only to the hand-rankings reference. Shared infrastructure renamed neutrally: `<CheatsheetModal>` → `<HelpModal>`, `<CheatsheetButtons>` → `<HelpButtons>`, `<HowToPlayCheatsheet>` → `<HowToPlayGuide>`, `src/components/cheatsheets/` → `src/components/help/`, `src/lib/cheatsheets/hand-data.ts` → `src/lib/help/hand-rankings-data.ts`, `public/cheatsheets/hands/` → `public/help/hand-rankings/`, `npm run gen:cheatsheets` → `gen:hand-rankings`, `CHEATSHEETS_ENABLED` flag → `HELP_ENABLED`. `<HandRankingsCheatsheet>` keeps the suffix since that piece *is* a cheatsheet. |
+| 2026-05-07 | Accepted    | Approved; implementation begun. |
+| 2026-05-08 | Implemented | All five tracks merged: #64 (track 1 — hand data + SVG generation), #65 (track 2 — HelpModal + mobile sheet color fix), #66 (track 3 — AppShell help buttons), #67 (track 4 — hand-rankings cheatsheet content), #68 (track 5 — how-to-play guide content + flipped HELP_ENABLED on). |
 
 
