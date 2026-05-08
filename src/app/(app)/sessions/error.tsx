@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 
 export default function SessionsError({
   reset,
-}: { error: Error; reset: () => void }) {
+}: {
+  error: Error;
+  reset: () => void;
+}) {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold">Sessions</h1>

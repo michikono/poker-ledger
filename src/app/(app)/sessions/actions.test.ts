@@ -74,21 +74,18 @@ describe("createSession", () => {
     ["zero", 0],
     ["negative", -100],
     ["above the cap", 2_000_001],
-  ])(
-    "returns INVALID_AMOUNT when defaultBuyInCents is %s",
-    async (_label, value) => {
-      verifyIdToken.mockResolvedValue({ uid: "u1", name: "Alice Smith" });
-      const result = await createSession(
-        { defaultBuyInCents: value as number },
-        "tok",
-      );
-      expect(result).toEqual({
-        success: false,
-        error: { code: "INVALID_AMOUNT", message: expect.any(String) },
-      });
-      expect(runTransaction).not.toHaveBeenCalled();
-    },
-  );
+  ])("returns INVALID_AMOUNT when defaultBuyInCents is %s", async (_label, value) => {
+    verifyIdToken.mockResolvedValue({ uid: "u1", name: "Alice Smith" });
+    const result = await createSession(
+      { defaultBuyInCents: value as number },
+      "tok",
+    );
+    expect(result).toEqual({
+      success: false,
+      error: { code: "INVALID_AMOUNT", message: expect.any(String) },
+    });
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
 
   it("succeeds and returns the generated sessionId on first attempt", async () => {
     verifyIdToken.mockResolvedValue({ uid: "u1", name: "Alice Smith" });

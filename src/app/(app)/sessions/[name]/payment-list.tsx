@@ -192,10 +192,7 @@ export function PaymentList({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {p.paid && (
-                  <span
-                    className="text-xs text-emerald-700 dark:text-emerald-400"
-                    aria-label="paid"
-                  >
+                  <span className="text-xs text-emerald-700 dark:text-emerald-400">
                     Paid
                   </span>
                 )}
