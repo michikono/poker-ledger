@@ -2,32 +2,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 324 88" width="320" height="84" role="img">
   <g transform="translate(0, 0)">
     <rect width="60" height="84" rx="6" ry="6" fill="white" stroke="#9ca3af" stroke-width="1"/>
-    <text x="6" y="16" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#1a1a1a">A</text>
-    <text x="6" y="29" font-family="system-ui, sans-serif" font-size="12" fill="#1a1a1a">♣</text>
-    <text x="30" y="54" font-family="system-ui, sans-serif" font-size="32" fill="#1a1a1a" text-anchor="middle">♣</text>
+    <text x="6" y="22" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#1a1a1a">A</text>
+    <text x="30" y="51" font-family="system-ui, sans-serif" font-size="22" fill="#1a1a1a" text-anchor="middle">♣</text>
   </g>
   <g transform="translate(65, 0)">
     <rect width="60" height="84" rx="6" ry="6" fill="white" stroke="#9ca3af" stroke-width="1"/>
-    <text x="6" y="16" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#1a1a1a">J</text>
-    <text x="6" y="29" font-family="system-ui, sans-serif" font-size="12" fill="#1a1a1a">♣</text>
-    <text x="30" y="54" font-family="system-ui, sans-serif" font-size="32" fill="#1a1a1a" text-anchor="middle">♣</text>
+    <text x="6" y="22" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#1a1a1a">J</text>
+    <text x="30" y="51" font-family="system-ui, sans-serif" font-size="22" fill="#1a1a1a" text-anchor="middle">♣</text>
   </g>
   <g transform="translate(130, 0)">
     <rect width="60" height="84" rx="6" ry="6" fill="white" stroke="#9ca3af" stroke-width="1"/>
-    <text x="6" y="16" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#1a1a1a">8</text>
-    <text x="6" y="29" font-family="system-ui, sans-serif" font-size="12" fill="#1a1a1a">♣</text>
-    <text x="30" y="54" font-family="system-ui, sans-serif" font-size="32" fill="#1a1a1a" text-anchor="middle">♣</text>
+    <text x="6" y="22" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#1a1a1a">8</text>
+    <text x="30" y="51" font-family="system-ui, sans-serif" font-size="22" fill="#1a1a1a" text-anchor="middle">♣</text>
   </g>
   <g transform="translate(195, 0)">
     <rect width="60" height="84" rx="6" ry="6" fill="white" stroke="#9ca3af" stroke-width="1"/>
-    <text x="6" y="16" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#1a1a1a">5</text>
-    <text x="6" y="29" font-family="system-ui, sans-serif" font-size="12" fill="#1a1a1a">♣</text>
-    <text x="30" y="54" font-family="system-ui, sans-serif" font-size="32" fill="#1a1a1a" text-anchor="middle">♣</text>
+    <text x="6" y="22" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#1a1a1a">5</text>
+    <text x="30" y="51" font-family="system-ui, sans-serif" font-size="22" fill="#1a1a1a" text-anchor="middle">♣</text>
   </g>
   <g transform="translate(260, 0)">
     <rect width="60" height="84" rx="6" ry="6" fill="white" stroke="#9ca3af" stroke-width="1"/>
-    <text x="6" y="16" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#1a1a1a">2</text>
-    <text x="6" y="29" font-family="system-ui, sans-serif" font-size="12" fill="#1a1a1a">♣</text>
-    <text x="30" y="54" font-family="system-ui, sans-serif" font-size="32" fill="#1a1a1a" text-anchor="middle">♣</text>
+    <text x="6" y="22" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#1a1a1a">2</text>
+    <text x="30" y="51" font-family="system-ui, sans-serif" font-size="22" fill="#1a1a1a" text-anchor="middle">♣</text>
   </g>
 </svg>

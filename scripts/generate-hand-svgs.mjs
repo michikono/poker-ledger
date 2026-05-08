@@ -139,11 +139,13 @@ const PAD = 2; // viewBox margin so the 1px stroke isn't clipped
  */
 function renderCard(card, x) {
   const { symbol, color } = SUITS[card.suit];
+  // Visual hierarchy: rank in the corner is the primary identifier, since many
+  // hands (e.g., straights, two pair) are read by rank rather than suit. Suit
+  // symbol is the secondary identifier — kept legible but visually subordinate.
   return `<g transform="translate(${x}, 0)">
     <rect width="${CARD_W}" height="${CARD_H}" rx="6" ry="6" fill="white" stroke="#9ca3af" stroke-width="1"/>
-    <text x="6" y="16" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="${color}">${card.rank}</text>
-    <text x="6" y="29" font-family="system-ui, sans-serif" font-size="12" fill="${color}">${symbol}</text>
-    <text x="${CARD_W / 2}" y="${CARD_H / 2 + 12}" font-family="system-ui, sans-serif" font-size="32" fill="${color}" text-anchor="middle">${symbol}</text>
+    <text x="6" y="22" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="${color}">${card.rank}</text>
+    <text x="${CARD_W / 2}" y="${CARD_H / 2 + 9}" font-family="system-ui, sans-serif" font-size="22" fill="${color}" text-anchor="middle">${symbol}</text>
   </g>`;
 }
 

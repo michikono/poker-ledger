@@ -19,11 +19,11 @@ describe("HelpButtons", () => {
       screen.getByRole("button", { name: "How to play" }),
     ).toBeInTheDocument();
     // Visible labels:
-    expect(screen.getByText("Rankings")).toBeInTheDocument();
+    expect(screen.getByText("Cheat sheet")).toBeInTheDocument();
     expect(screen.getByText("Rules")).toBeInTheDocument();
   });
 
-  it("opens the hand-rankings cheatsheet when 'Rankings' is clicked", async () => {
+  it("opens the hand-rankings cheatsheet when 'Cheat sheet' is clicked", async () => {
     const user = userEvent.setup();
     render(<HelpButtons />);
     await user.click(screen.getByRole("button", { name: "Hand rankings" }));
