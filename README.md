@@ -171,14 +171,6 @@ See `docs/17-worktree-workflow.md` for the full workflow.
 
 ---
 
-## Public repository
-
-This repo is intentionally public. **Don't commit secrets, real customer data, internal hostnames, or third-party identifiers** — every commit, branch name, file path, and PR title/body is world-readable. The `.env*` files (except `.env.local.example`) and `.claude/` are gitignored. Real production credentials live only in Vercel env vars, never in tracked files. Test fixtures use RFC 2606 reserved domains (`@example.com`).
-
-Full guidance for contributors and AI assistants is in `CLAUDE.md`.
-
----
-
 ## License
 
 MIT — see `LICENSE`.
