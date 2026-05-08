@@ -105,6 +105,12 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
               dealt. Final betting round.
             </li>
           </ul>
+          <p>
+            Visually, the four rounds look like this — each player keeps their
+            two face-down hole cards throughout, and the shared community cards
+            in the middle grow by one (or three) each round:
+          </p>
+          <StreetsDiagram />
           <Example>
             <p>
               Pre-flop, you check your hole cards (<Hand>A♥ K♥</Hand>) and call
@@ -114,6 +120,20 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
               You win the pot without showing your hand.
             </p>
           </Example>
+        </Section>
+
+        <Section title="Burn cards">
+          <p>
+            Before each round of community cards (the flop, the turn, and the
+            river), the dealer takes the top card off the deck and sets it aside
+            face-down without showing anyone. That set-aside card is called a{" "}
+            <em>burn card</em>. It's a tradition meant to thwart any player who
+            might have caught a glimpse of the back of the next card. So the
+            actual sequence is: <strong>burn 1, deal 3</strong> for the flop,
+            then <strong>burn 1, deal 1</strong> for the turn, then{" "}
+            <strong>burn 1, deal 1</strong> for the river. Three burn cards
+            total per hand. They're never used.
+          </p>
         </Section>
 
         <Section title="What you can do on your turn — the betting actions">
@@ -146,7 +166,7 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
           </ul>
         </Section>
 
-        <Section title="How big can you bet? (No-limit.)">
+        <Section title="How big can you bet? (No-limit)">
           <p>
             "No-limit" means there's no cap on bet size other than the chips in
             front of you. You can bet 1 chip, the size of the pot, or everything
@@ -156,17 +176,22 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
 
         <Section title="The minimum raise">
           <p>
-            A raise has to be <em>at least</em> the size of the most recent bet
-            or raise. Pre-flop, the first raise has to be at least double the
-            big blind.
+            A raise has to be <em>at least</em> as large as the most recent bet
+            or raise on this round. Pre-flop, the first raise has to be at least
+            double the big blind.
           </p>
           <Example>
             <p>
               The big blind is <strong>$2</strong>. The first player to act
-              raises to <strong>$6</strong> — that's a raise of $4 over the BB.
-              The next person who wants to re-raise must add at least $4 more on
-              top of the $6 — so they can raise to <strong>$10</strong> or
-              higher (or go all-in for whatever they have).
+              raises the bet from $2 up to <strong>$6</strong> — a raise of $4.
+            </p>
+            <p>
+              You want to re-raise. The most recent raise was $4, so your raise
+              has to be at least $4 on top of the current $6 bet — meaning the
+              new total has to be at least <strong>$10</strong>. You can raise
+              to $10, $20, $50, or any amount up to your stack (all-in). What
+              you <em>can't</em> do is raise to, say, $7 or $9 — that's smaller
+              than the previous raise and not legal.
             </p>
           </Example>
         </Section>
@@ -281,9 +306,10 @@ function Hand({ children }: { children: ReactNode }) {
 }
 
 function BlindsDiagram() {
-  const cx = 110;
-  const cy = 100;
+  const cx = 120;
+  const cy = 110;
   const r = 70;
+  const arrowR = r + 24; // outside the seat circles (radius 14) so it doesn't occlude
   const seats = Array.from({ length: 6 }, (_, i) => {
     const angle = ((i * 60 - 90) * Math.PI) / 180;
     const x = cx + r * Math.cos(angle);
@@ -298,9 +324,9 @@ function BlindsDiagram() {
   return (
     <figure className="my-3 flex flex-col items-center">
       <svg
-        viewBox="0 0 220 200"
-        width="220"
-        height="200"
+        viewBox="0 0 240 230"
+        width="240"
+        height="230"
         role="img"
         aria-labelledby="blinds-diagram-title"
         className="text-foreground"
@@ -318,16 +344,16 @@ function BlindsDiagram() {
           strokeWidth={1.5}
         />
         <path
-          d={`M ${cx + r + 12} ${cy} A ${r + 12} ${r + 12} 0 0 1 ${cx} ${cy + r + 12}`}
+          d={`M ${cx + arrowR} ${cy} A ${arrowR} ${arrowR} 0 0 1 ${cx} ${cy + arrowR}`}
           fill="none"
           stroke="currentColor"
-          strokeOpacity={0.4}
+          strokeOpacity={0.45}
           strokeWidth={1.25}
         />
         <polygon
-          points={`${cx - 4},${cy + r + 10} ${cx + 4},${cy + r + 10} ${cx},${cy + r + 16}`}
+          points={`${cx - 4},${cy + arrowR - 2} ${cx + 4},${cy + arrowR - 2} ${cx},${cy + arrowR + 6}`}
           fill="currentColor"
-          fillOpacity={0.4}
+          fillOpacity={0.45}
         />
         {seats.map((seat) => (
           <g
@@ -369,6 +395,176 @@ function BlindsDiagram() {
       </svg>
       <figcaption className="text-xs text-muted-foreground">
         D = dealer button. SB = small blind. BB = big blind.
+      </figcaption>
+    </figure>
+  );
+}
+
+type Suit = "spades" | "hearts" | "diamonds" | "clubs";
+
+const SUIT_SYMBOLS: Record<Suit, string> = {
+  spades: "♠",
+  hearts: "♥",
+  diamonds: "♦",
+  clubs: "♣",
+};
+
+const SUIT_COLORS: Record<Suit, string> = {
+  spades: "#1a1a1a",
+  hearts: "#c4263a",
+  diamonds: "#c4263a",
+  clubs: "#1a1a1a",
+};
+
+const SUIT_NAMES: Record<Suit, string> = {
+  spades: "spades",
+  hearts: "hearts",
+  diamonds: "diamonds",
+  clubs: "clubs",
+};
+
+function MiniCard({ rank, suit }: { rank: string; suit: Suit }) {
+  const color = SUIT_COLORS[suit];
+  const symbol = SUIT_SYMBOLS[suit];
+  return (
+    <svg
+      viewBox="0 0 24 34"
+      width="22"
+      height="32"
+      role="img"
+      className="shrink-0"
+    >
+      <title>{`${rank} of ${SUIT_NAMES[suit]}`}</title>
+      <rect
+        width="24"
+        height="34"
+        rx="3"
+        ry="3"
+        fill="white"
+        stroke="#9ca3af"
+        strokeWidth="0.75"
+      />
+      <text
+        x="3"
+        y="11"
+        fontSize="10"
+        fontWeight="700"
+        fill={color}
+        fontFamily="system-ui, sans-serif"
+      >
+        {rank}
+      </text>
+      <text
+        x="12"
+        y="22"
+        textAnchor="middle"
+        fontSize="10"
+        fill={color}
+        fontFamily="system-ui, sans-serif"
+      >
+        {symbol}
+      </text>
+    </svg>
+  );
+}
+
+function CardBack() {
+  return (
+    <svg
+      viewBox="0 0 24 34"
+      width="22"
+      height="32"
+      role="img"
+      className="shrink-0"
+    >
+      <title>Face-down card</title>
+      <rect
+        width="24"
+        height="34"
+        rx="3"
+        ry="3"
+        fill="#1f3a52"
+        stroke="#0f1f2e"
+        strokeWidth="0.75"
+      />
+      {/* Diagonal hatching to suggest a card-back pattern. */}
+      <path
+        d="M 0 8 L 24 0 M 0 16 L 24 8 M 0 24 L 24 16 M 0 32 L 24 24"
+        stroke="#6082a3"
+        strokeWidth="0.6"
+      />
+    </svg>
+  );
+}
+
+type Card = { rank: string; suit: Suit };
+
+function StreetsDiagram() {
+  // The shared cards used here mirror the worked example a few paragraphs
+  // earlier in the streets section, so the visual "tells the same story" the
+  // example does.
+  const flop: Card[] = [
+    { rank: "A", suit: "spades" },
+    { rank: "7", suit: "diamonds" },
+    { rank: "4", suit: "clubs" },
+  ];
+  const turn: Card = { rank: "K", suit: "clubs" };
+  const river: Card = { rank: "2", suit: "hearts" };
+
+  const rounds: { name: string; community: Card[] }[] = [
+    { name: "Pre-flop", community: [] },
+    { name: "Flop", community: flop },
+    { name: "Turn", community: [...flop, turn] },
+    { name: "River", community: [...flop, turn, river] },
+  ];
+
+  return (
+    <figure className="my-3 overflow-x-auto rounded-md border border-border bg-card p-3">
+      <div className="flex flex-col gap-2.5 text-xs">
+        {rounds.map((round) => (
+          <div
+            key={round.name}
+            className="flex items-center gap-3 whitespace-nowrap"
+          >
+            <span className="w-16 shrink-0 font-medium text-foreground">
+              {round.name}
+            </span>
+            <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+              <span className="flex shrink-0 items-center gap-0.5">
+                <CardBack />
+                <CardBack />
+              </span>
+              <span className="shrink-0">+</span>
+              <span className="flex shrink-0 items-center gap-0.5">
+                <CardBack />
+                <CardBack />
+              </span>
+              <span className="shrink-0 text-base">…</span>
+            </span>
+            <span className="mx-1 shrink-0 text-muted-foreground">|</span>
+            <span className="flex min-w-[5.5rem] shrink-0 items-center gap-0.5">
+              {round.community.length === 0 ? (
+                <span className="text-muted-foreground italic">
+                  no community cards yet
+                </span>
+              ) : (
+                round.community.map((c) => (
+                  <MiniCard
+                    key={`${c.rank}-${c.suit}`}
+                    rank={c.rank}
+                    suit={c.suit}
+                  />
+                ))
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+      <figcaption className="mt-3 text-xs text-muted-foreground">
+        Each row shows two players' face-down hole cards (the "…" stands in for
+        any other players), separated from the community cards in the middle of
+        the table. Hole cards stay the same all four rounds; community cards
+        accumulate.
       </figcaption>
     </figure>
   );

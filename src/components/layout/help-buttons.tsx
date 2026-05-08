@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
  * Live: track 5 of spec 0017 turned this on once both content surfaces
  * (hand-rankings cheatsheet + how-to-play guide) shipped.
  *
- * When true: the AppShell shows the Rankings + Rules buttons in its
+ * When true: the AppShell shows the "Cheat sheet" + "Rules" buttons in its
  * top-right corner, and the mobile header swaps the right-side avatar for
  * these buttons (dropping the "Poker Ledger" text from the brand to make
  * horizontal room).
@@ -46,7 +46,7 @@ export function HelpButtons() {
         className="gap-1.5"
       >
         <Trophy className="size-4" aria-hidden />
-        <span>Rankings</span>
+        <span>Cheat sheet</span>
       </Button>
       <Button
         type="button"

@@ -9,8 +9,9 @@ const SECTION_HEADINGS = [
   "Forced bets — the blinds",
   "The deal",
   "The four rounds of betting (the streets)",
+  "Burn cards",
   "What you can do on your turn — the betting actions",
-  "How big can you bet? (No-limit.)",
+  "How big can you bet? (No-limit)",
   "The minimum raise",
   "All-in and side pots",
   "Showdown — who wins",
@@ -66,6 +67,24 @@ describe("HowToPlayGuide", () => {
     const titleEl = document.getElementById("blinds-diagram-title");
     expect(titleEl).not.toBeNull();
     expect(titleEl?.textContent).toMatch(/dealer.*small blind.*big blind/i);
+  });
+
+  it("renders the streets-progression diagram with all four round labels", () => {
+    render(<HowToPlayGuide open onOpenChange={() => {}} />);
+    expect(screen.getByText("Pre-flop")).toBeInTheDocument();
+    expect(screen.getByText("Flop")).toBeInTheDocument();
+    expect(screen.getByText("Turn")).toBeInTheDocument();
+    expect(screen.getByText("River")).toBeInTheDocument();
+    expect(screen.getByText(/no community cards yet/i)).toBeInTheDocument();
+  });
+
+  it("explains burn cards (counts: 1 before flop, 1 before turn, 1 before river)", () => {
+    render(<HowToPlayGuide open onOpenChange={() => {}} />);
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Burn cards" }),
+    ).toBeInTheDocument();
+    const body = document.body.textContent ?? "";
+    expect(body).toMatch(/burn 1, deal 3/i);
   });
 
   it("does not render content when closed", () => {
