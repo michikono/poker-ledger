@@ -24,7 +24,17 @@ const SUITS = {
   clubs: { symbol: "♣", color: "#1a1a1a" },
 };
 
-/** @type {{slug: string; cards: {rank: string; suit: keyof typeof SUITS}[]}[]} */
+/**
+ * Each card has an optional `dim` flag. Dimmed cards are rendered at lower
+ * opacity to signal that they're NOT part of the hand's defining rank — they
+ * are kickers / unrelated cards that only matter for tie-breaking. The intent
+ * is to draw the reader's eye to the cards that actually make the hand.
+ *
+ * Hands where every card contributes to the definition (royal flush, straight
+ * flush, full house, flush, straight) have no dimmed cards.
+ *
+ * @type {{slug: string; cards: {rank: string; suit: keyof typeof SUITS; dim?: boolean}[]}[]}
+ */
 const HANDS = [
   {
     slug: "royal-flush",
@@ -47,13 +57,14 @@ const HANDS = [
     ],
   },
   {
+    // Four aces are the hand; the 9 is just a kicker.
     slug: "four-of-a-kind",
     cards: [
       { rank: "A", suit: "spades" },
       { rank: "A", suit: "hearts" },
       { rank: "A", suit: "diamonds" },
       { rank: "A", suit: "clubs" },
-      { rank: "9", suit: "spades" },
+      { rank: "9", suit: "spades", dim: true },
     ],
   },
   {
@@ -87,43 +98,47 @@ const HANDS = [
     ],
   },
   {
+    // Three sevens are the hand; K and 2 are kickers.
     slug: "three-of-a-kind",
     cards: [
       { rank: "7", suit: "spades" },
       { rank: "7", suit: "hearts" },
       { rank: "7", suit: "diamonds" },
-      { rank: "K", suit: "clubs" },
-      { rank: "2", suit: "spades" },
+      { rank: "K", suit: "clubs", dim: true },
+      { rank: "2", suit: "spades", dim: true },
     ],
   },
   {
+    // The two pairs are the hand; the 3 is the kicker.
     slug: "two-pair",
     cards: [
       { rank: "A", suit: "hearts" },
       { rank: "A", suit: "clubs" },
       { rank: "8", suit: "spades" },
       { rank: "8", suit: "diamonds" },
-      { rank: "3", suit: "hearts" },
+      { rank: "3", suit: "hearts", dim: true },
     ],
   },
   {
+    // The pair of jacks is the hand; the rest are kickers.
     slug: "one-pair",
     cards: [
       { rank: "J", suit: "spades" },
       { rank: "J", suit: "hearts" },
-      { rank: "9", suit: "clubs" },
-      { rank: "6", suit: "diamonds" },
-      { rank: "2", suit: "spades" },
+      { rank: "9", suit: "clubs", dim: true },
+      { rank: "6", suit: "diamonds", dim: true },
+      { rank: "2", suit: "spades", dim: true },
     ],
   },
   {
+    // Only the ace defines the hand ("ace high"); the rest are tie-breakers.
     slug: "high-card",
     cards: [
       { rank: "A", suit: "hearts" },
-      { rank: "K", suit: "clubs" },
-      { rank: "8", suit: "spades" },
-      { rank: "5", suit: "diamonds" },
-      { rank: "2", suit: "hearts" },
+      { rank: "K", suit: "clubs", dim: true },
+      { rank: "8", suit: "spades", dim: true },
+      { rank: "5", suit: "diamonds", dim: true },
+      { rank: "2", suit: "hearts", dim: true },
     ],
   },
 ];
@@ -134,7 +149,7 @@ const STEP = 65; // card width + 5 gap
 const PAD = 2; // viewBox margin so the 1px stroke isn't clipped
 
 /**
- * @param {{rank: string; suit: keyof typeof SUITS}} card
+ * @param {{rank: string; suit: keyof typeof SUITS; dim?: boolean}} card
  * @param {number} x
  */
 function renderCard(card, x) {
@@ -142,7 +157,10 @@ function renderCard(card, x) {
   // Visual hierarchy: rank in the corner is the primary identifier, since many
   // hands (e.g., straights, two pair) are read by rank rather than suit. Suit
   // symbol is the secondary identifier — kept legible but visually subordinate.
-  return `<g transform="translate(${x}, 0)">
+  // `dim` cards (kickers / unrelated cards) get reduced opacity so the reader
+  // can see at a glance which cards make up the hand definition.
+  const opacity = card.dim ? ' opacity="0.4"' : "";
+  return `<g transform="translate(${x}, 0)"${opacity}>
     <rect width="${CARD_W}" height="${CARD_H}" rx="6" ry="6" fill="white" stroke="#9ca3af" stroke-width="1"/>
     <text x="6" y="22" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="${color}">${card.rank}</text>
     <text x="${CARD_W / 2}" y="${CARD_H / 2 + 9}" font-family="system-ui, sans-serif" font-size="22" fill="${color}" text-anchor="middle">${symbol}</text>
