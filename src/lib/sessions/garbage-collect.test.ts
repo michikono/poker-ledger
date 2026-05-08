@@ -56,7 +56,10 @@ import { archiveStaleSessionsOnLogin } from "./garbage-collect";
 type FakeDoc = {
   id: string;
   ref: {
-    collection: ReturnType<typeof vi.fn>;
+    // Typed as a plain function rather than `ReturnType<typeof vi.fn>` so
+    // Vitest 4's mock typing (Mock<Procedure | Constructable>) doesn't make
+    // calls like .collection(...).doc(...) appear non-callable to tsc 6.
+    collection: (path: string) => { doc: (id?: string) => { id: string } };
   };
   data: () => { status: string };
 };

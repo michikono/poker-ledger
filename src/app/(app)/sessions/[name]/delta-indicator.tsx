@@ -1,11 +1,7 @@
 import { formatCents } from "@/lib/currency/format";
 import { type SessionTotals, balanceState } from "./totals";
 
-export function DeltaIndicator({
-  totals,
-}: {
-  totals: SessionTotals;
-}) {
+export function DeltaIndicator({ totals }: { totals: SessionTotals }) {
   const state = balanceState(totals);
   const { shortfallCents, totalBuyInCents, totalCashOutCents } = totals;
 

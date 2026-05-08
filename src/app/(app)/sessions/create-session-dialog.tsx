@@ -25,7 +25,9 @@ const NAME_COLLISION_TOAST = "Couldn't create a session — please try again.";
 
 export function CreateSessionDialog({
   trigger,
-}: { trigger?: ReactElement } = {}) {
+}: {
+  trigger?: ReactElement;
+} = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
