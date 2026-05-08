@@ -1,133 +1,184 @@
-# poker-ledger
+# Poker Ledger
 
-A TypeScript web application hosted on Vercel, built with a design-first, spec-driven workflow.
+A web app for friends running small-stakes home poker games to track buy-ins, cash-outs, and settle up at the end of the night. One person creates a session, shares the link, the table records buy-ins and cash-outs as they happen, and at the end the app computes the **minimal set of payments** to get everyone to net zero — plus optional Venmo deep links so each payment is a single tap away.
 
----
+It also ships built-in help for first-timers: a hand-rankings cheat sheet and a newbie-friendly *How to play* guide for No-Limit Texas Hold'em, both deep-linkable inside any session URL.
 
-## Workflow overview
-
-This repository uses a two-phase development model:
-
-**Phase 0 — Upfront design**
-All product, domain, architecture, and quality decisions are captured in `/docs` before any application code is written. Work happens on `docs/*` branches. No implementation begins until the design baseline is accepted.
-
-**Phase 1 — Spec-driven development (SDD)**
-Each meaningful implementation slice is defined in a versioned change spec (`/specs/changes/`). Claude Code implements one accepted spec at a time. Durable docs are updated after each accepted implementation.
+The app does **not** move money. It only tracks the math; players still pay each other through Venmo / cash / however they like.
 
 ---
 
-## Repository structure
+## Tech stack
 
-```
-/docs/           Durable design and architecture docs
-/specs/
-  changes/       Versioned change specs (one per implementation slice)
-  decisions/     Architecture Decision Records (ADRs)
-/templates/      Reusable templates for specs, ADRs, reviews, checklists
-/prompts/        Reusable prompts for Claude Code workflow steps
-/skills/         Project-local Claude Code skill definitions
-```
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) |
+| Hosting | Vercel |
+| Database | Firestore |
+| Auth | Firebase Auth (Google Sign-In) |
+| Styling | Tailwind CSS v4 + shadcn/ui + base-ui |
+| Lint / format | Biome |
+| Unit / integration tests | Vitest + Testing Library (JSDOM) |
+| Emulator-backed tests | Vitest + `@firebase/rules-unit-testing` against the Firebase emulator |
+| E2E tests | Playwright |
+| Git hooks | Lefthook (pre-commit: typecheck + lint + unit tests; pre-push: fixup-guard) |
+| CI | GitHub Actions (typecheck, unit, emulator, e2e) |
+
+See `docs/03-architecture.md` for the architecture and `specs/decisions/` for the ADRs behind these choices.
 
 ---
 
-## Git and worktree lifecycle
+## Quick start
 
-- `main` is production.
-- All work happens in isolated Git worktrees, not directly on `main`.
-- Branch naming: `docs/<topic>`, `spec/<name>`, `feature/<name>`, `fix/<name>`, `chore/<name>`.
-- Push branches to GitHub to trigger Vercel preview deployments.
-- Merge to `main` only after deterministic gates pass and preview is reviewed.
-
-Creating a worktree:
 ```sh
-git checkout main && git pull
-mkdir -p ../worktrees
-git worktree add ../worktrees/poker-ledger-0001 -b feature/0001-nextjs-shell main
-cd ../worktrees/poker-ledger-0001
+git clone <repo-url>
+cd poker-ledger
+npm install                 # also installs lefthook git hooks
+cp .env.local.example .env.local   # pre-configured for the local emulator; no edits needed
+npm run dev                 # boots Firebase emulators + Next.js together
 ```
 
-Finishing a worktree:
+Open <http://localhost:3000>. Emulator UI is at <http://localhost:4000>.
+
+Local development uses `demo-poker-ledger`, a Firebase **demo project** that needs no real credentials and no internet for the data layer. Switching git worktrees gives you isolated emulator data per branch.
+
+For full setup details, signing in with the Auth emulator, and the per-worktree port-offset behavior, see `docs/15-local-development.md`.
+
+---
+
+## Commands
+
 ```sh
-git status
-npm run check
-git add .
-git commit -m "Describe the change"
-git push -u origin feature/0001-nextjs-shell
-# open PR, review Vercel preview, merge
+npm run dev               # Next.js + Firebase emulators (one command)
+npm run build             # production build
+npm run start             # serve the production build
+
+npm run format            # Biome auto-format
+npm run format:check      # Biome format check (no writes)
+npm run lint              # Biome lint
+npm run lint:fix          # Biome lint --write
+
+npm run type-check        # tsc --noEmit
+npm test                  # unit tests (Vitest, JSDOM, no emulator)
+npm run test:watch        # Vitest in watch mode
+npm run test:emulator     # rules + data-layer tests (needs emulator running)
+npm run test:e2e          # Playwright (needs `npm run dev` running)
+npm run test:e2e:ui       # Playwright UI mode
+
+npm run check             # aggregate gate: format:check + lint + type-check + test + build
+
+npm run gen:hand-rankings # regenerate the hand-rankings SVGs in public/help/hand-rankings/
+```
+
+---
+
+## Repository layout
+
+```
+docs/                      Living design + architecture docs (00–17, kept current)
+specs/
+  changes/                 Numbered change specs — one per implementation slice
+  decisions/               Architecture Decision Records (ADRs)
+templates/                 Spec / ADR / review / release-checklist templates
+prompts/                   Reusable Claude Code workflow prompts
+skills/                    Project-local Claude Code skill definitions
+src/
+  app/
+    (app)/                 Authenticated app shell + routes (Google sign-in gated)
+    sign-in/               Public sign-in page + server actions
+    api/                   API routes
+  components/
+    help/                  Hand-rankings cheat sheet + How-to-play guide modals
+    layout/                AppShell, mobile sheet, side rail, top-right help buttons
+    sessions/              Session-related shared UI
+    ui/                    shadcn/ui primitives + custom UI components
+    icons/                 Custom icons
+  lib/
+    auth/                  Session/token helpers, admin SDK init, sign-in user derivation
+    sessions/              Session-domain logic (transitions, queries, garbage-collect)
+    settlement/            Minimal-transactions settlement algorithm
+    currency/              Cents parsing/formatting
+    venmo/                 Venmo URL builder
+    firestore/             Firestore serialization helpers
+    errors/                Server-action error code → user message mapping
+    help/                  Hand-rankings cheat-sheet data
+    firebase/              Client + admin SDK initialization
+public/                    Static assets, including help/hand-rankings/*.svg
+scripts/                   Dev orchestration (dev.mjs), SVG generator, seed helpers
+e2e/                       Playwright tests
+firestore.rules            Deny-by-default; reads via Admin SDK only
+firestore-rules.test.ts    Rules tests (run via npm run test:emulator)
+.github/workflows/         CI (typecheck, lint, unit, emulator, e2e)
+CLAUDE.md                  Operating model — branch naming, gates, PR conventions
+```
+
+---
+
+## How the app evolves — workflow
+
+Every meaningful change has a corresponding numbered spec in `specs/changes/` before it lands. The spec captures the goal, scope, non-goals, test strategy, and acceptance criteria, gets reviewed before implementation begins, and stays in the repo as a historical record after it ships (marked `Implemented`).
+
+Architecture decisions live in `specs/decisions/` as numbered ADRs — one per durable choice (e.g., "use Firestore", "Server Actions over API routes", "monetary amounts as integer cents").
+
+The living docs in `docs/` describe the system's current state and are updated as it evolves — they are not historical records.
+
+Branches are short-lived and named by intent: `feature/<slice>`, `fix/<bug>`, `docs/<topic>`, `spec/<change-name>`, `chore/<maintenance>`. All work happens in isolated git worktrees, never directly on `main`.
+
+The full operating model — pre-flight checks, PR body conventions, merge strategy, public-repo guardrails — is in `CLAUDE.md`.
+
+---
+
+## Quality gates
+
+Every PR must pass these before merge (most run in CI on every push):
+
+- **Format** — `npm run format:check`
+- **Lint** — `npm run lint`
+- **Typecheck** — `npm run type-check`
+- **Unit tests** — `npm test`
+- **Build** — `npm run build`
+- **Emulator tests** — `npm run test:emulator` (rules suite + data-layer tests, runs against the Firestore emulator)
+- **E2E** — `npm run test:e2e`
+
+`npm run check` runs the fast subset (format + lint + typecheck + unit + build) locally without the emulator. The Lefthook pre-commit hook blocks commits that fail typecheck, lint, or unit tests.
+
+See `docs/16-quality-gates.md` for the full gate definitions.
+
+---
+
+## Worktrees
+
+Multiple worktrees can run in parallel — `npm run dev` picks a per-worktree port offset on first run (persisted to `.devports`) so each worktree gets its own Next.js + emulator stack without colliding on the default ports.
+
+```sh
+git worktree add ../worktrees/poker-ledger-feat-x -b feature/feat-x main
+cd ../worktrees/poker-ledger-feat-x
+npm install
+npm run dev
+```
+
+After the PR merges:
+
+```sh
 cd <main-repo>
 git checkout main && git pull
-git worktree remove ../worktrees/poker-ledger-0001
-git branch -d feature/0001-nextjs-shell
+git worktree remove ../worktrees/poker-ledger-feat-x
+git branch -D feature/feat-x
 ```
 
----
-
-## Local development
-
-The application must be fully runnable locally. Once the app framework exists:
-
-```sh
-npm install
-npm run dev          # start dev server
-npm run format:check # check formatting
-npm run lint         # run linter
-npm run typecheck    # run TypeScript typechecking
-npm test             # run tests
-npm run build        # production build
-npm run check        # aggregate gate (all of the above)
-```
-
-See `/docs/15-local-development.md` for full setup details.
+See `docs/17-worktree-workflow.md` for the full workflow.
 
 ---
 
-## Deterministic quality gates
+## Public repository
 
-Gates are enforced before implementation is declared complete and before merge to `main`:
+This repo is intentionally public. **Don't commit secrets, real customer data, internal hostnames, or third-party identifiers** — every commit, branch name, file path, and PR title/body is world-readable. The `.env*` files (except `.env.local.example`) and `.claude/` are gitignored. Real production credentials live only in Vercel env vars, never in tracked files. Test fixtures use RFC 2606 reserved domains (`@example.com`).
 
-- Formatting check
-- Linting
-- Typechecking
-- Unit tests
-- Integration tests (where feasible)
-- Build check
-- Security/secrets scan
-- Local smoke test
-
-Gates will be automated once the app framework exists. See `/docs/16-quality-gates.md`.
+Full guidance for contributors and AI assistants is in `CLAUDE.md`.
 
 ---
 
-## Vercel / GitHub lifecycle
+## License
 
-- Feature branch pushes → Vercel preview deployment
-- `main` merge → Vercel production deployment
-- Environment variables managed via `vercel env` and `.env.local` locally
-- Do not rely on manual `vercel deploy` for normal workflow
-
----
-
-## Starting a new planning phase
-
-1. Create a `docs/<topic>` branch in a worktree.
-2. Paste `/prompts/00-initial-design-docs.md` into Claude Code with your product description.
-3. Fill `/docs` files iteratively. Track unresolved issues in `11-open-questions.md`.
-4. Freeze MVP scope in `12-mvp-scope.md`.
-5. Conduct a design review using `/prompts/01-design-review.md`.
-6. When docs are accepted, begin Phase 1.
-
-## Creating a change spec
-
-1. Create a `spec/<name>` branch in a worktree.
-2. Paste `/prompts/02-create-change-spec.md` into Claude Code.
-3. Save the output to `/specs/changes/NNNN-<name>.md`.
-4. Review and accept the spec before implementation begins.
-
-## Implementing a change spec
-
-1. Create a `feature/<name>` branch in a worktree.
-2. Paste `/prompts/03-implement-change-spec.md` with the spec path.
-3. Claude Code implements the spec, runs gates, and stops.
-4. Run `/prompts/04-review-implementation.md` before declaring done.
-5. Update durable docs via `/prompts/05-update-core-docs.md`.
-6. Run release checklist via `/prompts/06-release-checklist.md`.
+MIT — see `LICENSE`.
