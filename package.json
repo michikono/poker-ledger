@@ -16,6 +16,7 @@
     "test:emulator": "vitest run --config vitest.emulator.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "gen:hand-rankings": "node scripts/generate-hand-svgs.mjs",
     "check": "npm run format:check && npm run lint && npm run type-check && npm run test && npm run build",
     "postinstall": "lefthook install"
   },
