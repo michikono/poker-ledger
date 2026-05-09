@@ -164,106 +164,129 @@ export function SessionView({
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 md:p-6">
-      <header className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold md:text-2xl">
-              {session.name}
-            </h1>
-            <StatusBadge status={status} />
+      <header className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold md:text-2xl">
+                {session.name}
+              </h1>
+              <StatusBadge status={status} />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Created by {session.createdByName} on{" "}
+              {formatLocalIsoDate(new Date(session.createdAt))}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Created by {session.createdByName} on{" "}
-            {formatLocalIsoDate(new Date(session.createdAt))}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isInProgress && (
-            <Button
-              type="button"
-              onClick={() => setSettlingOpen(true)}
-              disabled={submitting || players.length === 0}
-              data-testid="settle-up-button"
-              className="flex-1 md:flex-none"
-            >
-              <BanknoteIcon className="size-4" />
-              Settle up
-            </Button>
-          )}
-          {isArchived && (
-            <Button
-              type="button"
-              onClick={() => void handleUnarchive()}
-              disabled={submitting}
-              className="flex-1 md:flex-none"
-            >
-              <ArchiveRestoreIcon className="size-4" />
-              Unarchive
-            </Button>
-          )}
-          {secondaryActions.length > 0 && (
-            <>
-              {/* Mobile: overflow menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="More actions"
-                      data-testid="session-actions-more"
-                      className="md:hidden"
-                    />
-                  }
-                >
-                  <MoreHorizontal className="size-5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {secondaryActions.map((action) => {
-                    const Icon = action.icon;
-                    return (
-                      <DropdownMenuItem
-                        key={action.key}
-                        onClick={action.onSelect}
-                        disabled={submitting}
-                        variant={action.destructive ? "destructive" : "default"}
-                      >
-                        <Icon className="size-4" />
-                        {action.label}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {/* md+: inline secondary buttons */}
-              {secondaryActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <Button
-                    key={action.key}
-                    type="button"
-                    variant="outline"
-                    onClick={action.onSelect}
-                    disabled={submitting}
-                    className="hidden md:inline-flex"
+          <div className="flex items-center gap-2">
+            {/* md+: primary actions inline next to title */}
+            {isInProgress && (
+              <Button
+                type="button"
+                onClick={() => setSettlingOpen(true)}
+                disabled={submitting || players.length === 0}
+                data-testid="settle-up-button"
+                className="hidden md:inline-flex"
+              >
+                <BanknoteIcon className="size-4" />
+                Settle up
+              </Button>
+            )}
+            {isArchived && (
+              <Button
+                type="button"
+                onClick={() => void handleUnarchive()}
+                disabled={submitting}
+                className="hidden md:inline-flex"
+              >
+                <ArchiveRestoreIcon className="size-4" />
+                Unarchive
+              </Button>
+            )}
+            {secondaryActions.length > 0 && (
+              <>
+                {/* Mobile: overflow menu sits to the right of the title */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label="More actions"
+                        data-testid="session-actions-more"
+                        className="md:hidden"
+                      />
+                    }
                   >
-                    <Icon className="size-4" />
-                    {action.label}
-                  </Button>
-                );
-              })}
-            </>
-          )}
+                    <MoreHorizontal className="size-5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {secondaryActions.map((action) => {
+                      const Icon = action.icon;
+                      return (
+                        <DropdownMenuItem
+                          key={action.key}
+                          onClick={action.onSelect}
+                          disabled={submitting}
+                          variant={
+                            action.destructive ? "destructive" : "default"
+                          }
+                        >
+                          <Icon className="size-4" />
+                          {action.label}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* md+: inline secondary buttons */}
+                {secondaryActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Button
+                      key={action.key}
+                      type="button"
+                      variant="outline"
+                      onClick={action.onSelect}
+                      disabled={submitting}
+                      className="hidden md:inline-flex"
+                    >
+                      <Icon className="size-4" />
+                      {action.label}
+                    </Button>
+                  );
+                })}
+              </>
+            )}
+          </div>
         </div>
+        {/* Mobile: primary action takes a full row below the title */}
+        {isInProgress && (
+          <Button
+            type="button"
+            onClick={() => setSettlingOpen(true)}
+            disabled={submitting || players.length === 0}
+            className="w-full md:hidden"
+          >
+            <BanknoteIcon className="size-4" />
+            Settle up
+          </Button>
+        )}
+        {isArchived && (
+          <Button
+            type="button"
+            onClick={() => void handleUnarchive()}
+            disabled={submitting}
+            className="w-full md:hidden"
+          >
+            <ArchiveRestoreIcon className="size-4" />
+            Unarchive
+          </Button>
+        )}
       </header>
 
-      <PlayerList
-        sessionId={session.id}
-        status={status}
-        players={players}
-        playerRowsRef={playerRowsRef}
-      />
-
+      {/* When settling/settled, paying everyone out is the primary action,
+          so the payment list sits above the player roster. */}
       {(isSettling || isSettled) && (
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">Settle up</h2>
@@ -288,6 +311,13 @@ export function SessionView({
           )}
         </section>
       )}
+
+      <PlayerList
+        sessionId={session.id}
+        status={status}
+        players={players}
+        playerRowsRef={playerRowsRef}
+      />
 
       {/* Default buy-in lives at the bottom — it's a session-wide setting,
           not part of the per-player Add flow. */}
