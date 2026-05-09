@@ -703,8 +703,7 @@ export function PlayerDetailsSheet({
                       Cash out
                     </span>
                     <p className="text-xs text-muted-foreground">
-                      The total amount this player is walking away with at the
-                      end of the night.
+                      What this player walks away with.
                     </p>
                     {cashOutEditable ? (
                       <CurrencyInput
