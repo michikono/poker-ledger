@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Loader2, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
@@ -360,29 +360,43 @@ export function PlayerDetailsSheet({
             data-testid={`player-details-sheet-${player.id}`}
             className="fixed inset-0 z-50 flex flex-col bg-popover text-popover-foreground shadow-xl outline-none transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 md:inset-y-4 md:left-1/2 md:h-auto md:max-h-[calc(100svh-2rem)] md:w-[calc(100%-2rem)] md:max-w-md md:-translate-x-1/2 md:rounded-xl md:ring-1 md:ring-foreground/10"
           >
-            <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
-              <div className="flex flex-col gap-0.5">
-                <DialogPrimitive.Title className="font-heading text-base font-medium">
-                  {editable ? "Edit player" : "Player details"}
-                </DialogPrimitive.Title>
-                <DialogPrimitive.Description className="text-sm text-muted-foreground">
-                  {editable
-                    ? "Update name, Venmo handle, cash-out, and buy-ins."
-                    : "Read-only — this session can no longer be edited."}
-                </DialogPrimitive.Description>
+            <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border px-2 py-2">
+              <div className="justify-self-start">
+                <DialogPrimitive.Close
+                  render={
+                    <Button
+                      variant="ghost"
+                      aria-label={editable ? "Cancel" : "Close"}
+                      disabled={saving}
+                    />
+                  }
+                >
+                  {editable ? "Cancel" : "Close"}
+                </DialogPrimitive.Close>
               </div>
-              <DialogPrimitive.Close
-                render={
+              <DialogPrimitive.Title className="truncate text-center font-heading text-base font-medium">
+                {editable ? "Edit player" : "Player details"}
+              </DialogPrimitive.Title>
+              <div className="justify-self-end">
+                {editable && (
                   <Button
+                    type="button"
                     variant="ghost"
-                    size="icon"
-                    aria-label="Close player details"
-                    disabled={saving}
-                  />
-                }
-              >
-                <X className="size-5" />
-              </DialogPrimitive.Close>
+                    onClick={() => void handleSave()}
+                    disabled={busy || !dirty}
+                    data-testid={`pds-save-${player.id}`}
+                    className="font-semibold text-primary disabled:text-muted-foreground"
+                  >
+                    {saving && <Loader2 className="mr-1 size-4 animate-spin" />}
+                    Save
+                  </Button>
+                )}
+              </div>
+              <DialogPrimitive.Description className="sr-only">
+                {editable
+                  ? "Update name, Venmo handle, cash-out, and buy-ins."
+                  : "Read-only — this session can no longer be edited."}
+              </DialogPrimitive.Description>
             </header>
 
             <form
@@ -390,7 +404,7 @@ export function PlayerDetailsSheet({
               aria-label={`Edit ${player.name}`}
               className="flex flex-1 flex-col overflow-hidden"
             >
-              <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+8rem)] md:pb-3">
+              <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:pb-3">
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1">
                     <label
@@ -582,51 +596,36 @@ export function PlayerDetailsSheet({
                       {saveError.message}
                     </div>
                   )}
-                </div>
-              </div>
 
-              <div
-                data-slot="player-details-footer"
-                className="absolute inset-x-0 bottom-0 flex flex-col gap-2 border-t border-border bg-background/85 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] supports-backdrop-filter:bg-background/70 supports-backdrop-filter:backdrop-blur-sm md:relative md:inset-x-auto md:bottom-auto md:flex-row md:items-center md:justify-between md:rounded-b-xl md:bg-muted/50 md:pb-3"
-              >
-                {editable ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setConfirmingDelete(true)}
-                    disabled={busy}
-                    className="md:order-first"
-                    data-testid={`pds-delete-${player.id}`}
-                  >
-                    <Trash2 className="size-4" />
-                    Delete player
-                  </Button>
-                ) : (
-                  <div className="hidden md:block" />
-                )}
-                <div className="flex flex-col-reverse gap-2 md:flex-row">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => onOpenChange(false)}
-                    disabled={saving}
-                  >
-                    {editable ? "Cancel" : "Close"}
-                  </Button>
                   {editable && (
-                    <Button
-                      type="submit"
-                      disabled={busy || !dirty}
-                      data-testid={`pds-save-${player.id}`}
-                    >
-                      {saving && (
-                        <Loader2 className="mr-1 size-4 animate-spin" />
-                      )}
-                      Save
-                    </Button>
+                    <div className="mt-6 border-t border-border pt-4">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => setConfirmingDelete(true)}
+                        disabled={busy}
+                        data-testid={`pds-delete-${player.id}`}
+                        className="w-full"
+                      >
+                        <Trash2 className="size-4" />
+                        Delete player
+                      </Button>
+                      <p className="mt-2 text-center text-xs text-muted-foreground">
+                        This permanently removes their buy-ins and cash-out.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
+              {/* Submit-on-Enter only — visible Save lives in the header. */}
+              <button
+                type="submit"
+                className="hidden"
+                tabIndex={-1}
+                aria-hidden="true"
+              >
+                Save
+              </button>
             </form>
           </DialogPrimitive.Popup>
         </DialogPrimitive.Portal>
