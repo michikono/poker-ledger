@@ -84,6 +84,7 @@ export function SessionView({
     setArchiveOpen(false);
     if (!result) return;
     if (result.success) {
+      toast.success("Session archived");
       router.refresh();
     } else {
       toast.error(describeErrorCode(result.error.code));
@@ -99,6 +100,7 @@ export function SessionView({
     setSubmitting(false);
     if (!result) return;
     if (result.success) {
+      toast.success("Session restored");
       router.refresh();
     } else {
       toast.error(describeErrorCode(result.error.code));
@@ -119,6 +121,11 @@ export function SessionView({
     setRollbackOpen(false);
     if (!result) return;
     if (result.success) {
+      toast.success(
+        target === "in_progress"
+          ? "Rolled back to in progress"
+          : "Rolled back to settling",
+      );
       router.refresh();
     } else {
       toast.error(describeErrorCode(result.error.code));

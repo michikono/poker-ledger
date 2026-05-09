@@ -80,19 +80,29 @@ export default async function SessionPage({
     }),
   );
 
-  const players: SessionPlayerView[] = playersSnap.docs.map((doc, i) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      name: (data.name as string) ?? "",
-      venmoUsername:
-        typeof data.venmo_username === "string" ? data.venmo_username : null,
-      cashOutCents:
-        typeof data.cash_out_cents === "number" ? data.cash_out_cents : null,
-      createdAt: tsToIso(data.created_at),
-      buyIns: buyInsByPlayer[i] ?? [],
-    };
-  });
+  const players: SessionPlayerView[] = playersSnap.docs
+    .map((doc, i) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: (data.name as string) ?? "",
+        venmoUsername:
+          typeof data.venmo_username === "string" ? data.venmo_username : null,
+        cashOutCents:
+          typeof data.cash_out_cents === "number" ? data.cash_out_cents : null,
+        createdAt: tsToIso(data.created_at),
+        buyIns: buyInsByPlayer[i] ?? [],
+      };
+    })
+    // Alphabetical, case-insensitive. Stable for ties via createdAt so a
+    // rename-induced reorder is deterministic.
+    .sort((a, b) => {
+      const byName = a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+      });
+      if (byName !== 0) return byName;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
 
   const payments: SessionPaymentView[] = paymentsSnap.docs.map((doc) => {
     const data = doc.data();

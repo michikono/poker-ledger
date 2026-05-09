@@ -1,7 +1,13 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { type Ref, useImperativeHandle, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
@@ -22,11 +28,15 @@ export function PlayerCard({
   sessionId,
   status,
   player,
+  highlighted,
+  onPlayerChanged,
   ref,
 }: {
   sessionId: string;
   status: SessionStatus;
   player: SessionPlayerView;
+  highlighted?: boolean;
+  onPlayerChanged?: (playerId: string) => void;
   ref?: Ref<PlayerRowHandle>;
 }) {
   const editable = status === "in_progress";
@@ -39,6 +49,19 @@ export function PlayerCard({
     player.buyIns.map((b) => ({ amountCents: b.amountCents })),
     player.cashOutCents,
   );
+
+  // Replay the flash animation whenever the parent says this player just
+  // changed (added, renamed, etc). Toggling the class off + forcing a
+  // reflow + re-adding it restarts the keyframes even if the class was
+  // already present from a prior highlight.
+  useEffect(() => {
+    if (!highlighted) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.classList.remove("player-row-flash");
+    void el.offsetWidth;
+    el.classList.add("player-row-flash");
+  }, [highlighted]);
 
   useImperativeHandle(ref, () => ({
     openEdit: (options) => {
@@ -167,6 +190,7 @@ export function PlayerCard({
         status={status}
         player={player}
         initialFocus={editFocus}
+        {...(onPlayerChanged ? { onPlayerChanged } : {})}
       />
     </article>
   );

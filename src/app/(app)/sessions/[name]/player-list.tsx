@@ -2,7 +2,7 @@
 
 import { UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,23 @@ export function PlayerList({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Highlights a row briefly so the user can tell which player just changed
+  // (additions, renames, and inline edits all reorder the list since players
+  // are sorted alphabetically). The flash auto-clears after the CSS animation
+  // length so a stale highlightedId doesn't survive across multiple actions.
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function highlight(id: string) {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    setHighlightedId(id);
+    highlightTimer.current = setTimeout(() => setHighlightedId(null), 2000);
+  }
+  useEffect(() => {
+    return () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    };
+  }, []);
 
   const editable = status === "in_progress";
 
@@ -71,6 +88,8 @@ export function PlayerList({
 
     if (result.success) {
       setName("");
+      toast.success(`Added ${trimmed}`);
+      highlight(result.data.playerId);
       router.refresh();
       return;
     }
@@ -156,6 +175,8 @@ export function PlayerList({
                 sessionId={sessionId}
                 status={status}
                 player={p}
+                highlighted={highlightedId === p.id}
+                onPlayerChanged={highlight}
                 ref={(handle) => {
                   if (!playerRowsRef) return;
                   if (handle) {
@@ -175,6 +196,8 @@ export function PlayerList({
               status={status}
               players={players}
               totals={totals}
+              highlightedId={highlightedId}
+              onPlayerChanged={highlight}
               {...(playerRowsRef ? { playerRowsRef } : {})}
             />
           </div>

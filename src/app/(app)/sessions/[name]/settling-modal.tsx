@@ -192,6 +192,12 @@ export function SettlingModal({
 
     if (result.success) {
       onOpenChange(false);
+      const final = result.data.finalStatus;
+      toast.success(
+        final === "settled"
+          ? "Everyone broke even — session settled"
+          : "Payments computed — ready to settle",
+      );
       router.refresh();
       return;
     }
