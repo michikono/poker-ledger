@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -152,7 +152,11 @@ export function DefaultBuyInModal({
               disabled={submitting}
               data-testid="default-buy-in-submit"
             >
-              {submitting && <Loader2 className="mr-1 size-4 animate-spin" />}
+              {submitting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Check className="size-4" />
+              )}
               Save
             </Button>
           </DialogFooter>

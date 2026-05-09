@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -57,56 +57,38 @@ function renderCard(
 }
 
 beforeEach(() => {
-  mocks.addBuyIn.mockReset();
-  mocks.removeBuyIn.mockReset();
-  mocks.setCashOut.mockReset();
-  mocks.updatePlayer.mockReset();
-  mocks.deletePlayer.mockReset();
-  mocks.updateDefaultBuyIn.mockReset();
-  mocks.refresh.mockReset();
+  Object.values(mocks).forEach((fn) => {
+    if (typeof (fn as { mockReset?: () => void }).mockReset === "function") {
+      (fn as { mockReset: () => void }).mockReset();
+    }
+  });
   mocks.getClientAuth.mockReturnValue({
     authStateReady: () => Promise.resolve(),
     currentUser: { getIdToken: () => Promise.resolve("tok") },
   });
 });
 
-describe("PlayerCard — read-only states", () => {
-  it("renders cash-out as plain text and hides the More menu when archived", () => {
+describe("PlayerCard — display only", () => {
+  it("renders cash-out as formatted text (no input on the card)", () => {
     renderCard(
       makePlayer({
         id: "p1",
         name: "Alice",
         cashOutCents: 7500,
-        buyIns: [
-          {
-            id: "b1",
-            amountCents: 5000,
-            createdAt: new Date().toISOString(),
-          },
-        ],
       }),
-      "archived",
     );
 
-    expect(screen.queryByTestId("cash-out-p1")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("player-card-more-p1")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("add-buy-in-cta-p1")).not.toBeInTheDocument();
-    // Cash-out value rendered as plain text.
-    expect(screen.getByText("$75.00")).toBeInTheDocument();
+    const cashOut = screen.getByTestId("cash-out-p1");
+    expect(cashOut.tagName).toBe("DD");
+    expect(cashOut.textContent).toBe("$75.00");
+    // Critical: cash-out is no longer editable on the card itself.
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("hides the inline cash-out input and Add buy-in CTA when settling", () => {
-    renderCard(
-      makePlayer({
-        id: "p1",
-        name: "Alice",
-        cashOutCents: 5000,
-      }),
-      "settling",
-    );
+  it("renders cash-out as em-dash when null", () => {
+    renderCard(makePlayer({ id: "p1", name: "Alice" }));
 
-    expect(screen.queryByTestId("cash-out-p1")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("add-buy-in-cta-p1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("cash-out-p1").textContent).toBe("—");
   });
 
   it("renders buy-in pills as display-only (no per-pill remove)", () => {
@@ -129,38 +111,36 @@ describe("PlayerCard — read-only states", () => {
       screen.queryByLabelText(/Remove \$25\.00 buy-in/),
     ).not.toBeInTheDocument();
   });
-});
 
-describe("PlayerCard — editable in_progress", () => {
-  it("commits cash-out on blur via setCashOut", async () => {
-    mocks.setCashOut.mockResolvedValueOnce({ success: true });
-    renderCard(makePlayer({ id: "p1", name: "Alice", cashOutCents: null }));
-
-    const input = screen.getByTestId("cash-out-p1") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "75" } });
-    await act(async () => {
-      fireEvent.blur(input);
-    });
-
-    expect(mocks.setCashOut).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1", amountCents: 7500 },
-      "tok",
-    );
-  });
-
-  it("opens the AddBuyInModal when the primary Add buy-in CTA is tapped", () => {
+  it("does not render an Add buy-in CTA on the card (lives in the sheet)", () => {
     renderCard(makePlayer({ id: "p1", name: "Alice" }));
 
-    fireEvent.click(screen.getByTestId("add-buy-in-cta-p1"));
-
-    expect(screen.getByTestId("add-buy-in-modal-p1")).toBeInTheDocument();
+    expect(screen.queryByTestId("add-buy-in-cta-p1")).not.toBeInTheDocument();
   });
 
-  it("opens the PlayerDetailsSheet when the player name row is tapped", () => {
+  it("does not render a More menu on the card", () => {
+    renderCard(makePlayer({ id: "p1", name: "Alice" }));
+
+    expect(screen.queryByTestId("player-card-more-p1")).not.toBeInTheDocument();
+  });
+});
+
+describe("PlayerCard — interaction", () => {
+  it("opens the PlayerDetailsSheet when the card is tapped", () => {
     renderCard(makePlayer({ id: "p1", name: "Alice" }));
 
     fireEvent.click(screen.getByTestId("player-card-name-p1"));
 
     expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
+  });
+
+  it("opens the sheet in read-only mode when archived (still tap-to-view)", () => {
+    renderCard(makePlayer({ id: "p1", name: "Alice" }), "archived");
+
+    fireEvent.click(screen.getByTestId("player-card-name-p1"));
+
+    expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
+    // Archived sessions show no Save action.
+    expect(screen.queryByTestId("pds-save-p1")).not.toBeInTheDocument();
   });
 });

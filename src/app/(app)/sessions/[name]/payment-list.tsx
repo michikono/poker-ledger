@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, QrCode, Undo2Icon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -151,7 +152,10 @@ export function PaymentList({
                       rel="noopener noreferrer"
                       data-testid={`venmo-pay-${p.id}`}
                       aria-label={`Pay ${toName} ${formatCents(p.amountCents)} on Venmo`}
-                      className={cn(buttonVariants(), "w-full md:w-auto")}
+                      className={cn(
+                        buttonVariants({ variant: "outline" }),
+                        "w-full md:w-auto",
+                      )}
                       onClick={() => {
                         setConfirmModal({
                           paymentId: p.id,
@@ -160,6 +164,7 @@ export function PaymentList({
                         });
                       }}
                     >
+                      <VenmoIcon size={16} title="Venmo" />
                       Pay
                     </a>
                     <Button
@@ -178,6 +183,7 @@ export function PaymentList({
                       data-testid={`venmo-qr-${p.id}`}
                       className="w-full md:w-auto"
                     >
+                      <QrCode className="size-4" />
                       QR
                     </Button>
                   </>
@@ -207,6 +213,7 @@ export function PaymentList({
                     disabled={isBusy}
                     className="w-full md:w-auto"
                   >
+                    <Undo2Icon className="size-4" />
                     {isBusy ? "Working…" : "Unmark"}
                   </Button>
                 ) : (
@@ -217,6 +224,7 @@ export function PaymentList({
                     data-testid={`mark-paid-${p.id}`}
                     className="w-full md:w-auto"
                   >
+                    <Check className="size-4" />
                     {isBusy ? "Working…" : "Mark paid"}
                   </Button>
                 )}

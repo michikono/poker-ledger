@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
@@ -387,7 +387,11 @@ export function PlayerDetailsSheet({
                     data-testid={`pds-save-${player.id}`}
                     className="font-semibold text-primary disabled:text-muted-foreground"
                   >
-                    {saving && <Loader2 className="mr-1 size-4 animate-spin" />}
+                    {saving ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Check className="size-4" />
+                    )}
                     Save
                   </Button>
                 )}
@@ -406,6 +410,7 @@ export function PlayerDetailsSheet({
             >
               <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:pb-3">
                 <div className="flex flex-col gap-4">
+                  {/* 1. Name */}
                   <div className="flex flex-col gap-1">
                     <label
                       htmlFor={`pds-name-${player.id}`}
@@ -435,6 +440,7 @@ export function PlayerDetailsSheet({
                       )}
                   </div>
 
+                  {/* 2. Venmo handle */}
                   <div className="flex flex-col gap-1">
                     <label
                       htmlFor={`pds-venmo-${player.id}`}
@@ -477,23 +483,66 @@ export function PlayerDetailsSheet({
                       )}
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`pds-cashout-${player.id}`}
-                      className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                  {/* 3. Add a buy-in (flat, same shape as other fields). NOT
+                      a nested <form> — the outer save form wraps this section
+                      and browsers flatten nested forms; we use a <fieldset>
+                      and an explicit click handler so the submit signals never
+                      cross. */}
+                  {editable && (
+                    <fieldset
+                      className="flex flex-col gap-1 border-0 p-0"
+                      aria-label={`Add buy-in for ${player.name}`}
+                      data-testid={`pds-add-buy-in-form-${player.id}`}
                     >
-                      Cash out
-                    </label>
-                    <CurrencyInput
-                      id={`pds-cashout-${player.id}`}
-                      placeholder="—"
-                      value={cashOutDraft}
-                      onChange={setCashOutDraft}
-                      disabled={!editable || busy}
-                      className="tabular-nums"
-                    />
-                  </div>
+                      <label
+                        htmlFor={`pds-add-buy-in-${player.id}`}
+                        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                      >
+                        Add a buy-in
+                      </label>
+                      <div className="flex flex-col gap-2 md:flex-row md:items-stretch">
+                        <CurrencyInput
+                          id={`pds-add-buy-in-${player.id}`}
+                          placeholder="0.00"
+                          value={buyInDraft}
+                          onChange={setBuyInDraft}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              // Prevent the outer save form from firing when
+                              // the user just wants to add a buy-in.
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void handleAddBuyIn();
+                            }
+                          }}
+                          disabled={busy}
+                          aria-invalid={buyInError ? true : undefined}
+                          className="flex-1 tabular-nums"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void handleAddBuyIn()}
+                          disabled={busy}
+                          data-testid={`pds-add-buy-in-submit-${player.id}`}
+                        >
+                          {addingBuyIn ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Plus className="size-4" />
+                          )}
+                          Add buy-in
+                        </Button>
+                      </div>
+                      {buyInError && (
+                        <p className="text-xs text-destructive">
+                          {buyInError.message}
+                        </p>
+                      )}
+                    </fieldset>
+                  )}
 
+                  {/* 4. Buy-ins list */}
                   <section className="flex flex-col gap-2">
                     <header className="flex items-baseline justify-between gap-2">
                       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -503,67 +552,6 @@ export function PlayerDetailsSheet({
                         Total {formatCents(totalBuyInCents)}
                       </span>
                     </header>
-
-                    {editable && (
-                      // NOT a nested <form>: the outer save form already wraps
-                      // this section, and HTML/React can't reliably nest forms
-                      // (browsers flatten them and submit events go to the
-                      // outer form, silently bypassing handleAddBuyIn). We use
-                      // a <fieldset> to group the inputs semantically and an
-                      // explicit click handler on the Add button so submitting
-                      // one never accidentally triggers the other.
-                      <fieldset
-                        className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3"
-                        aria-label={`Add buy-in for ${player.name}`}
-                        data-testid={`pds-add-buy-in-form-${player.id}`}
-                      >
-                        <label
-                          htmlFor={`pds-add-buy-in-${player.id}`}
-                          className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-                        >
-                          Add a buy-in
-                        </label>
-                        <div className="flex flex-col gap-2 md:flex-row md:items-stretch">
-                          <CurrencyInput
-                            id={`pds-add-buy-in-${player.id}`}
-                            placeholder="0.00"
-                            value={buyInDraft}
-                            onChange={setBuyInDraft}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                // Prevent the outer form from submitting the
-                                // player save when the user just wants to add
-                                // a buy-in.
-                                e.preventDefault();
-                                e.stopPropagation();
-                                void handleAddBuyIn();
-                              }
-                            }}
-                            disabled={busy}
-                            aria-invalid={buyInError ? true : undefined}
-                            className="flex-1 tabular-nums"
-                          />
-                          <Button
-                            type="button"
-                            onClick={() => void handleAddBuyIn()}
-                            disabled={busy}
-                            data-testid={`pds-add-buy-in-submit-${player.id}`}
-                          >
-                            {addingBuyIn ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Plus className="size-4" />
-                            )}
-                            Add
-                          </Button>
-                        </div>
-                        {buyInError && (
-                          <p className="text-xs text-destructive">
-                            {buyInError.message}
-                          </p>
-                        )}
-                      </fieldset>
-                    )}
 
                     {player.buyIns.length === 0 ? (
                       <p className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
@@ -609,6 +597,24 @@ export function PlayerDetailsSheet({
                     )}
                   </section>
 
+                  {/* 5. Cash out (last before delete, per UX flow). */}
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`pds-cashout-${player.id}`}
+                      className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      Cash out
+                    </label>
+                    <CurrencyInput
+                      id={`pds-cashout-${player.id}`}
+                      placeholder="0.00"
+                      value={cashOutDraft}
+                      onChange={setCashOutDraft}
+                      disabled={!editable || busy}
+                      className="tabular-nums"
+                    />
+                  </div>
+
                   {saveError?.kind === "generic" && (
                     <div
                       role="alert"
@@ -618,6 +624,7 @@ export function PlayerDetailsSheet({
                     </div>
                   )}
 
+                  {/* 6. Delete player */}
                   {editable && (
                     <div className="mt-6 border-t border-border pt-4">
                       <Button

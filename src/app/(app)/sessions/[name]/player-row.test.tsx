@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -37,8 +31,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: () => mocks.refresh() }),
 }));
 
-import { PlayerRow, type PlayerRowHandle } from "./player-row";
+import { PlayerRow } from "./player-row";
 import type { SessionPlayerView } from "./page";
+import type { SessionStatus } from "@/lib/sessions/types";
 
 function makePlayer(
   partial: Partial<SessionPlayerView> & Pick<SessionPlayerView, "id" | "name">,
@@ -52,287 +47,97 @@ function makePlayer(
   };
 }
 
-function renderRow(player: SessionPlayerView) {
+function renderRow(
+  player: SessionPlayerView,
+  status: SessionStatus = "in_progress",
+) {
   return render(
     <table>
       <tbody>
-        <PlayerRow sessionId="s1" status="in_progress" player={player} />
+        <PlayerRow sessionId="s1" status={status} player={player} />
       </tbody>
     </table>,
   );
 }
 
 beforeEach(() => {
-  mocks.addBuyIn.mockReset();
-  mocks.removeBuyIn.mockReset();
-  mocks.setCashOut.mockReset();
-  mocks.updatePlayer.mockReset();
-  mocks.deletePlayer.mockReset();
-  mocks.refresh.mockReset();
+  Object.values(mocks).forEach((fn) => {
+    if (typeof (fn as { mockReset?: () => void }).mockReset === "function") {
+      (fn as { mockReset: () => void }).mockReset();
+    }
+  });
   mocks.getClientAuth.mockReturnValue({
     authStateReady: () => Promise.resolve(),
     currentUser: { getIdToken: () => Promise.resolve("tok") },
   });
 });
 
-describe("PlayerRow — edit form", () => {
-  it("opens the edit form with name and Venmo handle when the player name is clicked", () => {
+describe("PlayerRow — display only", () => {
+  it("renders cash-out as text (no input on the row)", () => {
     renderRow(
-      makePlayer({ id: "p1", name: "Alice", venmoUsername: "alice123" }),
+      makePlayer({
+        id: "p1",
+        name: "Alice",
+        cashOutCents: 7500,
+      }),
     );
 
-    fireEvent.click(screen.getByText("Alice"));
+    expect(screen.getByTestId("cash-out-p1").textContent).toBe("$75.00");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
 
-    expect(screen.getByLabelText("Name")).toHaveValue("Alice");
-    expect(screen.getByLabelText("Venmo handle (optional)")).toHaveValue(
-      "alice123",
+  it("renders buy-in pills as display-only", () => {
+    renderRow(
+      makePlayer({
+        id: "p1",
+        name: "Alice",
+        buyIns: [
+          {
+            id: "b1",
+            amountCents: 2500,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }),
     );
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+
+    expect(screen.getByTestId("buy-in-b1")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Delete player" }),
-    ).toBeInTheDocument();
-  });
-
-  it("renders the edit form inside a modal dialog", () => {
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-    fireEvent.click(screen.getByText("Alice"));
-    expect(screen.getByTestId("edit-player-dialog-p1")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Edit player" }),
-    ).toBeInTheDocument();
-  });
-
-  it("flashes the row after a successful edit save", async () => {
-    mocks.updatePlayer.mockResolvedValue({ success: true, data: undefined });
-
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-    fireEvent.click(screen.getByText("Alice"));
-
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "Alice B." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() =>
-      expect(screen.getByTestId("player-row-p1")).toHaveClass(
-        "player-row-flash",
-      ),
-    );
-  });
-
-  it("shows an inline error with a Retry button when the save fails generically", async () => {
-    mocks.updatePlayer.mockResolvedValueOnce({
-      success: false,
-      error: { code: "INTERNAL", message: "boom" },
-    });
-    mocks.updatePlayer.mockResolvedValueOnce({
-      success: true,
-      data: undefined,
-    });
-
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-    fireEvent.click(screen.getByText("Alice"));
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    const retry = await screen.findByRole("button", { name: "Retry" });
-    expect(retry).toBeInTheDocument();
-
-    fireEvent.click(retry);
-    await waitFor(() => expect(mocks.updatePlayer).toHaveBeenCalledTimes(2));
-  });
-
-  it("Delete player opens a confirmation dialog rather than deleting immediately", () => {
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-
-    fireEvent.click(screen.getByText("Alice"));
-    fireEvent.click(screen.getByRole("button", { name: "Delete player" }));
-
-    expect(screen.getByTestId("delete-player-dialog-p1")).toBeInTheDocument();
-    expect(screen.getByText("Delete player?")).toBeInTheDocument();
-    expect(mocks.deletePlayer).not.toHaveBeenCalled();
-  });
-
-  it("Cancel in the confirm dialog closes it without calling deletePlayer", () => {
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-
-    fireEvent.click(screen.getByText("Alice"));
-    fireEvent.click(screen.getByRole("button", { name: "Delete player" }));
-
-    const dialog = screen.getByTestId("delete-player-dialog-p1");
-    const cancelBtn = Array.from(dialog.querySelectorAll("button")).find(
-      (b) => b.textContent === "Cancel",
-    );
-    expect(cancelBtn).toBeDefined();
-    fireEvent.click(cancelBtn as HTMLElement);
-    expect(mocks.deletePlayer).not.toHaveBeenCalled();
-  });
-
-  it("Confirming the dialog actually calls deletePlayer", async () => {
-    mocks.deletePlayer.mockResolvedValue({ success: true, data: undefined });
-
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-
-    fireEvent.click(screen.getByText("Alice"));
-    fireEvent.click(screen.getByRole("button", { name: "Delete player" }));
-
-    const dialog = screen.getByTestId("delete-player-dialog-p1");
-    const deleteBtn = Array.from(dialog.querySelectorAll("button")).find(
-      (b) => b.textContent === "Delete",
-    );
-    expect(deleteBtn).toBeDefined();
-    fireEvent.click(deleteBtn as HTMLElement);
-
-    await waitFor(() => expect(mocks.deletePlayer).toHaveBeenCalledTimes(1));
-    expect(mocks.deletePlayer).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1" },
-      "tok",
-    );
-  });
-});
-
-describe("PlayerRow — buy-in column", () => {
-  it("renders the Add buy-in CTA but no form by default", () => {
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-
-    expect(screen.getByTestId("add-buy-in-cta-p1")).toBeInTheDocument();
-    expect(
-      screen.queryByLabelText("Add buy-in for Alice"),
+      screen.queryByLabelText(/Remove \$25\.00 buy-in/),
     ).not.toBeInTheDocument();
   });
 
-  it("clicking the CTA expands the inline buy-in form", () => {
+  it("does not render an inline Add buy-in CTA on the row", () => {
     renderRow(makePlayer({ id: "p1", name: "Alice" }));
 
-    fireEvent.click(screen.getByTestId("add-buy-in-cta-p1"));
-
-    expect(screen.getByLabelText("Add buy-in for Alice")).toBeInTheDocument();
     expect(screen.queryByTestId("add-buy-in-cta-p1")).not.toBeInTheDocument();
   });
-
-  it("Cancel collapses the form back to the CTA", () => {
-    renderRow(makePlayer({ id: "p1", name: "Alice" }));
-
-    fireEvent.click(screen.getByTestId("add-buy-in-cta-p1"));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.getByTestId("add-buy-in-cta-p1")).toBeInTheDocument();
-  });
 });
 
-describe("PlayerRow — imperative handle", () => {
-  it("calling openEdit() on the ref opens the edit form", () => {
-    const handle = { current: null as PlayerRowHandle | null };
-    render(
-      <table>
-        <tbody>
-          <PlayerRow
-            sessionId="s1"
-            status="in_progress"
-            player={makePlayer({
-              id: "p1",
-              name: "Alice",
-              venmoUsername: "alice123",
-            })}
-            ref={(h) => {
-              handle.current = h;
-            }}
-          />
-        </tbody>
-      </table>,
-    );
-
-    // No edit form yet
-    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
-
-    act(() => {
-      handle.current?.openEdit();
-    });
-
-    // Edit form appeared with name and existing handle
-    expect(screen.getByLabelText("Name")).toHaveValue("Alice");
-    expect(screen.getByLabelText("Venmo handle (optional)")).toHaveValue(
-      "alice123",
-    );
-  });
-
-  it("openEdit() is a no-op for archived sessions", () => {
-    const handle = { current: null as PlayerRowHandle | null };
-    render(
-      <table>
-        <tbody>
-          <PlayerRow
-            sessionId="s1"
-            status="archived"
-            player={makePlayer({ id: "p1", name: "Alice" })}
-            ref={(h) => {
-              handle.current = h;
-            }}
-          />
-        </tbody>
-      </table>,
-    );
-
-    act(() => {
-      handle.current?.openEdit();
-    });
-
-    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
-  });
-
-  it("openEdit({ focus: 'venmo' }) focuses the Venmo handle field", async () => {
-    const handle = { current: null as PlayerRowHandle | null };
-    render(
-      <table>
-        <tbody>
-          <PlayerRow
-            sessionId="s1"
-            status="in_progress"
-            player={makePlayer({ id: "p1", name: "Alice" })}
-            ref={(h) => {
-              handle.current = h;
-            }}
-          />
-        </tbody>
-      </table>,
-    );
-
-    act(() => {
-      handle.current?.openEdit({ focus: "venmo" });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("Venmo handle (optional)")).toHaveFocus();
-    });
-  });
-});
-
-describe("PlayerRow — name validation", () => {
-  it("rejects a punctuation-only name with 'letter or emoji' message", async () => {
+describe("PlayerRow — interaction", () => {
+  it("opens the PlayerDetailsSheet when the row is clicked", () => {
     renderRow(makePlayer({ id: "p1", name: "Alice" }));
 
-    fireEvent.click(screen.getByText("Alice"));
-    const nameInput = screen.getByLabelText("Name");
-    fireEvent.change(nameInput, { target: { value: "." } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByTestId("player-row-p1"));
 
-    await waitFor(() => {
-      expect(screen.getByText(/letter or emoji/i)).toBeInTheDocument();
-    });
-    expect(mocks.updatePlayer).not.toHaveBeenCalled();
-  });
-});
-
-describe("PlayerRow — collapsed-state affordances", () => {
-  it("shows a Venmo icon next to the name when the player has a handle", () => {
-    renderRow(
-      makePlayer({ id: "p1", name: "Alice", venmoUsername: "alice123" }),
-    );
-    expect(screen.getByLabelText("Venmo: @alice123")).toBeInTheDocument();
+    expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
   });
 
-  it("does not show the Venmo icon when no handle is set", () => {
+  it("opens the sheet on Enter keypress", () => {
     renderRow(makePlayer({ id: "p1", name: "Alice" }));
-    expect(screen.queryByLabelText(/Venmo:/)).not.toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByTestId("player-row-p1"), { key: "Enter" });
+
+    expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
+  });
+
+  it("opens the sheet in read-only mode when archived", () => {
+    renderRow(makePlayer({ id: "p1", name: "Alice" }), "archived");
+
+    fireEvent.click(screen.getByTestId("player-row-p1"));
+
+    expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
+    // Archived sessions have no Save action.
+    expect(screen.queryByTestId("pds-save-p1")).not.toBeInTheDocument();
   });
 });
