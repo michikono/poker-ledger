@@ -141,6 +141,31 @@ describe("PlayerDetailsSheet — inline Add buy-in", () => {
     expect(mocks.setCashOut).not.toHaveBeenCalled();
   });
 
+  it("renders the Add a buy-in fieldset BEFORE the existing buy-ins list", () => {
+    renderSheet(
+      makePlayer({
+        id: "p1",
+        name: "Alice",
+        buyIns: [
+          {
+            id: "b1",
+            amountCents: 2500,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    );
+
+    const addForm = screen.getByTestId("pds-add-buy-in-form-p1");
+    const buyInRow = screen.getByTestId("pds-buy-in-b1");
+    // DOCUMENT_POSITION_FOLLOWING (4) means buyInRow follows addForm in the
+    // DOM. Asserting order so a future refactor can't quietly flip them back.
+    expect(
+      addForm.compareDocumentPosition(buyInRow) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("removes a buy-in via the row-level Remove button", async () => {
     mocks.removeBuyIn.mockResolvedValueOnce({ success: true });
     renderSheet(

@@ -448,7 +448,7 @@ export function PlayerDetailsSheet({
                     </label>
                     <div className="flex items-center gap-2">
                       <span
-                        className="text-base text-muted-foreground"
+                        className="text-base text-muted-foreground md:text-sm"
                         aria-hidden="true"
                       >
                         @
@@ -495,57 +495,14 @@ export function PlayerDetailsSheet({
                   </div>
 
                   <section className="flex flex-col gap-2">
-                    <header className="flex items-center justify-between gap-2">
+                    <header className="flex items-baseline justify-between gap-2">
                       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         Buy-ins
                       </h3>
-                      <span className="text-sm tabular-nums text-muted-foreground">
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground tabular-nums">
                         Total {formatCents(totalBuyInCents)}
                       </span>
                     </header>
-
-                    {player.buyIns.length === 0 ? (
-                      <p className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                        No buy-ins yet.
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col divide-y divide-border rounded-md border bg-card">
-                        {player.buyIns.map((b) => (
-                          <li
-                            key={b.id}
-                            className="flex items-center justify-between gap-3 px-3 py-2"
-                            data-testid={`pds-buy-in-${b.id}`}
-                          >
-                            <span className="text-base font-medium tabular-nums">
-                              {formatCents(b.amountCents)}
-                            </span>
-                            {editable && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => void handleRemoveBuyIn(b.id)}
-                                disabled={busy}
-                                aria-label={`Remove ${formatCents(b.amountCents)} buy-in`}
-                                data-testid={`pds-remove-buy-in-${b.id}`}
-                              >
-                                {removingId === b.id ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="size-4" />
-                                )}
-                                Remove
-                              </Button>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-
-                    {removeError && (
-                      <p role="alert" className="text-xs text-destructive">
-                        {removeError.message}
-                      </p>
-                    )}
 
                     {editable && (
                       // NOT a nested <form>: the outer save form already wraps
@@ -606,6 +563,49 @@ export function PlayerDetailsSheet({
                           </p>
                         )}
                       </fieldset>
+                    )}
+
+                    {player.buyIns.length === 0 ? (
+                      <p className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                        No buy-ins yet.
+                      </p>
+                    ) : (
+                      <ul className="flex flex-col divide-y divide-border rounded-md border bg-card">
+                        {player.buyIns.map((b) => (
+                          <li
+                            key={b.id}
+                            className="flex items-center justify-between gap-3 px-3 py-2"
+                            data-testid={`pds-buy-in-${b.id}`}
+                          >
+                            <span className="text-base font-medium tabular-nums">
+                              {formatCents(b.amountCents)}
+                            </span>
+                            {editable && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => void handleRemoveBuyIn(b.id)}
+                                disabled={busy}
+                                aria-label={`Remove ${formatCents(b.amountCents)} buy-in`}
+                                data-testid={`pds-remove-buy-in-${b.id}`}
+                              >
+                                {removingId === b.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-4" />
+                                )}
+                                Remove
+                              </Button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {removeError && (
+                      <p role="alert" className="text-xs text-destructive">
+                        {removeError.message}
+                      </p>
                     )}
                   </section>
 
