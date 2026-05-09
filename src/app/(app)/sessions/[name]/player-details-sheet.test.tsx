@@ -416,6 +416,47 @@ describe("PlayerDetailsSheet — settling mode", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mocks.updatePlayer).not.toHaveBeenCalled();
   });
+
+  it("Cancel still works when the previous Save attempt threw — settling Add-Venmo flow", async () => {
+    // Regression guard for the "on the settling page when I click Add Venmo
+    // for X, I can't always cancel out" report. Reproducer: the Save
+    // attempt rejects (network blip, action throws). Without try/finally,
+    // `saving` stayed true and the Cancel button stayed disabled, leaving
+    // the user trapped in the sheet.
+    mocks.updatePlayer.mockRejectedValueOnce(new Error("network down"));
+    const { onOpenChange } = renderSheet(makeSettlingPlayer(), "settling");
+
+    const venmoInput = screen.getByLabelText(/Venmo handle/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    fireEvent.change(venmoInput, { target: { value: "alice123" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("pds-save-p1"));
+    });
+
+    const cancel = screen.getByTestId("pds-cancel-p1") as HTMLButtonElement;
+    expect(cancel.disabled).toBe(false);
+
+    fireEvent.click(cancel);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("shows a generic error when Save throws so the user knows what happened", async () => {
+    mocks.updatePlayer.mockRejectedValueOnce(new Error("network down"));
+    renderSheet(makeSettlingPlayer(), "settling");
+
+    const venmoInput = screen.getByLabelText(/Venmo handle/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    fireEvent.change(venmoInput, { target: { value: "alice123" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("pds-save-p1"));
+    });
+
+    expect(screen.getByRole("alert").textContent).toMatch(/try again/i);
+  });
 });
 
 describe("PlayerDetailsSheet — archived mode", () => {
