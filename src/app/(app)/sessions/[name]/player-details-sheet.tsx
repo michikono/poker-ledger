@@ -548,8 +548,14 @@ export function PlayerDetailsSheet({
                     )}
 
                     {editable && (
-                      <form
-                        onSubmit={handleAddBuyIn}
+                      // NOT a nested <form>: the outer save form already wraps
+                      // this section, and HTML/React can't reliably nest forms
+                      // (browsers flatten them and submit events go to the
+                      // outer form, silently bypassing handleAddBuyIn). We use
+                      // a <fieldset> to group the inputs semantically and an
+                      // explicit click handler on the Add button so submitting
+                      // one never accidentally triggers the other.
+                      <fieldset
                         className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3"
                         aria-label={`Add buy-in for ${player.name}`}
                         data-testid={`pds-add-buy-in-form-${player.id}`}
@@ -566,11 +572,26 @@ export function PlayerDetailsSheet({
                             placeholder="0.00"
                             value={buyInDraft}
                             onChange={setBuyInDraft}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                // Prevent the outer form from submitting the
+                                // player save when the user just wants to add
+                                // a buy-in.
+                                e.preventDefault();
+                                e.stopPropagation();
+                                void handleAddBuyIn();
+                              }
+                            }}
                             disabled={busy}
                             aria-invalid={buyInError ? true : undefined}
                             className="flex-1 tabular-nums"
                           />
-                          <Button type="submit" disabled={busy}>
+                          <Button
+                            type="button"
+                            onClick={() => void handleAddBuyIn()}
+                            disabled={busy}
+                            data-testid={`pds-add-buy-in-submit-${player.id}`}
+                          >
                             {addingBuyIn ? (
                               <Loader2 className="size-4 animate-spin" />
                             ) : (
@@ -584,7 +605,7 @@ export function PlayerDetailsSheet({
                             {buyInError.message}
                           </p>
                         )}
-                      </form>
+                      </fieldset>
                     )}
                   </section>
 
