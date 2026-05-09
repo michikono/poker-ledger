@@ -231,78 +231,85 @@ export function PlayerDetailsSheet({
       venmoToSend !== (player.venmoUsername ?? null);
     const cashOutChanged = cashOutToSend !== player.cashOutCents;
 
-    if (nameOrVenmoChanged) {
-      const result = await withToken((token) =>
-        updatePlayer(
-          {
-            sessionId,
-            playerId: player.id,
-            name: trimmedName,
-            venmoUsername: venmoToSend,
-          },
-          token,
-        ),
-      );
-      if (!result) {
-        setSaving(false);
-        return;
+    // try/finally guarantees `saving` clears even if the action rejects
+    // (network failure, server throw). Without it, Cancel/Esc/backdrop
+    // would all stay disabled and the user gets trapped in the sheet.
+    let saved = false;
+    try {
+      if (nameOrVenmoChanged) {
+        const result = await withToken((token) =>
+          updatePlayer(
+            {
+              sessionId,
+              playerId: player.id,
+              name: trimmedName,
+              venmoUsername: venmoToSend,
+            },
+            token,
+          ),
+        );
+        if (!result) return;
+        if (!result.success) {
+          if (result.error.code === "DUPLICATE_PLAYER_NAME") {
+            setSaveError({
+              kind: "field",
+              field: "name",
+              message: "A player with that name already exists.",
+            });
+            return;
+          }
+          if (result.error.code === "INVALID_PLAYER_NAME") {
+            setSaveError({
+              kind: "field",
+              field: "name",
+              message: result.error.message,
+            });
+            return;
+          }
+          if (result.error.code === "INVALID_VENMO_USERNAME") {
+            setSaveError({
+              kind: "field",
+              field: "venmo",
+              message: result.error.message,
+            });
+            return;
+          }
+          setSaveError({
+            kind: "generic",
+            message: describeErrorCode(result.error.code),
+          });
+          return;
+        }
       }
-      if (!result.success) {
-        setSaving(false);
-        if (result.error.code === "DUPLICATE_PLAYER_NAME") {
+
+      if (cashOutChanged) {
+        const result = await withToken((token) =>
+          setCashOut(
+            { sessionId, playerId: player.id, amountCents: cashOutToSend },
+            token,
+          ),
+        );
+        if (!result) return;
+        if (!result.success) {
           setSaveError({
-            kind: "field",
-            field: "name",
-            message: "A player with that name already exists.",
+            kind: "generic",
+            message: describeErrorCode(result.error.code),
           });
           return;
         }
-        if (result.error.code === "INVALID_PLAYER_NAME") {
-          setSaveError({
-            kind: "field",
-            field: "name",
-            message: result.error.message,
-          });
-          return;
-        }
-        if (result.error.code === "INVALID_VENMO_USERNAME") {
-          setSaveError({
-            kind: "field",
-            field: "venmo",
-            message: result.error.message,
-          });
-          return;
-        }
-        setSaveError({
-          kind: "generic",
-          message: describeErrorCode(result.error.code),
-        });
-        return;
       }
+
+      saved = true;
+    } catch {
+      setSaveError({
+        kind: "generic",
+        message: "Couldn't save changes. Check your connection and try again.",
+      });
+    } finally {
+      setSaving(false);
     }
 
-    if (cashOutChanged) {
-      const result = await withToken((token) =>
-        setCashOut(
-          { sessionId, playerId: player.id, amountCents: cashOutToSend },
-          token,
-        ),
-      );
-      if (!result) {
-        setSaving(false);
-        return;
-      }
-      if (!result.success) {
-        setSaving(false);
-        setSaveError({
-          kind: "generic",
-          message: describeErrorCode(result.error.code),
-        });
-        return;
-      }
-    }
-
-    setSaving(false);
+    if (!saved) return;
     toast.success(`Saved changes to ${trimmedName}`);
     onPlayerChanged?.(player.id);
     onOpenChange(false);
@@ -329,62 +336,88 @@ export function PlayerDetailsSheet({
     }
 
     setAddingBuyIn(true);
-    const result = await withToken((token) =>
-      addBuyIn({ sessionId, playerId: player.id, amountCents: cents }, token),
-    );
-    setAddingBuyIn(false);
-    if (!result) return;
-    if (result.success) {
-      setBuyInDraft("");
-      toast.success(`Added ${formatCents(cents)} buy-in for ${player.name}`);
-      onPlayerChanged?.(player.id);
-      router.refresh();
-      return;
+    try {
+      const result = await withToken((token) =>
+        addBuyIn(
+          { sessionId, playerId: player.id, amountCents: cents },
+          token,
+        ),
+      );
+      if (!result) return;
+      if (result.success) {
+        setBuyInDraft("");
+        toast.success(`Added ${formatCents(cents)} buy-in for ${player.name}`);
+        onPlayerChanged?.(player.id);
+        router.refresh();
+        return;
+      }
+      setBuyInError({
+        kind: "generic",
+        message: describeErrorCode(result.error.code),
+      });
+    } catch {
+      setBuyInError({
+        kind: "generic",
+        message: "Couldn't add the buy-in. Check your connection and try again.",
+      });
+    } finally {
+      setAddingBuyIn(false);
     }
-    setBuyInError({
-      kind: "generic",
-      message: describeErrorCode(result.error.code),
-    });
   }
 
   async function handleRemoveBuyIn(buyInId: string) {
     if (busy) return;
     setRemoveError(null);
     setRemovingId(buyInId);
-    const result = await withToken((token) =>
-      removeBuyIn({ sessionId, playerId: player.id, buyInId }, token),
-    );
-    setRemovingId(null);
-    if (!result) return;
-    if (result.success) {
-      toast.success(`Removed buy-in from ${player.name}`);
-      onPlayerChanged?.(player.id);
-      router.refresh();
-      return;
+    try {
+      const result = await withToken((token) =>
+        removeBuyIn({ sessionId, playerId: player.id, buyInId }, token),
+      );
+      if (!result) return;
+      if (result.success) {
+        toast.success(`Removed buy-in from ${player.name}`);
+        onPlayerChanged?.(player.id);
+        router.refresh();
+        return;
+      }
+      setRemoveError({
+        buyInId,
+        message: describeErrorCode(result.error.code),
+      });
+    } catch {
+      setRemoveError({
+        buyInId,
+        message: "Couldn't remove the buy-in. Check your connection and try again.",
+      });
+    } finally {
+      setRemovingId(null);
     }
-    setRemoveError({
-      buyInId,
-      message: describeErrorCode(result.error.code),
-    });
   }
 
   async function handleConfirmDelete() {
     if (busy) return;
     setDeleteError(null);
     setDeleting(true);
-    const result = await withToken((token) =>
-      deletePlayer({ sessionId, playerId: player.id }, token),
-    );
-    setDeleting(false);
-    if (!result) return;
-    if (result.success) {
-      setConfirmingDelete(false);
-      onOpenChange(false);
-      toast.success(`Deleted ${player.name}`);
-      router.refresh();
-      return;
+    try {
+      const result = await withToken((token) =>
+        deletePlayer({ sessionId, playerId: player.id }, token),
+      );
+      if (!result) return;
+      if (result.success) {
+        setConfirmingDelete(false);
+        onOpenChange(false);
+        toast.success(`Deleted ${player.name}`);
+        router.refresh();
+        return;
+      }
+      setDeleteError(describeErrorCode(result.error.code));
+    } catch {
+      setDeleteError(
+        "Couldn't delete the player. Check your connection and try again.",
+      );
+    } finally {
+      setDeleting(false);
     }
-    setDeleteError(describeErrorCode(result.error.code));
   }
 
   return (
