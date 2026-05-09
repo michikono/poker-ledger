@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -122,32 +123,35 @@ export function PaymentList({
           return (
             <li
               key={p.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-card p-3"
+              className="flex flex-col gap-3 rounded-md border bg-card p-3 md:flex-row md:flex-wrap md:items-center md:justify-between"
               data-testid={`payment-row-${p.id}`}
               data-paid={p.paid ? "true" : "false"}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="flex flex-wrap items-center gap-1.5 text-sm">
-                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
-                    {fromName}
-                  </span>
-                  <span className="text-muted-foreground">pays</span>
-                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
-                    {toName}
-                  </span>
-                  <strong className="text-base tabular-nums">
-                    {formatCents(p.amountCents)}
-                  </strong>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
+                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-sm font-semibold">
+                  {fromName}
                 </span>
+                <span className="text-muted-foreground">pays</span>
+                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-sm font-semibold">
+                  {toName}
+                </span>
+                <strong className="ml-auto text-base tabular-nums md:ml-0">
+                  {formatCents(p.amountCents)}
+                </strong>
+              </div>
+              <div
+                className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center"
+                data-mobile-actions="true"
+              >
                 {!p.paid && venmoUrl && (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <>
                     <a
                       href={venmoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       data-testid={`venmo-pay-${p.id}`}
                       aria-label={`Pay ${toName} ${formatCents(p.amountCents)} on Venmo`}
-                      className={buttonVariants({ size: "sm" })}
+                      className={cn(buttonVariants(), "w-full md:w-auto")}
                       onClick={() => {
                         setConfirmModal({
                           paymentId: p.id,
@@ -160,7 +164,6 @@ export function PaymentList({
                     </a>
                     <Button
                       type="button"
-                      size="sm"
                       variant="outline"
                       onClick={() => {
                         if (!payeeHandle) return;
@@ -173,10 +176,11 @@ export function PaymentList({
                         });
                       }}
                       data-testid={`venmo-qr-${p.id}`}
+                      className="w-full md:w-auto"
                     >
                       QR
                     </Button>
-                  </div>
+                  </>
                 )}
                 {!p.paid && !venmoUrl && toPlayer && onRequestEditPlayer && (
                   <button
@@ -189,30 +193,28 @@ export function PaymentList({
                     Add Venmo for {toName}
                   </button>
                 )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
                 {p.paid && (
-                  <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
                     Paid
                   </span>
                 )}
                 {status === "settled" || p.paid ? (
                   <Button
                     type="button"
-                    size="sm"
                     variant="outline"
                     onClick={() => void toggle(p)}
                     disabled={isBusy}
+                    className="w-full md:w-auto"
                   >
                     {isBusy ? "Working…" : "Unmark"}
                   </Button>
                 ) : (
                   <Button
                     type="button"
-                    size="sm"
                     onClick={() => void toggle(p)}
                     disabled={isBusy}
                     data-testid={`mark-paid-${p.id}`}
+                    className="w-full md:w-auto"
                   >
                     {isBusy ? "Working…" : "Mark paid"}
                   </Button>

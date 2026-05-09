@@ -90,6 +90,34 @@ Every implementation change must pass defined gates before being declared comple
 17. **Never commit or push directly to `main`.** All work happens on feature branches in worktrees.
 18. **Claude Code may create GitHub PRs. Claude Code must not merge PRs** unless explicitly instructed by the user.
 19. **Never force-push** unless explicitly instructed and the justification is documented.
+20. **Mobile-first is mandatory for every UI change.** See "Mobile-first UX" below — desktop-only patterns require an ADR.
+
+---
+
+## Mobile-first UX
+
+This app is **primarily managed on mobile**. Every button, modal, menu, input, and layout must be designed at the smallest target viewport first, then enhanced for larger screens. Desktop polish never compromises a thumb-friendly mobile experience.
+
+### Hard requirements (no exceptions without an ADR)
+
+1. **Design at 360 × 640 first.** Open the new surface at that viewport. If it doesn't work there, it isn't done. Only after it works on mobile may you add `md:`/`lg:` enhancements.
+2. **No horizontal page scroll on mobile.** A surface that overflows the viewport at 360px width is a defect. Native HTML `<table>` elements are forbidden below the `md` breakpoint — use a stacked card layout (or a list of summary rows with an expand-to-detail interaction) and reveal the table only at `md+`.
+3. **Tap targets ≥ 44 × 44 px** (Apple HIG / WCAG 2.5.5). Use the `touch` size variant on `Button`/`Input` for any control a user taps with a thumb. The `xs`/`sm` sizes are dense desktop affordances — they are never the only way to perform a primary action, and they may not appear unaccompanied below `md`.
+4. **One body type size per row.** A row of related information should not mix more than one body font size and one supporting label size. Use `tabular-nums` for numbers but keep the size consistent with the surrounding text.
+5. **Inputs must not trigger iOS auto-zoom.** That means `text-base` (16px) on mobile; you may step down to `md:text-sm` for desktop density. The shared `<Input>` already handles this — don't override it.
+6. **Modals are full-bleed on mobile.** A modal that exceeds 90% of the viewport height must scroll its body, not the whole page, and the primary action must remain reachable (sticky footer or visible without scrolling). The `<HelpModal>` pattern is the reference.
+7. **No layout that depends on hover.** Every interaction must be reachable by tap. Tooltips are supplemental, not load-bearing.
+8. **Action rows degrade gracefully.** If a header has more than one secondary action, collapse them into a "More" menu on mobile rather than wrapping a row of small chips.
+9. **Safe-area aware.** Sticky bottom controls respect `env(safe-area-inset-bottom)`.
+10. **Test on a real mobile viewport before declaring done.** Either Playwright with a mobile project, or DevTools device emulation on a representative phone (iPhone SE 375 × 667 minimum). Type-checking and unit tests do not verify mobile fitness — manual verification is required.
+
+### Documenting deviations
+
+A deviation from any rule above requires an ADR in `/specs/decisions/` titled `NNNN-<surface>-mobile-deviation.md`. The ADR must state which rule is being relaxed, the specific surface, the user need that justifies it, and the explicit fallback for mobile users.
+
+### Design tokens
+
+The shared primitives in `src/components/ui/` are the source of truth for sizing. If you find yourself reaching for `size="sm"` on a primary mobile CTA or `h-8 w-24` on an input that's expected to receive thumb-typed currency, fix the primitive — don't sprinkle one-off classes.
 
 ---
 

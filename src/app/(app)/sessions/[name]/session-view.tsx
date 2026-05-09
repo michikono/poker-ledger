@@ -1,5 +1,6 @@
 "use client";
 
+import { MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { withToken } from "@/lib/auth/client-token";
 import { describeErrorCode } from "@/lib/errors/messages";
 import { formatLocalIsoDate } from "@/lib/venmo/url";
@@ -30,7 +37,7 @@ import type {
 } from "./page";
 import { PaymentList } from "./payment-list";
 import type { PlayerRowHandle } from "./player-row";
-import { PlayerTable } from "./player-table";
+import { PlayerList } from "./player-list";
 import { SettlingModal } from "./settling-modal";
 
 export function SessionView({
@@ -111,12 +118,37 @@ export function SessionView({
   const showZeroPaymentBanner =
     (isSettled || isSettling) && payments.length === 0;
 
+  // Mobile keeps the primary action visible and collapses secondary actions
+  // into a "More" overflow menu. md+ shows them all inline as today.
+  const secondaryActions: Array<{
+    key: string;
+    label: string;
+    onSelect: () => void;
+    destructive?: boolean;
+  }> = [];
+  if (isSettling || isSettled) {
+    secondaryActions.push({
+      key: "rollback",
+      label: isSettling ? "Roll back to in progress" : "Roll back to settling",
+      onSelect: () => setRollbackOpen(true),
+    });
+  }
+  if (!isArchived) {
+    secondaryActions.push({
+      key: "archive",
+      label: "Archive session",
+      onSelect: () => setArchiveOpen(true),
+    });
+  }
+
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{session.name}</h1>
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 md:p-6">
+      <header className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold md:text-2xl">
+              {session.name}
+            </h1>
             <StatusBadge status={status} />
           </div>
           <p className="text-sm text-muted-foreground">
@@ -124,37 +156,16 @@ export function SessionView({
             {formatLocalIsoDate(new Date(session.createdAt))}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {isInProgress && (
             <Button
               type="button"
               onClick={() => setSettlingOpen(true)}
               disabled={submitting || players.length === 0}
               data-testid="settle-up-button"
+              className="flex-1 md:flex-none"
             >
               Settle up
-            </Button>
-          )}
-          {(isSettling || isSettled) && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setRollbackOpen(true)}
-              disabled={submitting}
-            >
-              {isSettling
-                ? "Roll back to in progress"
-                : "Roll back to settling"}
-            </Button>
-          )}
-          {!isArchived && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setArchiveOpen(true)}
-              disabled={submitting}
-            >
-              Archive session
             </Button>
           )}
           {isArchived && (
@@ -162,14 +173,60 @@ export function SessionView({
               type="button"
               onClick={() => void handleUnarchive()}
               disabled={submitting}
+              className="flex-1 md:flex-none"
             >
               Unarchive
             </Button>
           )}
+          {secondaryActions.length > 0 && (
+            <>
+              {/* Mobile: overflow menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="More actions"
+                      data-testid="session-actions-more"
+                      className="md:hidden"
+                    />
+                  }
+                >
+                  <MoreHorizontal className="size-5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {secondaryActions.map((action) => (
+                    <DropdownMenuItem
+                      key={action.key}
+                      onClick={action.onSelect}
+                      disabled={submitting}
+                      variant={action.destructive ? "destructive" : "default"}
+                    >
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* md+: inline secondary buttons */}
+              {secondaryActions.map((action) => (
+                <Button
+                  key={action.key}
+                  type="button"
+                  variant="outline"
+                  onClick={action.onSelect}
+                  disabled={submitting}
+                  className="hidden md:inline-flex"
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </>
+          )}
         </div>
       </header>
 
-      <PlayerTable
+      <PlayerList
         sessionId={session.id}
         status={status}
         defaultBuyInCents={session.defaultBuyInCents}
