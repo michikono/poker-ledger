@@ -256,7 +256,7 @@ export function SettlingModal({
                     <div className="flex flex-col gap-1">
                       <label
                         htmlFor={`settling-cashout-mobile-${p.id}`}
-                        className="text-xs font-medium text-muted-foreground"
+                        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
                       >
                         Cash out
                       </label>
@@ -276,14 +276,17 @@ export function SettlingModal({
                     <div className="flex flex-col gap-1">
                       <label
                         htmlFor={`settling-venmo-mobile-${p.id}`}
-                        className="flex items-center gap-1 text-xs font-medium text-muted-foreground"
+                        className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
                       >
                         <VenmoIcon size={14} title="Venmo" />
-                        Venmo handle (optional)
+                        Venmo handle
+                        <span className="font-normal normal-case text-muted-foreground">
+                          (optional)
+                        </span>
                       </label>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="text-base text-muted-foreground"
+                          className="text-base text-muted-foreground md:text-sm"
                           aria-hidden="true"
                         >
                           @

@@ -50,8 +50,8 @@ export default async function SessionsPage({ searchParams }: Props) {
   );
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold">Sessions</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 md:p-6">
+      <h1 className="text-xl font-semibold md:text-2xl">Sessions</h1>
       <SessionsHeader />
       <FilterPills
         {...(filter !== undefined ? { activeFilter: filter } : {})}
