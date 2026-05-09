@@ -22,20 +22,21 @@ export function UserMenu({ firstName }: UserMenuProps) {
 
   return (
     <div className="flex items-center gap-2 px-2 py-2">
-      <Avatar size="sm">
+      <Avatar>
         <AvatarFallback className="bg-felt text-primary-foreground">
           {initial}
         </AvatarFallback>
       </Avatar>
-      <span className="flex-1 truncate text-sm font-medium">{firstName}</span>
+      <span className="flex-1 truncate text-base font-medium md:text-sm">
+        {firstName}
+      </span>
       <Button
         variant="ghost"
-        size="sm"
         onClick={handleSignOut}
         disabled={pending}
-        className="shrink-0 gap-1.5 text-muted-foreground hover:text-foreground"
+        className="shrink-0 gap-1.5 text-muted-foreground hover:text-foreground md:h-7 md:gap-1 md:px-2.5 md:text-[0.8rem]"
       >
-        <LogOutIcon className="size-3.5" />
+        <LogOutIcon className="size-4 md:size-3.5" />
         {pending ? "Signing out…" : "Log out"}
       </Button>
     </div>

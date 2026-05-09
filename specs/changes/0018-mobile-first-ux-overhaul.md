@@ -1,7 +1,7 @@
 # Change 0018: Mobile-first UX overhaul
 
 ## Status
-Accepted
+Accepted (revised 2026-05-09 to include flow-level mobile fixes — see "Revision: flow-level mobile fixes" below)
 
 ## Owner
 Michi Kono
@@ -210,9 +210,52 @@ None blocking. Two for follow-up specs (out of scope here):
 - `specs/changes/0014-venmo-payment-links-and-player-edits.md` — payment list & settling Venmo column
 - `specs/changes/0017-cheatsheets.md` — most recent help-modal contributor
 
+## Revision: flow-level mobile fixes (2026-05-09)
+
+After the first implementation pass, review surfaced that the per-card editing affordances still felt non-mobile-native (tiny inline pencil; cramped × buy-in remove buttons; the "Add buy-in" button buried below the pills) and that several remaining CTAs were below the 44 × 44 px floor (FilterPills, pagination, mobile HelpButtons, drawer NavLink rows, UserMenu, "Add Venmo for X" link, default-buy-in "Change" link, help-modal example summary). This revision expands the spec to cover:
+
+1. **`<PlayerDetailsSheet>`** (new) — full-bleed on mobile, centered dialog on `md+`. Single source of player editing: name, Venmo handle, cash-out, buy-ins (each in a row with a touch-sized Remove button), Add buy-in inline, sticky Save / Cancel / Delete footer. Replaces the per-card edit dialog and absorbs buy-in management on mobile.
+2. **`<AddBuyInModal>`** (new) — small focused dialog opened from the card's primary "+ Add buy-in" CTA. One currency input + Add + Cancel; full-width controls on mobile.
+3. **`<DefaultBuyInModal>`** (new) — small focused dialog for editing the session's default buy-in; replaces the inline editor in the player-list footer.
+4. **Card body simplification** — `<PlayerCard>` removes the inline pencil and the per-pill `×` remove control; the buy-in pills become display-only. The card surfaces a single primary "+ Add buy-in" CTA, the cash-out inline editor (unchanged), and a More overflow menu (Edit player → opens sheet, Delete player).
+5. **Tap-target sweep across remaining surfaces:**
+   - `FilterPills` → `min-h-11 px-4 py-2.5` on mobile.
+   - Sessions index pagination → drop `size="sm"`.
+   - `HelpButtons` → default size on mobile, `sm` on `md+`.
+   - Drawer `NavLink` rows → `py-3` (~ 44 px row) on mobile, dense on `md+`.
+   - `UserMenu` → default-sized Log out and `Avatar size="default"` on mobile.
+   - "Add Venmo for X" in `PaymentList` → outline `<Button>` with the Venmo glyph, full-width on mobile.
+   - Help modal `Example` `<details>` summary → wrapped in a `min-h-11 px-3 py-2.5` row.
+
+**Files added (revision):**
+- `src/app/(app)/sessions/[name]/player-details-sheet.tsx`
+- `src/app/(app)/sessions/[name]/add-buy-in-modal.tsx`
+- `src/app/(app)/sessions/[name]/default-buy-in-modal.tsx`
+
+**Files edited (revision):**
+- `src/app/(app)/sessions/[name]/player-card.tsx` — simplify to delegate edit/buy-ins to sheet + modal.
+- `src/app/(app)/sessions/[name]/player-card.test.tsx` — update assertions for new structure.
+- `src/app/(app)/sessions/[name]/player-list.tsx` — replace inline default-buy-in editor with modal trigger.
+- `src/app/(app)/sessions/[name]/payment-list.tsx` — convert Add-Venmo text link to outline button.
+- `src/app/(app)/sessions/filter-pills.tsx` — touch-sized pills on mobile.
+- `src/app/(app)/sessions/session-list.tsx` — pagination buttons default size.
+- `src/components/layout/help-buttons.tsx` — default size on mobile.
+- `src/components/layout/nav-link.tsx` — `py-3 md:py-1.5`.
+- `src/components/layout/user-menu.tsx` — default sizes on mobile.
+- `src/components/help/how-to-play.tsx` — `<Example>` summary wrapped in touch row.
+
+**Acceptance criteria (revision additions):**
+
+- [ ] Tapping a player on mobile opens a sheet that contains name, Venmo, cash-out, buy-in management, Save, Cancel, and Delete — no inline pencil affordance survives on the card.
+- [ ] The card's "+ Add buy-in" is the dominant per-card CTA and opens a focused mini-modal.
+- [ ] Editing the session's default buy-in opens a modal — no inline editor.
+- [ ] The "Add Venmo for X" affordance in `PaymentList` is a touch-sized outline button on mobile.
+- [ ] No CTA in the app — including FilterPills, pagination, drawer nav, UserMenu, mobile HelpButtons, help-modal `<Example>` summaries — falls below 44 × 44 px on mobile.
+
 ## Status history
 
 | Date | Status | Notes |
 |---|---|---|
 | 2026-05-09 | Proposed | Initial draft |
 | 2026-05-09 | Accepted | Approved by owner — proceed with implementation |
+| 2026-05-09 | Accepted (revised) | Review surfaced per-card flow + tap-target gaps; spec expanded to add `<PlayerDetailsSheet>`, `<AddBuyInModal>`, `<DefaultBuyInModal>`, and a tap-target sweep across remaining surfaces |

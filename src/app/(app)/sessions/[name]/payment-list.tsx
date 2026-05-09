@@ -183,15 +183,16 @@ export function PaymentList({
                   </>
                 )}
                 {!p.paid && !venmoUrl && toPlayer && onRequestEditPlayer && (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => onRequestEditPlayer(toPlayer.id)}
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                     data-testid={`add-venmo-cta-${p.id}`}
+                    className="w-full md:w-auto"
                   >
-                    <VenmoIcon size={14} title="Venmo" />
+                    <VenmoIcon size={16} title="Venmo" />
                     Add Venmo for {toName}
-                  </button>
+                  </Button>
                 )}
                 {p.paid && (
                   <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">

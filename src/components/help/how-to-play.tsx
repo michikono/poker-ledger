@@ -311,11 +311,11 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Example({ children }: { children: ReactNode }) {
   return (
-    <details className="my-2 rounded-md border border-border bg-muted/40 px-3 py-2">
-      <summary className="cursor-pointer text-sm font-medium text-foreground/85 select-none">
+    <details className="my-2 rounded-md border border-border bg-muted/40">
+      <summary className="flex min-h-11 cursor-pointer items-center px-3 py-2.5 text-sm font-medium text-foreground/85 select-none">
         Show me an example
       </summary>
-      <div className="mt-2 space-y-2 text-foreground/90">{children}</div>
+      <div className="space-y-2 px-3 pb-3 text-foreground/90">{children}</div>
     </details>
   );
 }

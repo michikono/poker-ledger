@@ -83,7 +83,7 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
                           <Link
                             href={item.href}
                             onClick={() => setOpen(false)}
-                            className="group flex items-center gap-2 rounded-md px-2 py-2 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            className="group flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:min-h-0 md:px-2 md:py-1.5 md:text-sm"
                           >
                             <Icon className="size-4 text-felt" />
                             <span className="flex-1">{item.label}</span>
@@ -98,7 +98,6 @@ export function Header({ firstName, navCounts, className }: HeaderProps) {
                         <NavLink
                           href={item.href}
                           onClick={() => setOpen(false)}
-                          className="py-2"
                         >
                           <Icon className="size-4 text-felt" />
                           <span className="flex-1">{item.label}</span>

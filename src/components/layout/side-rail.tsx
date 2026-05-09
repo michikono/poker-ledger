@@ -64,7 +64,7 @@ export function SideRail({ firstName, navCounts, className }: SideRailProps) {
                     fallback={
                       <Link
                         href={item.href}
-                        className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        className="group flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:min-h-0 md:px-2 md:py-1.5 md:text-sm"
                       >
                         <Icon className="size-4 text-sidebar-foreground/60" />
                         <span className="flex-1">{item.label}</span>

@@ -143,7 +143,7 @@ function SessionListFiltered({
             {currentPage <= 1 ? (
               <span
                 className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
+                  buttonVariants({ variant: "outline" }),
                   "pointer-events-none opacity-50",
                 )}
               >
@@ -152,9 +152,7 @@ function SessionListFiltered({
             ) : (
               <Link
                 href={pageUrl(filter, currentPage - 1)}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                )}
+                className={cn(buttonVariants({ variant: "outline" }))}
               >
                 Previous
               </Link>
@@ -162,7 +160,7 @@ function SessionListFiltered({
             {currentPage >= pageCount ? (
               <span
                 className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
+                  buttonVariants({ variant: "outline" }),
                   "pointer-events-none opacity-50",
                 )}
               >
@@ -171,9 +169,7 @@ function SessionListFiltered({
             ) : (
               <Link
                 href={pageUrl(filter, currentPage + 1)}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                )}
+                className={cn(buttonVariants({ variant: "outline" }))}
               >
                 Next
               </Link>

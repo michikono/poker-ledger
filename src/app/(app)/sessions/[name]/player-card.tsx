@@ -1,73 +1,29 @@
 "use client";
 
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  type FormEvent,
-  type Ref,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { withToken } from "@/lib/auth/client-token";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { describeErrorCode } from "@/lib/errors/messages";
-import {
-  describePlayerNameError,
-  validatePlayerName,
-} from "@/lib/players/name";
 import type { SessionStatus } from "@/lib/sessions/types";
-import { parseVenmoHandle } from "@/lib/venmo/url";
 import { cn } from "@/lib/utils";
-import {
-  addBuyIn,
-  deletePlayer,
-  removeBuyIn,
-  setCashOut,
-  updatePlayer,
-} from "./actions";
+import { setCashOut } from "./actions";
+import { AddBuyInModal } from "./add-buy-in-modal";
 import type { SessionPlayerView } from "./page";
+import { PlayerDetailsSheet } from "./player-details-sheet";
 import type { PlayerRowHandle } from "./player-row";
 import { computePlayerTotals } from "./totals";
-
-type BusyOp = "cashOut" | "buyIn" | "save" | "delete" | null;
-
-type EditError =
-  | { kind: "field"; field: "name" | "venmo"; message: string }
-  | { kind: "generic"; message: string; retry: () => void };
-
-type DeleteError = { message: string; retry: () => void } | null;
-
-type BuyInError =
-  | { kind: "validation"; message: string }
-  | { kind: "generic"; message: string; retry: () => void }
-  | null;
-
-type RemoveBuyInError = {
-  buyInId: string;
-  message: string;
-  retry: () => void;
-} | null;
 
 type CashOutError =
   | { kind: "validation"; message: string }
@@ -89,29 +45,20 @@ export function PlayerCard({
   const editable = status === "in_progress";
 
   const cardRef = useRef<HTMLElement | null>(null);
-  const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const venmoInputRef = useRef<HTMLInputElement | null>(null);
   const [editing, setEditing] = useState(false);
   const [editFocus, setEditFocus] = useState<"name" | "venmo">("name");
-  const [nameDraft, setNameDraft] = useState(player.name);
-  const [venmoDraft, setVenmoDraft] = useState(player.venmoUsername ?? "");
-  const [editError, setEditError] = useState<EditError | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleteError, setDeleteError] = useState<DeleteError>(null);
-
   const [addingBuyIn, setAddingBuyIn] = useState(false);
-  const [buyInDraft, setBuyInDraft] = useState("");
-  const [buyInError, setBuyInError] = useState<BuyInError>(null);
-  const [removeError, setRemoveError] = useState<RemoveBuyInError>(null);
 
   const [cashOutDraft, setCashOutDraft] = useState(
     player.cashOutCents === null ? "" : (player.cashOutCents / 100).toFixed(2),
   );
   const [cashOutError, setCashOutError] = useState<CashOutError>(null);
+  const [cashOutBusy, setCashOutBusy] = useState(false);
 
-  const [busyOp, setBusyOp] = useState<BusyOp>(null);
-  const [busyRemovingId, setBusyRemovingId] = useState<string | null>(null);
-  const busy = busyOp !== null || busyRemovingId !== null;
+  const totals = computePlayerTotals(
+    player.buyIns.map((b) => ({ amountCents: b.amountCents })),
+    player.cashOutCents,
+  );
 
   function flashCard() {
     const el = cardRef.current;
@@ -121,219 +68,25 @@ export function PlayerCard({
     el.classList.add("player-row-flash");
   }
 
-  const totals = computePlayerTotals(
-    player.buyIns.map((b) => ({ amountCents: b.amountCents })),
-    player.cashOutCents,
-  );
-
-  function resetEditDraft() {
-    setNameDraft(player.name);
-    setVenmoDraft(player.venmoUsername ?? "");
-    setEditError(null);
-  }
-
   useImperativeHandle(ref, () => ({
     openEdit: (options) => {
       if (status === "archived") return;
-      setNameDraft(player.name);
-      setVenmoDraft(player.venmoUsername ?? "");
-      setEditError(null);
       setEditFocus(options?.focus ?? "name");
       setEditing(true);
       cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     },
   }));
 
-  useEffect(() => {
-    if (!editing) return;
-    const id = requestAnimationFrame(() => {
-      const target = editFocus === "venmo" ? venmoInputRef : nameInputRef;
-      target.current?.select?.();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [editing, editFocus]);
-
-  function openEditDialog(focus: "name" | "venmo" = "name") {
-    if (status === "archived") return;
-    resetEditDraft();
+  function openSheet(focus: "name" | "venmo" = "name") {
+    if (status === "archived" && !editable) {
+      // archived sessions still allow viewing details (read-only sheet).
+    }
     setEditFocus(focus);
     setEditing(true);
   }
 
-  async function handleSaveEdit(e?: FormEvent) {
-    e?.preventDefault();
-    if (busy) return;
-
-    const nameResult = validatePlayerName(nameDraft);
-    if (!nameResult.ok) {
-      setEditError({
-        kind: "field",
-        field: "name",
-        message: describePlayerNameError(nameResult.error),
-      });
-      return;
-    }
-    const trimmedName = nameResult.trimmed;
-
-    const trimmedVenmo = venmoDraft.trim();
-    let venmoToSend: string | null;
-    if (trimmedVenmo === "" || trimmedVenmo === "@") {
-      venmoToSend = null;
-    } else {
-      const parsed = parseVenmoHandle(trimmedVenmo);
-      if (parsed === null) {
-        setEditError({
-          kind: "field",
-          field: "venmo",
-          message:
-            "Use 5–30 characters: letters, digits, _ . or - (no spaces).",
-        });
-        return;
-      }
-      venmoToSend = parsed;
-    }
-
-    setBusyOp("save");
-    setEditError(null);
-    const result = await withToken((token) =>
-      updatePlayer(
-        {
-          sessionId,
-          playerId: player.id,
-          name: trimmedName,
-          venmoUsername: venmoToSend,
-        },
-        token,
-      ),
-    );
-    setBusyOp(null);
-    if (!result) return;
-    if (result.success) {
-      setEditing(false);
-      flashCard();
-      router.refresh();
-      return;
-    }
-    if (result.error.code === "DUPLICATE_PLAYER_NAME") {
-      setEditError({
-        kind: "field",
-        field: "name",
-        message: "A player with that name already exists.",
-      });
-      return;
-    }
-    if (result.error.code === "INVALID_PLAYER_NAME") {
-      setEditError({
-        kind: "field",
-        field: "name",
-        message: result.error.message,
-      });
-      return;
-    }
-    if (result.error.code === "INVALID_VENMO_USERNAME") {
-      setEditError({
-        kind: "field",
-        field: "venmo",
-        message: result.error.message,
-      });
-      return;
-    }
-    setEditError({
-      kind: "generic",
-      message: describeErrorCode(result.error.code),
-      retry: () => {
-        void handleSaveEdit();
-      },
-    });
-  }
-
-  async function handleConfirmDelete() {
-    if (busy) return;
-    setBusyOp("delete");
-    setDeleteError(null);
-    const result = await withToken((token) =>
-      deletePlayer({ sessionId, playerId: player.id }, token),
-    );
-    setBusyOp(null);
-    if (!result) return;
-    if (result.success) {
-      setConfirmingDelete(false);
-      setEditing(false);
-      router.refresh();
-      return;
-    }
-    setDeleteError({
-      message: describeErrorCode(result.error.code),
-      retry: () => {
-        void handleConfirmDelete();
-      },
-    });
-  }
-
-  async function handleAddBuyIn(e?: FormEvent) {
-    e?.preventDefault();
-    if (busy) return;
-    setBuyInError(null);
-
-    const trimmed = buyInDraft.trim();
-    if (!trimmed) {
-      setBuyInError({ kind: "validation", message: "Enter an amount." });
-      return;
-    }
-    const cents = parseDollars(trimmed);
-    if (cents === null || cents <= 0 || cents > 2_000_000) {
-      setBuyInError({
-        kind: "validation",
-        message: "Enter a valid amount, e.g., 25 or 25.00.",
-      });
-      return;
-    }
-
-    setBusyOp("buyIn");
-    const result = await withToken((token) =>
-      addBuyIn({ sessionId, playerId: player.id, amountCents: cents }, token),
-    );
-    setBusyOp(null);
-    if (!result) return;
-    if (result.success) {
-      setBuyInDraft("");
-      setAddingBuyIn(false);
-      router.refresh();
-      return;
-    }
-    setBuyInError({
-      kind: "generic",
-      message: describeErrorCode(result.error.code),
-      retry: () => {
-        void handleAddBuyIn();
-      },
-    });
-  }
-
-  async function handleRemoveBuyIn(buyInId: string) {
-    if (busy) return;
-    setBusyRemovingId(buyInId);
-    setRemoveError(null);
-    const result = await withToken((token) =>
-      removeBuyIn({ sessionId, playerId: player.id, buyInId }, token),
-    );
-    setBusyRemovingId(null);
-    if (!result) return;
-    if (result.success) {
-      router.refresh();
-      return;
-    }
-    setRemoveError({
-      buyInId,
-      message: describeErrorCode(result.error.code),
-      retry: () => {
-        void handleRemoveBuyIn(buyInId);
-      },
-    });
-  }
-
   async function commitCashOut() {
-    if (busy) return;
+    if (cashOutBusy) return;
     setCashOutError(null);
 
     let target: number | null;
@@ -354,16 +107,17 @@ export function PlayerCard({
 
     if (target === player.cashOutCents) return;
 
-    setBusyOp("cashOut");
+    setCashOutBusy(true);
     const result = await withToken((token) =>
       setCashOut(
         { sessionId, playerId: player.id, amountCents: target },
         token,
       ),
     );
-    setBusyOp(null);
+    setCashOutBusy(false);
     if (!result) return;
     if (result.success) {
+      flashCard();
       router.refresh();
       return;
     }
@@ -391,29 +145,31 @@ export function PlayerCard({
       data-testid={`player-card-${player.id}`}
       className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-sm"
     >
-      <header className="flex items-center justify-between gap-2">
+      <header className="flex items-center gap-2">
         <button
           type="button"
-          className="group flex min-w-0 flex-1 items-center gap-1.5 text-left text-base font-medium hover:text-primary disabled:hover:text-foreground"
-          onClick={() => openEditDialog("name")}
+          className="group flex min-w-0 flex-1 flex-col items-start gap-0.5 rounded-md py-1 text-left disabled:cursor-default"
+          onClick={() => openSheet("name")}
           disabled={status === "archived"}
           aria-label={`Edit ${player.name}`}
+          data-testid={`player-card-name-${player.id}`}
         >
-          <span className="truncate underline-offset-4 group-hover:underline group-disabled:no-underline">
-            {player.name}
+          <span className="flex max-w-full items-center gap-1.5 text-base font-medium">
+            <span className="truncate underline-offset-4 group-enabled:group-hover:underline">
+              {player.name}
+            </span>
+            {player.venmoUsername && (
+              <VenmoIcon
+                size={16}
+                className="shrink-0 opacity-90"
+                title={`Venmo: @${player.venmoUsername}`}
+              />
+            )}
           </span>
-          {player.venmoUsername && (
-            <VenmoIcon
-              size={16}
-              className="shrink-0 opacity-90"
-              title={`Venmo: @${player.venmoUsername}`}
-            />
-          )}
           {status !== "archived" && (
-            <Pencil
-              aria-hidden="true"
-              className="size-3.5 shrink-0 text-muted-foreground transition-opacity group-hover:text-primary"
-            />
+            <span className="text-xs text-muted-foreground">
+              Tap to edit player
+            </span>
           )}
         </button>
         {editable && (
@@ -431,20 +187,17 @@ export function PlayerCard({
               <MoreHorizontal className="size-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openEditDialog("name")}>
+              <DropdownMenuItem onClick={() => openSheet("name")}>
                 <Pencil className="size-4" />
                 Edit player
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setAddingBuyIn(true)}>
-                <Plus className="size-4" />
-                Add buy-in
-              </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
-                onClick={() => setConfirmingDelete(true)}
+                onClick={() => openSheet("name")}
+                aria-label="Delete player (opens player details)"
               >
                 <Trash2 className="size-4" />
-                Delete player
+                Delete player…
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -478,16 +231,16 @@ export function PlayerCard({
                       (e.currentTarget as HTMLInputElement).blur();
                     }
                   }}
-                  disabled={busy}
+                  disabled={cashOutBusy}
                   aria-invalid={cashOutError ? true : undefined}
                   className={cn(
                     "w-full text-base tabular-nums",
-                    busyOp === "cashOut" && "pr-9",
+                    cashOutBusy && "pr-9",
                   )}
                   aria-label={`Cash out for ${player.name}`}
                   data-testid={`cash-out-${player.id}`}
                 />
-                {busyOp === "cashOut" && (
+                {cashOutBusy && (
                   <Loader2
                     aria-label="Saving"
                     className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
@@ -534,7 +287,7 @@ export function PlayerCard({
             size="xs"
             variant="outline"
             onClick={cashOutError.retry}
-            disabled={busy}
+            disabled={cashOutBusy}
           >
             Retry
           </Button>
@@ -542,105 +295,10 @@ export function PlayerCard({
       )}
 
       <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Buy-ins
-          </span>
-          {player.buyIns.length === 0 && (
-            <span className="text-xs text-muted-foreground">None yet.</span>
-          )}
-          {player.buyIns.map((b) => (
-            <span
-              key={b.id}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-sm tabular-nums"
-              data-testid={`buy-in-${b.id}`}
-            >
-              {formatCents(b.amountCents)}
-              {editable && (
-                <button
-                  type="button"
-                  className="-mr-1 inline-flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                  aria-label={`Remove ${formatCents(b.amountCents)} buy-in`}
-                  onClick={() => void handleRemoveBuyIn(b.id)}
-                  disabled={busy}
-                >
-                  {busyRemovingId === b.id ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <X className="size-3.5" />
-                  )}
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
-
-        {editable && addingBuyIn && (
-          <form
-            className="flex flex-col gap-2"
-            onSubmit={handleAddBuyIn}
-            data-testid={`add-buy-in-form-${player.id}`}
-          >
-            <div className="flex items-stretch gap-2">
-              <CurrencyInput
-                placeholder="0.00"
-                value={buyInDraft}
-                onChange={setBuyInDraft}
-                disabled={busy}
-                autoFocus
-                aria-invalid={buyInError ? true : undefined}
-                className="flex-1 tabular-nums"
-                aria-label={`Add buy-in for ${player.name}`}
-              />
-              <Button type="submit" disabled={busy}>
-                {busyOp === "buyIn" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  "Add"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setAddingBuyIn(false);
-                  setBuyInDraft("");
-                  setBuyInError(null);
-                }}
-                disabled={busy}
-              >
-                Cancel
-              </Button>
-            </div>
-            {buyInError?.kind === "validation" && (
-              <p className="text-xs text-destructive">{buyInError.message}</p>
-            )}
-            {buyInError?.kind === "generic" && (
-              <div
-                role="alert"
-                className="flex flex-wrap items-center gap-2 text-xs text-destructive"
-              >
-                <span>{buyInError.message}</span>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="outline"
-                  onClick={buyInError.retry}
-                  disabled={busy}
-                >
-                  Retry
-                </Button>
-              </div>
-            )}
-          </form>
-        )}
-
-        {editable && !addingBuyIn && (
+        {editable && (
           <Button
             type="button"
-            variant="outline"
             onClick={() => setAddingBuyIn(true)}
-            disabled={busy}
             data-testid={`add-buy-in-cta-${player.id}`}
             className="w-full"
           >
@@ -649,227 +307,42 @@ export function PlayerCard({
           </Button>
         )}
 
-        {removeError && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center gap-2 text-xs text-destructive"
-          >
-            <span>{removeError.message}</span>
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              onClick={removeError.retry}
-              disabled={busy}
-            >
-              Retry
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Buy-ins
+          </span>
+          {player.buyIns.length === 0 ? (
+            <span className="text-xs text-muted-foreground">None yet.</span>
+          ) : (
+            player.buyIns.map((b) => (
+              <span
+                key={b.id}
+                className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-sm tabular-nums"
+                data-testid={`buy-in-${b.id}`}
+              >
+                {formatCents(b.amountCents)}
+              </span>
+            ))
+          )}
+        </div>
       </div>
 
-      <Dialog
+      <PlayerDetailsSheet
         open={editing}
-        onOpenChange={(next) => {
-          if (!next && busyOp === "save") return;
-          setEditing(next);
-          if (!next) resetEditDraft();
-        }}
-      >
-        <DialogContent
-          data-testid={`edit-player-dialog-${player.id}`}
-          showCloseButton={busyOp !== "save"}
-          initialFocus={editFocus === "venmo" ? venmoInputRef : nameInputRef}
-        >
-          <form onSubmit={handleSaveEdit} aria-label={`Edit ${player.name}`}>
-            <DialogHeader>
-              <DialogTitle>Edit player</DialogTitle>
-              <DialogDescription>
-                Update the display name and Venmo handle for this player.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-4 flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor={`edit-name-card-${player.id}`}
-                  className="text-xs font-medium"
-                >
-                  Name
-                </label>
-                <Input
-                  id={`edit-name-card-${player.id}`}
-                  ref={nameInputRef}
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  maxLength={50}
-                  aria-label="Name"
-                  aria-invalid={
-                    editError?.kind === "field" && editError.field === "name"
-                      ? true
-                      : undefined
-                  }
-                  disabled={busy}
-                />
-                {editError?.kind === "field" && editError.field === "name" && (
-                  <span className="text-xs text-destructive">
-                    {editError.message}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor={`edit-venmo-card-${player.id}`}
-                  className="text-xs font-medium"
-                >
-                  Venmo handle (optional)
-                </label>
-                <div className="flex items-center gap-1">
-                  <VenmoIcon size={16} className="shrink-0" title="Venmo" />
-                  <span
-                    className="text-sm text-muted-foreground"
-                    aria-hidden="true"
-                  >
-                    @
-                  </span>
-                  <Input
-                    id={`edit-venmo-card-${player.id}`}
-                    ref={venmoInputRef}
-                    value={venmoDraft}
-                    onChange={(e) => setVenmoDraft(e.target.value)}
-                    maxLength={31}
-                    aria-label="Venmo handle (optional)"
-                    aria-invalid={
-                      editError?.kind === "field" && editError.field === "venmo"
-                        ? true
-                        : undefined
-                    }
-                    disabled={busy}
-                    placeholder="venmo-handle"
-                  />
-                </div>
-                {editError?.kind === "field" && editError.field === "venmo" && (
-                  <span className="text-xs text-destructive">
-                    {editError.message}
-                  </span>
-                )}
-              </div>
-              {editError?.kind === "generic" && (
-                <div
-                  role="alert"
-                  className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-                >
-                  <span className="grow">{editError.message}</span>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    onClick={editError.retry}
-                    disabled={busy}
-                  >
-                    Retry
-                  </Button>
-                </div>
-              )}
-            </div>
-            <DialogFooter className="mt-4 sm:justify-between">
-              {editable ? (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => setConfirmingDelete(true)}
-                  disabled={busy}
-                >
-                  Delete player
-                </Button>
-              ) : (
-                <div className="hidden sm:block" />
-              )}
-              <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditing(false);
-                    resetEditDraft();
-                  }}
-                  disabled={busy}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={busy}>
-                  {busyOp === "save" && (
-                    <Loader2 className="mr-1 size-3 animate-spin" />
-                  )}
-                  Save
-                </Button>
-              </div>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setEditing}
+        sessionId={sessionId}
+        status={status}
+        player={player}
+        initialFocus={editFocus}
+      />
 
-      <Dialog
-        open={confirmingDelete}
-        onOpenChange={(next) => {
-          if (!next && busyOp === "delete") return;
-          setConfirmingDelete(next);
-          if (!next) setDeleteError(null);
-        }}
-      >
-        <DialogContent
-          data-testid={`delete-player-dialog-${player.id}`}
-          showCloseButton={false}
-        >
-          <DialogHeader>
-            <DialogTitle>Delete player?</DialogTitle>
-            <DialogDescription>
-              Delete {player.name}? This permanently removes their buy-ins and
-              cash-out from the session. This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          {deleteError && (
-            <div
-              role="alert"
-              className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-            >
-              <span className="grow">{deleteError.message}</span>
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                onClick={deleteError.retry}
-                disabled={busy}
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setConfirmingDelete(false);
-                setDeleteError(null);
-              }}
-              disabled={busyOp === "delete"}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void handleConfirmDelete()}
-              disabled={busyOp === "delete"}
-            >
-              {busyOp === "delete" && (
-                <Loader2 className="mr-1 size-3 animate-spin" />
-              )}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddBuyInModal
+        open={addingBuyIn}
+        onOpenChange={setAddingBuyIn}
+        sessionId={sessionId}
+        playerId={player.id}
+        playerName={player.name}
+      />
     </article>
   );
 }
