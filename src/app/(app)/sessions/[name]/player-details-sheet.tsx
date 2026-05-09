@@ -61,10 +61,18 @@ export type PlayerDetailsSheetProps = {
 
 /**
  * Full-bleed mobile / centered-dialog desktop sheet that owns every
- * per-player edit: name, Venmo handle, cash-out, the list of buy-ins
- * (with row-level Remove), and Add buy-in. Save commits any combined
- * field changes (name/venmo/cash-out) in one pass; buy-in mutations
- * persist immediately so the displayed list is always truthful.
+ * per-player edit. Per-field editability tracks the session status so
+ * the sheet adapts:
+ *
+ *   in_progress: name, Venmo, cash-out, buy-ins (add + remove), delete
+ *                are all editable (full editor).
+ *   settling / settled: only Venmo is editable. Name and cash-out
+ *                show as text. Buy-ins collapse to a single sum line
+ *                (no list, no add, no remove). Delete is hidden.
+ *                Cash-out edits would invalidate the computed payments,
+ *                so they require an explicit roll-back via the
+ *                session-view CTA — surfaced inline as a hint here.
+ *   archived:    everything is text. No Save action.
  */
 export function PlayerDetailsSheet({
   open,
@@ -76,7 +84,19 @@ export function PlayerDetailsSheet({
   onPlayerChanged,
 }: PlayerDetailsSheetProps) {
   const router = useRouter();
-  const editable = status === "in_progress";
+  const inProgress = status === "in_progress";
+  const archived = status === "archived";
+  // Per-field editability flags. Server constraints are the source of
+  // truth (updatePlayer allows Venmo + name in any non-archived state;
+  // setCashOut blocks anything except in_progress).
+  const nameEditable = inProgress;
+  const venmoEditable = !archived;
+  const cashOutEditable = inProgress;
+  const buyInsEditable = inProgress;
+  const deleteVisible = inProgress;
+  // The header Save button shows up if any field is editable in this
+  // mode — i.e., everything except `archived`.
+  const anyFieldEditable = !archived;
 
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const venmoInputRef = useRef<HTMLInputElement | null>(null);
@@ -383,19 +403,19 @@ export function PlayerDetailsSheet({
                   render={
                     <Button
                       variant="ghost"
-                      aria-label={editable ? "Cancel" : "Close"}
+                      aria-label={anyFieldEditable ? "Cancel" : "Close"}
                       disabled={saving}
                     />
                   }
                 >
-                  {editable ? "Cancel" : "Close"}
+                  {anyFieldEditable ? "Cancel" : "Close"}
                 </DialogPrimitive.Close>
               </div>
               <DialogPrimitive.Title className="truncate text-center font-heading text-base font-medium">
-                {editable ? "Edit player" : "Player details"}
+                {inProgress ? "Edit player" : "Player details"}
               </DialogPrimitive.Title>
               <div className="justify-self-end">
-                {editable && (
+                {anyFieldEditable && (
                   <Button
                     type="button"
                     onClick={() => void handleSave()}
@@ -412,9 +432,11 @@ export function PlayerDetailsSheet({
                 )}
               </div>
               <DialogPrimitive.Description className="sr-only">
-                {editable
+                {inProgress
                   ? "Update name, Venmo handle, cash-out, and buy-ins."
-                  : "Read-only — this session can no longer be edited."}
+                  : venmoEditable
+                    ? "Update the Venmo handle. Other fields are locked while the session is settling."
+                    : "Read-only — this session can no longer be edited."}
               </DialogPrimitive.Description>
             </header>
 
@@ -427,32 +449,41 @@ export function PlayerDetailsSheet({
                 <div className="flex flex-col gap-4">
                   {/* 1. Name */}
                   <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`pds-name-${player.id}`}
-                      className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-                    >
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Name
-                    </label>
-                    <Input
-                      id={`pds-name-${player.id}`}
-                      ref={nameInputRef}
-                      value={nameDraft}
-                      onChange={(e) => setNameDraft(e.target.value)}
-                      maxLength={50}
-                      disabled={!editable || busy}
-                      aria-invalid={
-                        saveError?.kind === "field" &&
-                        saveError.field === "name"
-                          ? true
-                          : undefined
-                      }
-                    />
-                    {saveError?.kind === "field" &&
-                      saveError.field === "name" && (
-                        <span className="text-xs text-destructive">
-                          {saveError.message}
-                        </span>
-                      )}
+                    </span>
+                    {nameEditable ? (
+                      <>
+                        <Input
+                          id={`pds-name-${player.id}`}
+                          ref={nameInputRef}
+                          value={nameDraft}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          maxLength={50}
+                          disabled={busy}
+                          aria-label="Name"
+                          aria-invalid={
+                            saveError?.kind === "field" &&
+                            saveError.field === "name"
+                              ? true
+                              : undefined
+                          }
+                        />
+                        {saveError?.kind === "field" &&
+                          saveError.field === "name" && (
+                            <span className="text-xs text-destructive">
+                              {saveError.message}
+                            </span>
+                          )}
+                      </>
+                    ) : (
+                      <p
+                        className="text-base font-medium"
+                        data-testid={`pds-name-text-${player.id}`}
+                      >
+                        {player.name}
+                      </p>
+                    )}
                   </div>
 
                   {/* 2. Venmo handle */}
@@ -467,35 +498,52 @@ export function PlayerDetailsSheet({
                         (optional)
                       </span>
                     </label>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-base text-muted-foreground md:text-sm"
-                        aria-hidden="true"
+                    {venmoEditable ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-base text-muted-foreground md:text-sm"
+                            aria-hidden="true"
+                          >
+                            @
+                          </span>
+                          <Input
+                            id={`pds-venmo-${player.id}`}
+                            ref={venmoInputRef}
+                            value={venmoDraft}
+                            onChange={(e) => setVenmoDraft(e.target.value)}
+                            maxLength={31}
+                            placeholder="venmo-handle"
+                            disabled={busy}
+                            aria-invalid={
+                              saveError?.kind === "field" &&
+                              saveError.field === "venmo"
+                                ? true
+                                : undefined
+                            }
+                          />
+                        </div>
+                        {saveError?.kind === "field" &&
+                          saveError.field === "venmo" && (
+                            <span className="text-xs text-destructive">
+                              {saveError.message}
+                            </span>
+                          )}
+                      </>
+                    ) : (
+                      <p
+                        className="text-base"
+                        data-testid={`pds-venmo-text-${player.id}`}
                       >
-                        @
-                      </span>
-                      <Input
-                        id={`pds-venmo-${player.id}`}
-                        ref={venmoInputRef}
-                        value={venmoDraft}
-                        onChange={(e) => setVenmoDraft(e.target.value)}
-                        maxLength={31}
-                        placeholder="venmo-handle"
-                        disabled={!editable || busy}
-                        aria-invalid={
-                          saveError?.kind === "field" &&
-                          saveError.field === "venmo"
-                            ? true
-                            : undefined
-                        }
-                      />
-                    </div>
-                    {saveError?.kind === "field" &&
-                      saveError.field === "venmo" && (
-                        <span className="text-xs text-destructive">
-                          {saveError.message}
-                        </span>
-                      )}
+                        {player.venmoUsername ? (
+                          <span className="font-medium">
+                            @{player.venmoUsername}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Not set</span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   {/* 3. Add a buy-in (flat, same shape as other fields). NOT
@@ -503,7 +551,7 @@ export function PlayerDetailsSheet({
                       and browsers flatten nested forms; we use a <fieldset>
                       and an explicit click handler so the submit signals never
                       cross. */}
-                  {editable && (
+                  {buyInsEditable && (
                     <fieldset
                       className="flex flex-col gap-1 border-0 p-0"
                       aria-label={`Add buy-in for ${player.name}`}
@@ -560,33 +608,33 @@ export function PlayerDetailsSheet({
                     </fieldset>
                   )}
 
-                  {/* 4. Buy-ins list */}
-                  <section className="flex flex-col gap-2">
-                    <header className="flex items-baseline justify-between gap-2">
-                      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Buy-ins
-                      </h3>
-                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground tabular-nums">
-                        Total {formatCents(totalBuyInCents)}
-                      </span>
-                    </header>
+                  {/* 4. Buy-ins list (or sum line when not editable) */}
+                  {buyInsEditable ? (
+                    <section className="flex flex-col gap-2">
+                      <header className="flex items-baseline justify-between gap-2">
+                        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Buy-ins
+                        </h3>
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground tabular-nums">
+                          Total {formatCents(totalBuyInCents)}
+                        </span>
+                      </header>
 
-                    {player.buyIns.length === 0 ? (
-                      <p className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                        No buy-ins yet.
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col divide-y divide-border rounded-md border bg-card">
-                        {player.buyIns.map((b) => (
-                          <li
-                            key={b.id}
-                            className="flex items-center justify-between gap-3 px-3 py-2"
-                            data-testid={`pds-buy-in-${b.id}`}
-                          >
-                            <span className="text-base font-medium tabular-nums">
-                              {formatCents(b.amountCents)}
-                            </span>
-                            {editable && (
+                      {player.buyIns.length === 0 ? (
+                        <p className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                          No buy-ins yet.
+                        </p>
+                      ) : (
+                        <ul className="flex flex-col divide-y divide-border rounded-md border bg-card">
+                          {player.buyIns.map((b) => (
+                            <li
+                              key={b.id}
+                              className="flex items-center justify-between gap-3 px-3 py-2"
+                              data-testid={`pds-buy-in-${b.id}`}
+                            >
+                              <span className="text-base font-medium tabular-nums">
+                                {formatCents(b.amountCents)}
+                              </span>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -602,35 +650,76 @@ export function PlayerDetailsSheet({
                                 )}
                                 Remove
                               </Button>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
 
-                    {removeError && (
-                      <p role="alert" className="text-xs text-destructive">
-                        {removeError.message}
+                      {removeError && (
+                        <p role="alert" className="text-xs text-destructive">
+                          {removeError.message}
+                        </p>
+                      )}
+                    </section>
+                  ) : (
+                    // Settling/settled/archived: collapse to a single sum
+                    // line. Buy-ins are locked once settling begins, so the
+                    // detail of each buy-in isn't actionable — just show the
+                    // total + count.
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Buy-ins
+                      </span>
+                      <p
+                        className="text-base"
+                        data-testid={`pds-buy-ins-sum-${player.id}`}
+                      >
+                        <span className="font-medium tabular-nums">
+                          {formatCents(totalBuyInCents)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {player.buyIns.length === 1
+                            ? "1 buy-in"
+                            : `${player.buyIns.length} buy-ins`}
+                        </span>
                       </p>
-                    )}
-                  </section>
+                    </div>
+                  )}
 
                   {/* 5. Cash out (last before delete, per UX flow). */}
                   <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`pds-cashout-${player.id}`}
-                      className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-                    >
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Cash out
-                    </label>
-                    <CurrencyInput
-                      id={`pds-cashout-${player.id}`}
-                      placeholder="0.00"
-                      value={cashOutDraft}
-                      onChange={setCashOutDraft}
-                      disabled={!editable || busy}
-                      className="tabular-nums"
-                    />
+                    </span>
+                    {cashOutEditable ? (
+                      <CurrencyInput
+                        id={`pds-cashout-${player.id}`}
+                        placeholder="0.00"
+                        value={cashOutDraft}
+                        onChange={setCashOutDraft}
+                        disabled={busy}
+                        aria-label="Cash out"
+                        className="tabular-nums"
+                      />
+                    ) : (
+                      <>
+                        <p
+                          className="text-base font-medium tabular-nums"
+                          data-testid={`pds-cashout-text-${player.id}`}
+                        >
+                          {player.cashOutCents === null
+                            ? "—"
+                            : formatCents(player.cashOutCents)}
+                        </p>
+                        {!archived && (
+                          <p className="text-xs text-muted-foreground">
+                            Cash-out is locked while the session is settling.
+                            Roll back to in-progress to edit.
+                          </p>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {saveError?.kind === "generic" && (
@@ -643,7 +732,7 @@ export function PlayerDetailsSheet({
                   )}
 
                   {/* 6. Delete player */}
-                  {editable && (
+                  {deleteVisible && (
                     <div className="mt-6 border-t border-border pt-4">
                       <Button
                         type="button"

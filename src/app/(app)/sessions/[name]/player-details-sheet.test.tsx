@@ -33,6 +33,7 @@ vi.mock("next/navigation", () => ({
 
 import { PlayerDetailsSheet } from "./player-details-sheet";
 import type { SessionPlayerView } from "./page";
+import type { SessionStatus } from "@/lib/sessions/types";
 
 function makePlayer(
   partial: Partial<SessionPlayerView> & Pick<SessionPlayerView, "id" | "name">,
@@ -48,6 +49,7 @@ function makePlayer(
 
 function renderSheet(
   player: SessionPlayerView = makePlayer({ id: "p1", name: "Alice" }),
+  status: SessionStatus = "in_progress",
 ) {
   const onOpenChange = vi.fn();
   const utils = render(
@@ -55,7 +57,7 @@ function renderSheet(
       open
       onOpenChange={onOpenChange}
       sessionId="s1"
-      status="in_progress"
+      status={status}
       player={player}
     />,
   );
@@ -298,6 +300,133 @@ describe("PlayerDetailsSheet — Save", () => {
 
     expect(mocks.updatePlayer).not.toHaveBeenCalled();
     expect(mocks.setCashOut).not.toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("PlayerDetailsSheet — settling mode", () => {
+  function makeSettlingPlayer() {
+    return makePlayer({
+      id: "p1",
+      name: "Alice",
+      venmoUsername: null,
+      cashOutCents: 5000,
+      buyIns: [
+        { id: "b1", amountCents: 2500, createdAt: new Date().toISOString() },
+        { id: "b2", amountCents: 2500, createdAt: new Date().toISOString() },
+      ],
+    });
+  }
+
+  it("renders name as text and the cashout as text (no inputs)", () => {
+    renderSheet(makeSettlingPlayer(), "settling");
+
+    expect(screen.getByTestId("pds-name-text-p1").textContent).toBe("Alice");
+    expect(screen.getByTestId("pds-cashout-text-p1").textContent).toBe(
+      "$50.00",
+    );
+    // Cash-out hint explains why it isn't editable.
+    expect(
+      screen.getByText(/Cash-out is locked while the session is settling/),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the Venmo input as editable so the user can add a handle", () => {
+    renderSheet(makeSettlingPlayer(), "settling");
+
+    const venmoInput = screen.getByLabelText(/Venmo handle/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    expect(venmoInput.disabled).toBe(false);
+  });
+
+  it("collapses buy-ins to a single sum line (no list, no add buy-in)", () => {
+    renderSheet(makeSettlingPlayer(), "settling");
+
+    const sum = screen.getByTestId("pds-buy-ins-sum-p1");
+    expect(sum.textContent).toMatch(/\$50\.00/);
+    expect(sum.textContent).toMatch(/2 buy-ins/);
+    expect(screen.queryByTestId("pds-buy-in-b1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("pds-add-buy-in-form-p1"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the Delete player button in settling", () => {
+    renderSheet(makeSettlingPlayer(), "settling");
+
+    expect(screen.queryByTestId("pds-delete-p1")).not.toBeInTheDocument();
+  });
+
+  it("shows Save in the header (so the Venmo edit can be persisted)", () => {
+    renderSheet(makeSettlingPlayer(), "settling");
+
+    expect(screen.getByTestId("pds-save-p1")).toBeInTheDocument();
+  });
+
+  it("Save calls updatePlayer (NOT setCashOut) when only Venmo changes", async () => {
+    mocks.updatePlayer.mockResolvedValueOnce({ success: true });
+    renderSheet(makeSettlingPlayer(), "settling");
+
+    const venmoInput = screen.getByLabelText(/Venmo handle/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    fireEvent.change(venmoInput, { target: { value: "alice123" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("pds-save-p1"));
+    });
+
+    expect(mocks.updatePlayer).toHaveBeenCalledTimes(1);
+    expect(mocks.updatePlayer).toHaveBeenCalledWith(
+      {
+        sessionId: "s1",
+        playerId: "p1",
+        name: "Alice",
+        venmoUsername: "alice123",
+      },
+      "tok",
+    );
+    // Critical: cashout server action must NOT be called in settling mode.
+    expect(mocks.setCashOut).not.toHaveBeenCalled();
+  });
+
+  it("Cancel/Close button is reachable and closes the sheet", () => {
+    const { onOpenChange } = renderSheet(makeSettlingPlayer(), "settling");
+
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("PlayerDetailsSheet — archived mode", () => {
+  it("renders everything as text, no Save, with Close button", () => {
+    const { onOpenChange } = renderSheet(
+      makePlayer({
+        id: "p1",
+        name: "Alice",
+        venmoUsername: "alice123",
+        cashOutCents: 5000,
+        buyIns: [
+          { id: "b1", amountCents: 2500, createdAt: new Date().toISOString() },
+        ],
+      }),
+      "archived",
+    );
+
+    expect(screen.getByTestId("pds-name-text-p1").textContent).toBe("Alice");
+    expect(screen.getByTestId("pds-venmo-text-p1").textContent).toBe(
+      "@alice123",
+    );
+    expect(screen.getByTestId("pds-cashout-text-p1").textContent).toBe(
+      "$50.00",
+    );
+    expect(screen.queryByTestId("pds-save-p1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("pds-delete-p1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
