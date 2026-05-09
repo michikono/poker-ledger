@@ -126,7 +126,9 @@ export function PlayerDetailsSheet({
   const busy = saving || addingBuyIn || removingId !== null || deleting;
 
   // Reset drafts on open or whenever the underlying player changes (after a
-  // server refresh produced new buy-ins / cash-out).
+  // server refresh produced new buy-ins / cash-out). Also reset every busy
+  // flag so a stuck `saving` from a prior in-flight request can't disable
+  // the Cancel button when the sheet reopens.
   useEffect(() => {
     if (!open) return;
     setNameDraft(player.name);
@@ -139,6 +141,10 @@ export function PlayerDetailsSheet({
     setSaveError(null);
     setBuyInError(null);
     setRemoveError(null);
+    setSaving(false);
+    setAddingBuyIn(false);
+    setRemovingId(null);
+    setDeleting(false);
   }, [open, player]);
 
   useEffect(() => {
@@ -399,17 +405,21 @@ export function PlayerDetailsSheet({
           >
             <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border px-2 py-2">
               <div className="justify-self-start">
-                <DialogPrimitive.Close
-                  render={
-                    <Button
-                      variant="ghost"
-                      aria-label={anyFieldEditable ? "Cancel" : "Close"}
-                      disabled={saving}
-                    />
-                  }
+                {/* Direct onClick instead of DialogPrimitive.Close render-prop
+                    — the wrapper pattern can swallow taps when the rendered
+                    element also passes `disabled`, which left users unable
+                    to cancel out of the sheet. Closing imperatively via the
+                    parent's onOpenChange is unambiguous. */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label={anyFieldEditable ? "Cancel" : "Close"}
+                  disabled={saving}
+                  onClick={() => onOpenChange(false)}
+                  data-testid={`pds-cancel-${player.id}`}
                 >
                   {anyFieldEditable ? "Cancel" : "Close"}
-                </DialogPrimitive.Close>
+                </Button>
               </div>
               <DialogPrimitive.Title className="truncate text-center font-heading text-base font-medium">
                 {inProgress ? "Edit player" : "Player details"}

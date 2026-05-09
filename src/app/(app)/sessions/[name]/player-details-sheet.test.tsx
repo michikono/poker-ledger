@@ -398,6 +398,24 @@ describe("PlayerDetailsSheet — settling mode", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("Cancel still works after the user has typed an unsaved Venmo handle (settled mode)", () => {
+    // Regression guard for the "I can't cancel out of the player details
+    // screen sometimes, especially if the game is settled and I clicked on
+    // a player to edit their Venmo" report. Cancel must close the sheet
+    // even after a dirty edit, on the same render pass.
+    const { onOpenChange } = renderSheet(makeSettlingPlayer(), "settled");
+
+    const venmoInput = screen.getByLabelText(/Venmo handle/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    fireEvent.change(venmoInput, { target: { value: "alice123" } });
+
+    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(mocks.updatePlayer).not.toHaveBeenCalled();
+  });
 });
 
 describe("PlayerDetailsSheet — archived mode", () => {
