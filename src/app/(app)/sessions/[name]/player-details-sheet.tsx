@@ -702,6 +702,10 @@ export function PlayerDetailsSheet({
                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Cash out
                     </span>
+                    <p className="text-xs text-muted-foreground">
+                      The total amount this player is walking away with at the
+                      end of the night.
+                    </p>
                     {cashOutEditable ? (
                       <CurrencyInput
                         id={`pds-cashout-${player.id}`}
