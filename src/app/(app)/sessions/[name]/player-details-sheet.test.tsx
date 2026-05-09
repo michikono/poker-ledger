@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -89,7 +89,7 @@ describe("PlayerDetailsSheet — inline Add buy-in", () => {
     const amount = input.querySelector("input") as HTMLInputElement;
     fireEvent.change(amount, { target: { value: "20" } });
 
-    const addBtn = screen.getByRole("button", { name: /^add$/i });
+    const addBtn = screen.getByTestId("pds-add-buy-in-submit-p1");
     await act(async () => {
       fireEvent.click(addBtn);
     });
@@ -109,7 +109,7 @@ describe("PlayerDetailsSheet — inline Add buy-in", () => {
   it("shows a validation error and does not submit when amount is empty", async () => {
     renderSheet();
 
-    const addBtn = screen.getByRole("button", { name: /^add$/i });
+    const addBtn = screen.getByTestId("pds-add-buy-in-submit-p1");
     await act(async () => {
       fireEvent.click(addBtn);
     });
@@ -141,7 +141,46 @@ describe("PlayerDetailsSheet — inline Add buy-in", () => {
     expect(mocks.setCashOut).not.toHaveBeenCalled();
   });
 
-  it("renders the Add a buy-in fieldset BEFORE the existing buy-ins list", () => {
+  it("orders fields: name → venmo → add buy-in → buy-ins list → cash out → delete", () => {
+    renderSheet(
+      makePlayer({
+        id: "p1",
+        name: "Alice",
+        buyIns: [
+          {
+            id: "b1",
+            amountCents: 2500,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    );
+
+    const sheet = screen.getByTestId("player-details-sheet-p1");
+    const indexOf = (testId: string) => {
+      const el = within(sheet).getByTestId(testId);
+      return Array.from(sheet.querySelectorAll("*")).indexOf(el);
+    };
+    const labelIndex = (text: RegExp) => {
+      const el = within(sheet).getByText(text);
+      return Array.from(sheet.querySelectorAll("*")).indexOf(el);
+    };
+
+    const nameLabel = labelIndex(/^Name$/);
+    const venmoLabel = labelIndex(/^Venmo handle$/);
+    const addForm = indexOf("pds-add-buy-in-form-p1");
+    const buyIn = indexOf("pds-buy-in-b1");
+    const cashOutLabel = labelIndex(/^Cash out$/);
+    const deleteBtn = indexOf("pds-delete-p1");
+
+    expect(nameLabel).toBeLessThan(venmoLabel);
+    expect(venmoLabel).toBeLessThan(addForm);
+    expect(addForm).toBeLessThan(buyIn);
+    expect(buyIn).toBeLessThan(cashOutLabel);
+    expect(cashOutLabel).toBeLessThan(deleteBtn);
+  });
+
+  it("renders the Add a buy-in BEFORE the existing buy-ins list", () => {
     renderSheet(
       makePlayer({
         id: "p1",

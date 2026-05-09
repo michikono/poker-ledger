@@ -52,20 +52,10 @@ beforeEach(() => {
   });
 });
 
-function renderList(
-  options: {
-    players?: SessionPlayerView[];
-    defaultBuyInCents?: number | null;
-  } = {},
-) {
+function renderList(options: { players?: SessionPlayerView[] } = {}) {
   const players = options.players ?? [];
   return render(
-    <PlayerList
-      sessionId="s1"
-      status="in_progress"
-      defaultBuyInCents={options.defaultBuyInCents ?? null}
-      players={players}
-    />,
+    <PlayerList sessionId="s1" status="in_progress" players={players} />,
   );
 }
 
@@ -103,11 +93,25 @@ describe("PlayerList — Add player form", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 
-  it("opens the DefaultBuyInModal when the Set/Change default button is clicked", () => {
-    renderList({ defaultBuyInCents: null });
+  it("renders Add player at the top before the player list", () => {
+    renderList({
+      players: [
+        {
+          id: "p1",
+          name: "Alice",
+          venmoUsername: null,
+          cashOutCents: null,
+          createdAt: new Date().toISOString(),
+          buyIns: [],
+        },
+      ],
+    });
 
-    fireEvent.click(screen.getByTestId("change-default-buy-in"));
-
-    expect(screen.getByTestId("default-buy-in-modal")).toBeInTheDocument();
+    const form = screen.getByRole("form", { name: /Add player/i });
+    const list = screen.getByTestId("player-card-list");
+    // DOCUMENT_POSITION_FOLLOWING (4) means list comes after form.
+    expect(
+      form.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

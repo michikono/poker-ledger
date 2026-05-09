@@ -1,12 +1,12 @@
 "use client";
 
+import { UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getToken, redirectToSignIn } from "@/lib/auth/client-token";
-import { formatCents } from "@/lib/currency/format";
 import { describeErrorCode } from "@/lib/errors/messages";
 import {
   describePlayerNameError,
@@ -14,7 +14,6 @@ import {
 } from "@/lib/players/name";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { addPlayer } from "./actions";
-import { DefaultBuyInModal } from "./default-buy-in-modal";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
 import { PlayerCard } from "./player-card";
@@ -25,13 +24,11 @@ import { computeSessionTotals } from "./totals";
 export function PlayerList({
   sessionId,
   status,
-  defaultBuyInCents,
   players,
   playerRowsRef,
 }: {
   sessionId: string;
   status: SessionStatus;
-  defaultBuyInCents: number | null;
   players: SessionPlayerView[];
   playerRowsRef?: { current: Map<string, PlayerRowHandle> };
 }) {
@@ -39,7 +36,6 @@ export function PlayerList({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [defaultBuyInOpen, setDefaultBuyInOpen] = useState(false);
 
   const editable = status === "in_progress";
 
@@ -103,6 +99,46 @@ export function PlayerList({
         ) : null}
       </div>
 
+      {/* Add player at the top of the players section. */}
+      {editable && (
+        <form
+          className="flex flex-col gap-2 md:flex-row md:items-start"
+          onSubmit={handleAdd}
+          aria-label="Add player"
+        >
+          <div className="flex flex-1 flex-col gap-1">
+            <Input
+              type="text"
+              placeholder="Add player by name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "add-player-error" : undefined}
+              disabled={submitting}
+              maxLength={50}
+            />
+            {error && (
+              <p
+                id="add-player-error"
+                role="alert"
+                className="text-sm text-destructive"
+              >
+                {error}
+              </p>
+            )}
+          </div>
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={submitting}
+            data-testid="add-player-submit"
+          >
+            <UserPlus className="size-4" />
+            {submitting ? "Adding…" : "Add player"}
+          </Button>
+        </form>
+      )}
+
       {players.length === 0 ? (
         <p className="rounded-md border border-dashed bg-muted/40 p-4 text-sm text-muted-foreground">
           No players yet. Add the first one.
@@ -144,70 +180,6 @@ export function PlayerList({
           </div>
         </>
       )}
-
-      {editable && (
-        <form
-          className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-start"
-          onSubmit={handleAdd}
-          aria-label="Add player"
-        >
-          <div className="flex flex-1 flex-col gap-1">
-            <Input
-              type="text"
-              placeholder="Add player by name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "add-player-error" : undefined}
-              disabled={submitting}
-              maxLength={50}
-            />
-            {error && (
-              <p
-                id="add-player-error"
-                role="alert"
-                className="text-sm text-destructive"
-              >
-                {error}
-              </p>
-            )}
-            {!error && (
-              <div className="flex flex-wrap items-center gap-2">
-                {defaultBuyInCents && defaultBuyInCents > 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    New players start with a {formatCents(defaultBuyInCents)}{" "}
-                    buy-in.
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    No default buy-in set.
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDefaultBuyInOpen(true)}
-                  data-testid="change-default-buy-in"
-                >
-                  {defaultBuyInCents && defaultBuyInCents > 0
-                    ? "Change default"
-                    : "Set default"}
-                </Button>
-              </div>
-            )}
-          </div>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Adding…" : "Add player"}
-          </Button>
-        </form>
-      )}
-
-      <DefaultBuyInModal
-        open={defaultBuyInOpen}
-        onOpenChange={setDefaultBuyInOpen}
-        sessionId={sessionId}
-        defaultBuyInCents={defaultBuyInCents}
-      />
     </section>
   );
 }

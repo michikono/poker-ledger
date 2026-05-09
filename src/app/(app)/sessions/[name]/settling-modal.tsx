@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -426,6 +427,11 @@ export function SettlingModal({
               data-testid="settling-confirm"
               className="w-full sm:w-auto"
             >
+              {submitting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Check className="size-4" />
+              )}
               {submitting ? "Settling…" : "Confirm"}
             </Button>
           </div>
