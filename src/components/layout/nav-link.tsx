@@ -26,7 +26,7 @@ export function NavLink({ href, children, className, onClick }: NavLinkProps) {
       href={href}
       {...(onClick ? { onClick } : {})}
       className={cn(
-        "group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+        "group flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base transition-colors md:min-h-0 md:px-2 md:py-1.5 md:text-sm",
         isActive
           ? "bg-accent text-accent-foreground"
           : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

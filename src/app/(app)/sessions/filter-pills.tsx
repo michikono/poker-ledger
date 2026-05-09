@@ -11,7 +11,7 @@ const PILL_STATUSES: readonly SessionStatus[] = [
 
 function pillClass(isActive: boolean) {
   return cn(
-    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+    "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors md:min-h-0 md:px-3 md:py-1",
     isActive
       ? "border-accent bg-accent text-accent-foreground"
       : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground",

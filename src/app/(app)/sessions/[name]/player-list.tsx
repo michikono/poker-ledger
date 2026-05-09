@@ -1,22 +1,20 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { getToken, redirectToSignIn } from "@/lib/auth/client-token";
 import { formatCents } from "@/lib/currency/format";
-import { parseDollars } from "@/lib/currency/parse";
 import { describeErrorCode } from "@/lib/errors/messages";
 import {
   describePlayerNameError,
   validatePlayerName,
 } from "@/lib/players/name";
 import type { SessionStatus } from "@/lib/sessions/types";
-import { addPlayer, updateDefaultBuyIn } from "./actions";
+import { addPlayer } from "./actions";
+import { DefaultBuyInModal } from "./default-buy-in-modal";
 import { DeltaIndicator } from "./delta-indicator";
 import type { SessionPlayerView } from "./page";
 import { PlayerCard } from "./player-card";
@@ -41,15 +39,7 @@ export function PlayerList({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const [editingDefaultBuyIn, setEditingDefaultBuyIn] = useState(false);
-  const [defaultBuyInDraft, setDefaultBuyInDraft] = useState(
-    defaultBuyInCents ? (defaultBuyInCents / 100).toFixed(2) : "",
-  );
-  const [defaultBuyInError, setDefaultBuyInError] = useState<string | null>(
-    null,
-  );
-  const [defaultBuyInBusy, setDefaultBuyInBusy] = useState(false);
+  const [defaultBuyInOpen, setDefaultBuyInOpen] = useState(false);
 
   const editable = status === "in_progress";
 
@@ -102,46 +92,6 @@ export function PlayerList({
       default:
         toast.error(describeErrorCode(result.error.code));
     }
-  }
-
-  async function handleUpdateDefaultBuyIn() {
-    if (defaultBuyInBusy) return;
-    setDefaultBuyInError(null);
-
-    const trimmed = defaultBuyInDraft.trim();
-    let amountCents: number | null = null;
-
-    if (trimmed !== "") {
-      const cents = parseDollars(trimmed);
-      if (cents === null || cents <= 0 || cents > 2_000_000) {
-        setDefaultBuyInError("Enter a valid amount, e.g., 25 or 25.00.");
-        return;
-      }
-      amountCents = cents;
-    }
-
-    if (amountCents === defaultBuyInCents) {
-      setEditingDefaultBuyIn(false);
-      return;
-    }
-
-    setDefaultBuyInBusy(true);
-    const token = await getToken();
-    if (!token) {
-      setDefaultBuyInBusy(false);
-      redirectToSignIn();
-      return;
-    }
-
-    const result = await updateDefaultBuyIn({ sessionId, amountCents }, token);
-    setDefaultBuyInBusy(false);
-
-    if (result.success) {
-      setEditingDefaultBuyIn(false);
-      router.refresh();
-      return;
-    }
-    toast.error(describeErrorCode(result.error.code));
   }
 
   return (
@@ -221,72 +171,28 @@ export function PlayerList({
                 {error}
               </p>
             )}
-            {!error && defaultBuyInCents && defaultBuyInCents > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {editingDefaultBuyIn ? (
-                  <div className="flex w-full flex-wrap items-center gap-2">
-                    <CurrencyInput
-                      placeholder="0.00"
-                      value={defaultBuyInDraft}
-                      onChange={setDefaultBuyInDraft}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          void handleUpdateDefaultBuyIn();
-                        }
-                      }}
-                      disabled={defaultBuyInBusy}
-                      aria-invalid={defaultBuyInError ? true : undefined}
-                      className="w-28 md:w-24"
-                      autoFocus
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => void handleUpdateDefaultBuyIn()}
-                      disabled={defaultBuyInBusy}
-                    >
-                      {defaultBuyInBusy && (
-                        <Loader2 className="mr-1 size-3 animate-spin" />
-                      )}
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setEditingDefaultBuyIn(false);
-                        setDefaultBuyInDraft(
-                          defaultBuyInCents
-                            ? (defaultBuyInCents / 100).toFixed(2)
-                            : "",
-                        );
-                        setDefaultBuyInError(null);
-                      }}
-                      disabled={defaultBuyInBusy}
-                    >
-                      Cancel
-                    </Button>
-                    {defaultBuyInError && (
-                      <span className="w-full text-xs text-destructive">
-                        {defaultBuyInError}
-                      </span>
-                    )}
-                  </div>
+            {!error && (
+              <div className="flex flex-wrap items-center gap-2">
+                {defaultBuyInCents && defaultBuyInCents > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    New players start with a {formatCents(defaultBuyInCents)}{" "}
+                    buy-in.
+                  </p>
                 ) : (
-                  <>
-                    <p className="text-xs text-muted-foreground">
-                      New players start with a {formatCents(defaultBuyInCents)}{" "}
-                      buy-in.
-                    </p>
-                    <button
-                      type="button"
-                      className="text-xs text-primary underline-offset-2 hover:underline"
-                      onClick={() => setEditingDefaultBuyIn(true)}
-                    >
-                      Change
-                    </button>
-                  </>
+                  <p className="text-xs text-muted-foreground">
+                    No default buy-in set.
+                  </p>
                 )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDefaultBuyInOpen(true)}
+                  data-testid="change-default-buy-in"
+                >
+                  {defaultBuyInCents && defaultBuyInCents > 0
+                    ? "Change default"
+                    : "Set default"}
+                </Button>
               </div>
             )}
           </div>
@@ -295,6 +201,13 @@ export function PlayerList({
           </Button>
         </form>
       )}
+
+      <DefaultBuyInModal
+        open={defaultBuyInOpen}
+        onOpenChange={setDefaultBuyInOpen}
+        sessionId={sessionId}
+        defaultBuyInCents={defaultBuyInCents}
+      />
     </section>
   );
 }

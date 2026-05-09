@@ -65,10 +65,9 @@ function HelpButtonsShell() {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
         disabled
         aria-label="Hand rankings"
-        className="gap-1.5"
+        className="gap-1.5 md:h-7 md:gap-1 md:px-2.5 md:text-[0.8rem]"
       >
         <Trophy className="size-4" aria-hidden />
         <span>Cheat sheet</span>
@@ -127,11 +126,10 @@ function HelpButtonsImpl() {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
         onClick={() => openHelp("cheatsheet")}
         aria-label="Hand rankings"
         aria-expanded={cheatsheetOpen}
-        className="gap-1.5"
+        className="gap-1.5 md:h-7 md:gap-1 md:px-2.5 md:text-[0.8rem]"
       >
         <Trophy className="size-4" aria-hidden />
         <span>Cheat sheet</span>
@@ -139,11 +137,10 @@ function HelpButtonsImpl() {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
         onClick={() => openHelp("rules")}
         aria-label="How to play"
         aria-expanded={rulesOpen}
-        className="gap-1.5"
+        className="gap-1.5 md:h-7 md:gap-1 md:px-2.5 md:text-[0.8rem]"
       >
         <BookOpen className="size-4" aria-hidden />
         <span>Rules</span>

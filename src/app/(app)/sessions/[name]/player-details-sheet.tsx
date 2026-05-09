@@ -1,0 +1,688 @@
+"use client";
+
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { VenmoIcon } from "@/components/icons/venmo-icon";
+import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { withToken } from "@/lib/auth/client-token";
+import { formatCents } from "@/lib/currency/format";
+import { parseDollars } from "@/lib/currency/parse";
+import { describeErrorCode } from "@/lib/errors/messages";
+import {
+  describePlayerNameError,
+  validatePlayerName,
+} from "@/lib/players/name";
+import type { SessionStatus } from "@/lib/sessions/types";
+import { parseVenmoHandle } from "@/lib/venmo/url";
+import {
+  addBuyIn,
+  deletePlayer,
+  removeBuyIn,
+  setCashOut,
+  updatePlayer,
+} from "./actions";
+import type { SessionPlayerView } from "./page";
+
+type SaveError =
+  | { kind: "field"; field: "name" | "venmo"; message: string }
+  | { kind: "generic"; message: string };
+
+type RowError = { kind: "validation" | "generic"; message: string } | null;
+
+export type PlayerDetailsSheetProps = {
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  sessionId: string;
+  status: SessionStatus;
+  player: SessionPlayerView;
+  initialFocus?: "name" | "venmo";
+};
+
+/**
+ * Full-bleed mobile / centered-dialog desktop sheet that owns every
+ * per-player edit: name, Venmo handle, cash-out, the list of buy-ins
+ * (with row-level Remove), and Add buy-in. Save commits any combined
+ * field changes (name/venmo/cash-out) in one pass; buy-in mutations
+ * persist immediately so the displayed list is always truthful.
+ */
+export function PlayerDetailsSheet({
+  open,
+  onOpenChange,
+  sessionId,
+  status,
+  player,
+  initialFocus = "name",
+}: PlayerDetailsSheetProps) {
+  const router = useRouter();
+  const editable = status === "in_progress";
+
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const venmoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [nameDraft, setNameDraft] = useState(player.name);
+  const [venmoDraft, setVenmoDraft] = useState(player.venmoUsername ?? "");
+  const [cashOutDraft, setCashOutDraft] = useState(
+    player.cashOutCents === null ? "" : (player.cashOutCents / 100).toFixed(2),
+  );
+  const [saveError, setSaveError] = useState<SaveError | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [buyInDraft, setBuyInDraft] = useState("");
+  const [buyInError, setBuyInError] = useState<RowError>(null);
+  const [addingBuyIn, setAddingBuyIn] = useState(false);
+
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<{
+    buyInId: string;
+    message: string;
+  } | null>(null);
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const busy = saving || addingBuyIn || removingId !== null || deleting;
+
+  // Reset drafts on open or whenever the underlying player changes (after a
+  // server refresh produced new buy-ins / cash-out).
+  useEffect(() => {
+    if (!open) return;
+    setNameDraft(player.name);
+    setVenmoDraft(player.venmoUsername ?? "");
+    setCashOutDraft(
+      player.cashOutCents === null
+        ? ""
+        : (player.cashOutCents / 100).toFixed(2),
+    );
+    setSaveError(null);
+    setBuyInError(null);
+    setRemoveError(null);
+  }, [open, player]);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = requestAnimationFrame(() => {
+      const target = initialFocus === "venmo" ? venmoInputRef : nameInputRef;
+      target.current?.select?.();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open, initialFocus]);
+
+  const totalBuyInCents = useMemo(
+    () => player.buyIns.reduce((sum, b) => sum + b.amountCents, 0),
+    [player.buyIns],
+  );
+
+  const dirty = useMemo(() => {
+    if (nameDraft.trim() !== player.name) return true;
+    const venmoOriginal = player.venmoUsername ?? "";
+    if (venmoDraft.trim() !== venmoOriginal) return true;
+    const cashOriginal =
+      player.cashOutCents === null
+        ? ""
+        : (player.cashOutCents / 100).toFixed(2);
+    if (cashOutDraft.trim() !== cashOriginal) return true;
+    return false;
+  }, [nameDraft, venmoDraft, cashOutDraft, player]);
+
+  async function handleSave(e?: FormEvent) {
+    e?.preventDefault();
+    if (busy) return;
+    setSaveError(null);
+
+    // Validate name.
+    const nameResult = validatePlayerName(nameDraft);
+    if (!nameResult.ok) {
+      setSaveError({
+        kind: "field",
+        field: "name",
+        message: describePlayerNameError(nameResult.error),
+      });
+      return;
+    }
+    const trimmedName = nameResult.trimmed;
+
+    // Validate Venmo.
+    const trimmedVenmo = venmoDraft.trim();
+    let venmoToSend: string | null;
+    if (trimmedVenmo === "" || trimmedVenmo === "@") {
+      venmoToSend = null;
+    } else {
+      const parsed = parseVenmoHandle(trimmedVenmo);
+      if (parsed === null) {
+        setSaveError({
+          kind: "field",
+          field: "venmo",
+          message:
+            "Use 5–30 characters: letters, digits, _ . or - (no spaces).",
+        });
+        return;
+      }
+      venmoToSend = parsed;
+    }
+
+    // Validate cash-out.
+    const trimmedCashOut = cashOutDraft.trim();
+    let cashOutToSend: number | null = null;
+    if (trimmedCashOut !== "") {
+      const cents = parseDollars(trimmedCashOut);
+      if (cents === null || cents < 0 || cents > 2_000_000) {
+        setSaveError({
+          kind: "generic",
+          message: "Enter a valid cash-out amount, e.g., 25 or 25.00.",
+        });
+        return;
+      }
+      cashOutToSend = cents;
+    }
+
+    setSaving(true);
+
+    const nameOrVenmoChanged =
+      trimmedName !== player.name ||
+      venmoToSend !== (player.venmoUsername ?? null);
+    const cashOutChanged = cashOutToSend !== player.cashOutCents;
+
+    if (nameOrVenmoChanged) {
+      const result = await withToken((token) =>
+        updatePlayer(
+          {
+            sessionId,
+            playerId: player.id,
+            name: trimmedName,
+            venmoUsername: venmoToSend,
+          },
+          token,
+        ),
+      );
+      if (!result) {
+        setSaving(false);
+        return;
+      }
+      if (!result.success) {
+        setSaving(false);
+        if (result.error.code === "DUPLICATE_PLAYER_NAME") {
+          setSaveError({
+            kind: "field",
+            field: "name",
+            message: "A player with that name already exists.",
+          });
+          return;
+        }
+        if (result.error.code === "INVALID_PLAYER_NAME") {
+          setSaveError({
+            kind: "field",
+            field: "name",
+            message: result.error.message,
+          });
+          return;
+        }
+        if (result.error.code === "INVALID_VENMO_USERNAME") {
+          setSaveError({
+            kind: "field",
+            field: "venmo",
+            message: result.error.message,
+          });
+          return;
+        }
+        setSaveError({
+          kind: "generic",
+          message: describeErrorCode(result.error.code),
+        });
+        return;
+      }
+    }
+
+    if (cashOutChanged) {
+      const result = await withToken((token) =>
+        setCashOut(
+          { sessionId, playerId: player.id, amountCents: cashOutToSend },
+          token,
+        ),
+      );
+      if (!result) {
+        setSaving(false);
+        return;
+      }
+      if (!result.success) {
+        setSaving(false);
+        setSaveError({
+          kind: "generic",
+          message: describeErrorCode(result.error.code),
+        });
+        return;
+      }
+    }
+
+    setSaving(false);
+    onOpenChange(false);
+    router.refresh();
+  }
+
+  async function handleAddBuyIn(e?: FormEvent) {
+    e?.preventDefault();
+    if (busy) return;
+    setBuyInError(null);
+
+    const trimmed = buyInDraft.trim();
+    if (!trimmed) {
+      setBuyInError({ kind: "validation", message: "Enter an amount." });
+      return;
+    }
+    const cents = parseDollars(trimmed);
+    if (cents === null || cents <= 0 || cents > 2_000_000) {
+      setBuyInError({
+        kind: "validation",
+        message: "Enter a valid amount, e.g., 25 or 25.00.",
+      });
+      return;
+    }
+
+    setAddingBuyIn(true);
+    const result = await withToken((token) =>
+      addBuyIn({ sessionId, playerId: player.id, amountCents: cents }, token),
+    );
+    setAddingBuyIn(false);
+    if (!result) return;
+    if (result.success) {
+      setBuyInDraft("");
+      router.refresh();
+      return;
+    }
+    setBuyInError({
+      kind: "generic",
+      message: describeErrorCode(result.error.code),
+    });
+  }
+
+  async function handleRemoveBuyIn(buyInId: string) {
+    if (busy) return;
+    setRemoveError(null);
+    setRemovingId(buyInId);
+    const result = await withToken((token) =>
+      removeBuyIn({ sessionId, playerId: player.id, buyInId }, token),
+    );
+    setRemovingId(null);
+    if (!result) return;
+    if (result.success) {
+      router.refresh();
+      return;
+    }
+    setRemoveError({
+      buyInId,
+      message: describeErrorCode(result.error.code),
+    });
+  }
+
+  async function handleConfirmDelete() {
+    if (busy) return;
+    setDeleteError(null);
+    setDeleting(true);
+    const result = await withToken((token) =>
+      deletePlayer({ sessionId, playerId: player.id }, token),
+    );
+    setDeleting(false);
+    if (!result) return;
+    if (result.success) {
+      setConfirmingDelete(false);
+      onOpenChange(false);
+      router.refresh();
+      return;
+    }
+    setDeleteError(describeErrorCode(result.error.code));
+  }
+
+  return (
+    <>
+      <DialogPrimitive.Root
+        open={open}
+        onOpenChange={(next) => {
+          if (!next && saving) return;
+          onOpenChange(next);
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-opacity duration-150 supports-backdrop-filter:backdrop-blur-xs data-ending-style:opacity-0 data-starting-style:opacity-0" />
+          <DialogPrimitive.Popup
+            data-slot="player-details-sheet"
+            data-testid={`player-details-sheet-${player.id}`}
+            className="fixed inset-0 z-50 flex flex-col bg-popover text-popover-foreground shadow-xl outline-none transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 md:inset-y-4 md:left-1/2 md:h-auto md:max-h-[calc(100svh-2rem)] md:w-[calc(100%-2rem)] md:max-w-md md:-translate-x-1/2 md:rounded-xl md:ring-1 md:ring-foreground/10"
+          >
+            <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+              <div className="flex flex-col gap-0.5">
+                <DialogPrimitive.Title className="font-heading text-base font-medium">
+                  {editable ? "Edit player" : "Player details"}
+                </DialogPrimitive.Title>
+                <DialogPrimitive.Description className="text-sm text-muted-foreground">
+                  {editable
+                    ? "Update name, Venmo handle, cash-out, and buy-ins."
+                    : "Read-only — this session can no longer be edited."}
+                </DialogPrimitive.Description>
+              </div>
+              <DialogPrimitive.Close
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Close player details"
+                    disabled={saving}
+                  />
+                }
+              >
+                <X className="size-5" />
+              </DialogPrimitive.Close>
+            </header>
+
+            <form
+              onSubmit={handleSave}
+              aria-label={`Edit ${player.name}`}
+              className="flex flex-1 flex-col overflow-hidden"
+            >
+              <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+8rem)] md:pb-3">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`pds-name-${player.id}`}
+                      className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      Name
+                    </label>
+                    <Input
+                      id={`pds-name-${player.id}`}
+                      ref={nameInputRef}
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      maxLength={50}
+                      disabled={!editable || busy}
+                      aria-invalid={
+                        saveError?.kind === "field" &&
+                        saveError.field === "name"
+                          ? true
+                          : undefined
+                      }
+                    />
+                    {saveError?.kind === "field" &&
+                      saveError.field === "name" && (
+                        <span className="text-xs text-destructive">
+                          {saveError.message}
+                        </span>
+                      )}
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`pds-venmo-${player.id}`}
+                      className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      <VenmoIcon size={14} title="Venmo" />
+                      Venmo handle
+                      <span className="font-normal normal-case text-muted-foreground">
+                        (optional)
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-base text-muted-foreground"
+                        aria-hidden="true"
+                      >
+                        @
+                      </span>
+                      <Input
+                        id={`pds-venmo-${player.id}`}
+                        ref={venmoInputRef}
+                        value={venmoDraft}
+                        onChange={(e) => setVenmoDraft(e.target.value)}
+                        maxLength={31}
+                        placeholder="venmo-handle"
+                        disabled={!editable || busy}
+                        aria-invalid={
+                          saveError?.kind === "field" &&
+                          saveError.field === "venmo"
+                            ? true
+                            : undefined
+                        }
+                      />
+                    </div>
+                    {saveError?.kind === "field" &&
+                      saveError.field === "venmo" && (
+                        <span className="text-xs text-destructive">
+                          {saveError.message}
+                        </span>
+                      )}
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor={`pds-cashout-${player.id}`}
+                      className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      Cash out
+                    </label>
+                    <CurrencyInput
+                      id={`pds-cashout-${player.id}`}
+                      placeholder="—"
+                      value={cashOutDraft}
+                      onChange={setCashOutDraft}
+                      disabled={!editable || busy}
+                      className="tabular-nums"
+                    />
+                  </div>
+
+                  <section className="flex flex-col gap-2">
+                    <header className="flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Buy-ins
+                      </h3>
+                      <span className="text-sm tabular-nums text-muted-foreground">
+                        Total {formatCents(totalBuyInCents)}
+                      </span>
+                    </header>
+
+                    {player.buyIns.length === 0 ? (
+                      <p className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                        No buy-ins yet.
+                      </p>
+                    ) : (
+                      <ul className="flex flex-col divide-y divide-border rounded-md border bg-card">
+                        {player.buyIns.map((b) => (
+                          <li
+                            key={b.id}
+                            className="flex items-center justify-between gap-3 px-3 py-2"
+                            data-testid={`pds-buy-in-${b.id}`}
+                          >
+                            <span className="text-base font-medium tabular-nums">
+                              {formatCents(b.amountCents)}
+                            </span>
+                            {editable && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => void handleRemoveBuyIn(b.id)}
+                                disabled={busy}
+                                aria-label={`Remove ${formatCents(b.amountCents)} buy-in`}
+                                data-testid={`pds-remove-buy-in-${b.id}`}
+                              >
+                                {removingId === b.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-4" />
+                                )}
+                                Remove
+                              </Button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {removeError && (
+                      <p role="alert" className="text-xs text-destructive">
+                        {removeError.message}
+                      </p>
+                    )}
+
+                    {editable && (
+                      <form
+                        onSubmit={handleAddBuyIn}
+                        className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3"
+                        aria-label={`Add buy-in for ${player.name}`}
+                        data-testid={`pds-add-buy-in-form-${player.id}`}
+                      >
+                        <label
+                          htmlFor={`pds-add-buy-in-${player.id}`}
+                          className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                        >
+                          Add a buy-in
+                        </label>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-stretch">
+                          <CurrencyInput
+                            id={`pds-add-buy-in-${player.id}`}
+                            placeholder="0.00"
+                            value={buyInDraft}
+                            onChange={setBuyInDraft}
+                            disabled={busy}
+                            aria-invalid={buyInError ? true : undefined}
+                            className="flex-1 tabular-nums"
+                          />
+                          <Button type="submit" disabled={busy}>
+                            {addingBuyIn ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Plus className="size-4" />
+                            )}
+                            Add
+                          </Button>
+                        </div>
+                        {buyInError && (
+                          <p className="text-xs text-destructive">
+                            {buyInError.message}
+                          </p>
+                        )}
+                      </form>
+                    )}
+                  </section>
+
+                  {saveError?.kind === "generic" && (
+                    <div
+                      role="alert"
+                      className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
+                      {saveError.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div
+                data-slot="player-details-footer"
+                className="absolute inset-x-0 bottom-0 flex flex-col gap-2 border-t border-border bg-background/85 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] supports-backdrop-filter:bg-background/70 supports-backdrop-filter:backdrop-blur-sm md:relative md:inset-x-auto md:bottom-auto md:flex-row md:items-center md:justify-between md:rounded-b-xl md:bg-muted/50 md:pb-3"
+              >
+                {editable ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setConfirmingDelete(true)}
+                    disabled={busy}
+                    className="md:order-first"
+                    data-testid={`pds-delete-${player.id}`}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete player
+                  </Button>
+                ) : (
+                  <div className="hidden md:block" />
+                )}
+                <div className="flex flex-col-reverse gap-2 md:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    disabled={saving}
+                  >
+                    {editable ? "Cancel" : "Close"}
+                  </Button>
+                  {editable && (
+                    <Button
+                      type="submit"
+                      disabled={busy || !dirty}
+                      data-testid={`pds-save-${player.id}`}
+                    >
+                      {saving && (
+                        <Loader2 className="mr-1 size-4 animate-spin" />
+                      )}
+                      Save
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </DialogPrimitive.Popup>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
+      <Dialog
+        open={confirmingDelete}
+        onOpenChange={(next) => {
+          if (!next && deleting) return;
+          setConfirmingDelete(next);
+          if (!next) setDeleteError(null);
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          data-testid={`pds-delete-confirm-${player.id}`}
+        >
+          <DialogHeader>
+            <DialogTitle>Delete player?</DialogTitle>
+            <DialogDescription>
+              Delete {player.name}? This permanently removes their buy-ins and
+              cash-out from the session. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <div
+              role="alert"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+            >
+              {deleteError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfirmingDelete(false);
+                setDeleteError(null);
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleConfirmDelete()}
+              disabled={deleting}
+            >
+              {deleting && <Loader2 className="mr-1 size-4 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

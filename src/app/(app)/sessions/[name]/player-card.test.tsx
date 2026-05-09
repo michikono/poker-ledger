@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   setCashOut: vi.fn(),
   updatePlayer: vi.fn(),
   deletePlayer: vi.fn(),
+  updateDefaultBuyIn: vi.fn(),
   getClientAuth: vi.fn(),
   refresh: vi.fn(),
 }));
@@ -17,6 +18,7 @@ vi.mock("./actions", () => ({
   setCashOut: (...args: unknown[]) => mocks.setCashOut(...args),
   updatePlayer: (...args: unknown[]) => mocks.updatePlayer(...args),
   deletePlayer: (...args: unknown[]) => mocks.deletePlayer(...args),
+  updateDefaultBuyIn: (...args: unknown[]) => mocks.updateDefaultBuyIn(...args),
 }));
 
 vi.mock("@/lib/firebase/client", () => ({
@@ -60,6 +62,7 @@ beforeEach(() => {
   mocks.setCashOut.mockReset();
   mocks.updatePlayer.mockReset();
   mocks.deletePlayer.mockReset();
+  mocks.updateDefaultBuyIn.mockReset();
   mocks.refresh.mockReset();
   mocks.getClientAuth.mockReturnValue({
     authStateReady: () => Promise.resolve(),
@@ -87,11 +90,12 @@ describe("PlayerCard — read-only states", () => {
 
     expect(screen.queryByTestId("cash-out-p1")).not.toBeInTheDocument();
     expect(screen.queryByTestId("player-card-more-p1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("add-buy-in-cta-p1")).not.toBeInTheDocument();
     // Cash-out value rendered as plain text.
     expect(screen.getByText("$75.00")).toBeInTheDocument();
   });
 
-  it("hides the inline cash-out input when settling", () => {
+  it("hides the inline cash-out input and Add buy-in CTA when settling", () => {
     renderCard(
       makePlayer({
         id: "p1",
@@ -104,53 +108,8 @@ describe("PlayerCard — read-only states", () => {
     expect(screen.queryByTestId("cash-out-p1")).not.toBeInTheDocument();
     expect(screen.queryByTestId("add-buy-in-cta-p1")).not.toBeInTheDocument();
   });
-});
 
-describe("PlayerCard — editable in_progress", () => {
-  it("commits cash-out on blur via setCashOut", async () => {
-    mocks.setCashOut.mockResolvedValueOnce({ success: true });
-    renderCard(
-      makePlayer({
-        id: "p1",
-        name: "Alice",
-        cashOutCents: null,
-      }),
-    );
-
-    const input = screen.getByTestId("cash-out-p1") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "75" } });
-    await act(async () => {
-      fireEvent.blur(input);
-    });
-
-    expect(mocks.setCashOut).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1", amountCents: 7500 },
-      "tok",
-    );
-  });
-
-  it("opens the inline buy-in editor and adds a buy-in", async () => {
-    mocks.addBuyIn.mockResolvedValueOnce({ success: true });
-    renderCard(makePlayer({ id: "p1", name: "Alice" }));
-
-    fireEvent.click(screen.getByTestId("add-buy-in-cta-p1"));
-    const form = screen.getByTestId("add-buy-in-form-p1");
-    const input = form.querySelector("input") as HTMLInputElement;
-    expect(input).toBeTruthy();
-
-    fireEvent.change(input, { target: { value: "25" } });
-    await act(async () => {
-      fireEvent.submit(form);
-    });
-
-    expect(mocks.addBuyIn).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1", amountCents: 2500 },
-      "tok",
-    );
-  });
-
-  it("removes a buy-in via the inline X control", async () => {
-    mocks.removeBuyIn.mockResolvedValueOnce({ success: true });
+  it("renders buy-in pills as display-only (no per-pill remove)", () => {
     renderCard(
       makePlayer({
         id: "p1",
@@ -165,22 +124,43 @@ describe("PlayerCard — editable in_progress", () => {
       }),
     );
 
-    const removeBtn = screen.getByLabelText(/Remove \$25\.00 buy-in/);
+    expect(screen.getByTestId("buy-in-b1")).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Remove \$25\.00 buy-in/),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("PlayerCard — editable in_progress", () => {
+  it("commits cash-out on blur via setCashOut", async () => {
+    mocks.setCashOut.mockResolvedValueOnce({ success: true });
+    renderCard(makePlayer({ id: "p1", name: "Alice", cashOutCents: null }));
+
+    const input = screen.getByTestId("cash-out-p1") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "75" } });
     await act(async () => {
-      fireEvent.click(removeBtn);
+      fireEvent.blur(input);
     });
 
-    expect(mocks.removeBuyIn).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1", buyInId: "b1" },
+    expect(mocks.setCashOut).toHaveBeenCalledWith(
+      { sessionId: "s1", playerId: "p1", amountCents: 7500 },
       "tok",
     );
   });
 
-  it("opens the edit dialog when the player name is clicked", () => {
+  it("opens the AddBuyInModal when the primary Add buy-in CTA is tapped", () => {
     renderCard(makePlayer({ id: "p1", name: "Alice" }));
 
-    fireEvent.click(screen.getByLabelText("Edit Alice"));
+    fireEvent.click(screen.getByTestId("add-buy-in-cta-p1"));
 
-    expect(screen.getByTestId("edit-player-dialog-p1")).toBeInTheDocument();
+    expect(screen.getByTestId("add-buy-in-modal-p1")).toBeInTheDocument();
+  });
+
+  it("opens the PlayerDetailsSheet when the player name row is tapped", () => {
+    renderCard(makePlayer({ id: "p1", name: "Alice" }));
+
+    fireEvent.click(screen.getByTestId("player-card-name-p1"));
+
+    expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
   });
 });
