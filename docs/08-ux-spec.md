@@ -235,16 +235,22 @@ Error boundaries do not log to a third-party service in MVP — Vercel function 
 
 ## Responsive behavior
 
-Mobile-first. Tailwind breakpoints used:
-- Default (mobile): single-column layout, side menu hidden behind hamburger.
-- `md:` (768px+): two-column layout (rail + content). Player table shows full row.
-- `lg:` (1024px+): wider content; settling modal stays centered with max-width.
+**Mobile-first is mandatory.** See `CLAUDE.md → Mobile-first UX` for the binding rules. This section names the specific shapes each surface takes at each breakpoint; deviating from any rule requires an ADR in `/specs/decisions/`.
+
+Tailwind breakpoints used:
+- Default (mobile, ≥ 360 px): single-column layout, side menu hidden behind hamburger, primitives use the `touch` size variants (≥ 44 × 44 px tap targets).
+- `md:` (768 px+): two-column layout (rail + content). Tabular surfaces may upgrade to real `<table>` elements; primitives may step down to dense desktop sizes.
+- `lg:` (1024 px+): wider content; modals stay centered with `max-w-*`.
 
 **Specific responsive rules:**
-- **Player table on mobile (< 768px):** the buy-in history column collapses behind an expand chevron per row. Total bought-in, cash-out, and net always visible.
-- **Settling modal on mobile:** rendered full-screen (not a centered modal). Fields stacked vertically. Sticky footer holds the Confirm button.
-- **Activity log on mobile:** same scrollable box, max-height 320px (vs. 480px on desktop).
-- **Side menu drawer:** slides in from left, takes 80% viewport width, has a backdrop.
+- **Session detail header:** primary CTA stays visible at all widths. Secondary actions (rollback, archive, unarchive) collapse into an overflow "More" menu on mobile and become a row of buttons on `md+`.
+- **Player roster on mobile (< 768 px):** rendered as a vertical list of player cards — name + Venmo glyph in the top row, total in / cash out / net stacked beneath, buy-in pills wrap below, and a "More" affordance per row holds Add buy-in / Edit / Delete. **No horizontal scroll permitted.**
+- **Player roster on `md+`:** rendered as a real `<table>` with the columns documented in "Session View" above.
+- **Settling modal on mobile:** rendered full-screen (`HelpModal`-style shell), one player per stacked card, sticky footer with Confirm/Cancel respecting `env(safe-area-inset-bottom)`. On `md+` it becomes a centered dialog with the multi-column table.
+- **Payment list on mobile:** each payment is a card with the From/To pair on a single line, amount large and right-aligned, and Pay / QR / Mark paid laid out as full-width tappable buttons stacked beneath. On `md+` controls reflow inline.
+- **Activity log on mobile:** same scrollable box, max-height 320 px (vs. 480 px on desktop).
+- **Side menu drawer:** slides in from left, takes ~ 80% viewport width, has a backdrop. Nav items use `touch`-sized rows.
+- **Help modal:** `HelpModal` is full-bleed on mobile with a sticky bottom Close button. Inline diagrams must wrap, not horizontally scroll, at 360 px.
 
 ---
 

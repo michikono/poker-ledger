@@ -236,6 +236,8 @@ describe("SettlingModal", () => {
 
     expect(mocks.updatePlayer).not.toHaveBeenCalled();
     expect(mocks.transitionToSettling).not.toHaveBeenCalled();
-    expect(screen.getByText(/5–30 characters/)).toBeInTheDocument();
+    // Both the mobile-card and md+ table layouts render in jsdom (CSS media
+    // queries aren't evaluated), so the validation message appears in each.
+    expect(screen.getAllByText(/5–30 characters/).length).toBeGreaterThan(0);
   });
 });

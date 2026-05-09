@@ -540,44 +540,44 @@ function StreetsDiagram() {
   ];
 
   return (
-    <figure className="my-3 overflow-x-auto rounded-md border border-border bg-card p-3">
-      <div className="flex flex-col gap-2.5 text-xs">
+    <figure className="my-3 rounded-md border border-border bg-card p-3">
+      <div className="flex flex-col gap-3 text-xs">
         {rounds.map((round) => (
           <div
             key={round.name}
-            className="flex items-center gap-3 whitespace-nowrap"
+            className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3"
           >
-            <span className="w-16 shrink-0 font-medium text-foreground">
+            <span className="font-medium text-foreground sm:w-16 sm:shrink-0">
               {round.name}
             </span>
-            <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
-              <span className="flex shrink-0 items-center gap-0.5">
-                <CardBack />
-                <CardBack />
-              </span>
-              <span className="shrink-0">+</span>
-              <span className="flex shrink-0 items-center gap-0.5">
-                <CardBack />
-                <CardBack />
-              </span>
-              <span className="shrink-0 text-base">…</span>
-            </span>
-            <span className="mx-1 shrink-0 text-muted-foreground">|</span>
-            <span className="flex min-w-[5.5rem] shrink-0 items-center gap-0.5">
-              {round.community.length === 0 ? (
-                <span className="text-muted-foreground italic">
-                  no community cards yet
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-muted-foreground">
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <CardBack />
+                  <CardBack />
                 </span>
-              ) : (
-                round.community.map((c) => (
-                  <MiniCard
-                    key={`${c.rank}-${c.suit}`}
-                    rank={c.rank}
-                    suit={c.suit}
-                  />
-                ))
-              )}
-            </span>
+                <span className="shrink-0">+</span>
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <CardBack />
+                  <CardBack />
+                </span>
+                <span className="shrink-0 text-base">…</span>
+              </span>
+              <span className="shrink-0">|</span>
+              <span className="flex flex-wrap items-center gap-0.5">
+                {round.community.length === 0 ? (
+                  <span className="italic">no community cards yet</span>
+                ) : (
+                  round.community.map((c) => (
+                    <MiniCard
+                      key={`${c.rank}-${c.suit}`}
+                      rank={c.rank}
+                      suit={c.suit}
+                    />
+                  ))
+                )}
+              </span>
+            </div>
           </div>
         ))}
       </div>
