@@ -17,7 +17,10 @@ vi.mock("@/lib/firebase/client", () => ({
 }));
 
 vi.mock("sonner", () => ({
-  toast: { error: (msg: string) => mocks.toastError(msg) },
+  toast: {
+    error: (msg: string) => mocks.toastError(msg),
+    success: vi.fn(),
+  },
 }));
 
 vi.mock("next/navigation", () => ({

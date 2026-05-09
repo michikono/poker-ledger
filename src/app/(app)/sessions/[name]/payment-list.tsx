@@ -79,13 +79,21 @@ export function PaymentList({
       return;
     }
 
-    const result = payment.paid
+    const wasPaid = payment.paid;
+    const result = wasPaid
       ? await unmarkPaymentPaid({ sessionId, paymentId: payment.id }, token)
       : await markPaymentPaid({ sessionId, paymentId: payment.id }, token);
 
     setBusyId(null);
 
     if (result.success) {
+      const fromName = playerById.get(payment.fromPlayerId)?.name ?? "Player";
+      const toName = playerById.get(payment.toPlayerId)?.name ?? "Player";
+      toast.success(
+        wasPaid
+          ? `Unmarked ${fromName} → ${toName}`
+          : `Marked ${fromName} → ${toName} paid`,
+      );
       router.refresh();
       return;
     }

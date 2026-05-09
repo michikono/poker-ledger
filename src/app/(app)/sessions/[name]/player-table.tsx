@@ -11,12 +11,16 @@ export function PlayerTable({
   status,
   players,
   totals,
+  highlightedId,
+  onPlayerChanged,
   playerRowsRef,
 }: {
   sessionId: string;
   status: SessionStatus;
   players: SessionPlayerView[];
   totals: SessionTotals;
+  highlightedId?: string | null;
+  onPlayerChanged?: (playerId: string) => void;
   playerRowsRef?: { current: Map<string, PlayerRowHandle> };
 }) {
   return (
@@ -38,6 +42,8 @@ export function PlayerTable({
               sessionId={sessionId}
               status={status}
               player={p}
+              highlighted={highlightedId === p.id}
+              {...(onPlayerChanged ? { onPlayerChanged } : {})}
               ref={(handle) => {
                 if (!playerRowsRef) return;
                 if (handle) {

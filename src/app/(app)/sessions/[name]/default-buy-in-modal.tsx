@@ -78,6 +78,11 @@ export function DefaultBuyInModal({
     setSubmitting(false);
     if (!result) return;
     if (result.success) {
+      toast.success(
+        amountCents === null
+          ? "Default buy-in cleared"
+          : "Default buy-in updated",
+      );
       onOpenChange(false);
       router.refresh();
       return;

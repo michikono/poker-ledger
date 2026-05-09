@@ -1,7 +1,13 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { type Ref, useImperativeHandle, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
@@ -23,11 +29,15 @@ export function PlayerRow({
   sessionId,
   status,
   player,
+  highlighted,
+  onPlayerChanged,
   ref,
 }: {
   sessionId: string;
   status: SessionStatus;
   player: SessionPlayerView;
+  highlighted?: boolean;
+  onPlayerChanged?: (playerId: string) => void;
   ref?: Ref<PlayerRowHandle>;
 }) {
   const editable = status === "in_progress";
@@ -40,6 +50,16 @@ export function PlayerRow({
     player.buyIns.map((b) => ({ amountCents: b.amountCents })),
     player.cashOutCents,
   );
+
+  // Replay the flash animation when the parent says this row just changed.
+  useEffect(() => {
+    if (!highlighted) return;
+    const el = rowRef.current;
+    if (!el) return;
+    el.classList.remove("player-row-flash");
+    void el.offsetWidth;
+    el.classList.add("player-row-flash");
+  }, [highlighted]);
 
   useImperativeHandle(ref, () => ({
     openEdit: (options) => {
@@ -143,6 +163,7 @@ export function PlayerRow({
           status={status}
           player={player}
           initialFocus={editFocus}
+          {...(onPlayerChanged ? { onPlayerChanged } : {})}
         />
       </td>
     </tr>

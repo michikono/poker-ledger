@@ -4,6 +4,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -48,6 +49,14 @@ export type PlayerDetailsSheetProps = {
   status: SessionStatus;
   player: SessionPlayerView;
   initialFocus?: "name" | "venmo";
+  /**
+   * Notifies the parent (typically PlayerList) that this player just
+   * changed in some way the user should see — used to flash the row
+   * after save / add buy-in / remove buy-in / cash-out edit. The toast
+   * is fired from this component directly; the callback is purely for
+   * the visual highlight.
+   */
+  onPlayerChanged?: (playerId: string) => void;
 };
 
 /**
@@ -64,6 +73,7 @@ export function PlayerDetailsSheet({
   status,
   player,
   initialFocus = "name",
+  onPlayerChanged,
 }: PlayerDetailsSheetProps) {
   const router = useRouter();
   const editable = status === "in_progress";
@@ -267,6 +277,8 @@ export function PlayerDetailsSheet({
     }
 
     setSaving(false);
+    toast.success(`Saved changes to ${trimmedName}`);
+    onPlayerChanged?.(player.id);
     onOpenChange(false);
     router.refresh();
   }
@@ -298,6 +310,8 @@ export function PlayerDetailsSheet({
     if (!result) return;
     if (result.success) {
       setBuyInDraft("");
+      toast.success(`Added ${formatCents(cents)} buy-in for ${player.name}`);
+      onPlayerChanged?.(player.id);
       router.refresh();
       return;
     }
@@ -317,6 +331,8 @@ export function PlayerDetailsSheet({
     setRemovingId(null);
     if (!result) return;
     if (result.success) {
+      toast.success(`Removed buy-in from ${player.name}`);
+      onPlayerChanged?.(player.id);
       router.refresh();
       return;
     }
@@ -338,6 +354,7 @@ export function PlayerDetailsSheet({
     if (result.success) {
       setConfirmingDelete(false);
       onOpenChange(false);
+      toast.success(`Deleted ${player.name}`);
       router.refresh();
       return;
     }
@@ -381,11 +398,9 @@ export function PlayerDetailsSheet({
                 {editable && (
                   <Button
                     type="button"
-                    variant="ghost"
                     onClick={() => void handleSave()}
                     disabled={busy || !dirty}
                     data-testid={`pds-save-${player.id}`}
-                    className="font-semibold text-primary disabled:text-muted-foreground"
                   >
                     {saving ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -500,40 +515,43 @@ export function PlayerDetailsSheet({
                       >
                         Add a buy-in
                       </label>
-                      <div className="flex flex-col gap-2 md:flex-row md:items-stretch">
-                        <CurrencyInput
-                          id={`pds-add-buy-in-${player.id}`}
-                          placeholder="0.00"
-                          value={buyInDraft}
-                          onChange={setBuyInDraft}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              // Prevent the outer save form from firing when
-                              // the user just wants to add a buy-in.
-                              e.preventDefault();
-                              e.stopPropagation();
-                              void handleAddBuyIn();
-                            }
-                          }}
-                          disabled={busy}
-                          aria-invalid={buyInError ? true : undefined}
-                          className="flex-1 tabular-nums"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => void handleAddBuyIn()}
-                          disabled={busy}
-                          data-testid={`pds-add-buy-in-submit-${player.id}`}
-                        >
-                          {addingBuyIn ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Plus className="size-4" />
-                          )}
-                          Add buy-in
-                        </Button>
-                      </div>
+                      {/* Input + Add button are stacked full-width so the
+                          input matches the width of every other field in the
+                          sheet (was previously inline-on-md+, which made the
+                          input visually narrower than its peers). */}
+                      <CurrencyInput
+                        id={`pds-add-buy-in-${player.id}`}
+                        placeholder="0.00"
+                        value={buyInDraft}
+                        onChange={setBuyInDraft}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            // Prevent the outer save form from firing when
+                            // the user just wants to add a buy-in.
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void handleAddBuyIn();
+                          }
+                        }}
+                        disabled={busy}
+                        aria-invalid={buyInError ? true : undefined}
+                        className="tabular-nums"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleAddBuyIn()}
+                        disabled={busy}
+                        data-testid={`pds-add-buy-in-submit-${player.id}`}
+                        className="w-full"
+                      >
+                        {addingBuyIn ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Plus className="size-4" />
+                        )}
+                        Add buy-in
+                      </Button>
                       {buyInError && (
                         <p className="text-xs text-destructive">
                           {buyInError.message}
