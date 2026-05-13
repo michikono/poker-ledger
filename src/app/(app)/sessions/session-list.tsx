@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   STATUS_EMPTY_MESSAGES,
@@ -10,7 +10,24 @@ import {
   type SessionStatus,
   type SessionSummary,
 } from "@/lib/sessions/types";
+import { CreateSessionDialog } from "./create-session-dialog";
 import { SessionRow } from "./session-row";
+
+function FirstRunEmptyState() {
+  return (
+    <div
+      className="flex flex-col items-center gap-3 rounded-lg border border-dashed bg-card/50 p-8 text-center"
+      data-testid="sessions-first-run"
+    >
+      <h2 className="text-lg font-semibold">Track your first session</h2>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        Start a session, add players as the night goes on, then settle up when
+        the game's done.
+      </p>
+      <CreateSessionDialog trigger={<Button>New session</Button>} />
+    </div>
+  );
+}
 
 type SerializableSession = Omit<SessionSummary, "createdAt"> & {
   createdAt: string;
@@ -85,11 +102,7 @@ function SessionListDefault({ groups }: DefaultProps) {
   );
 
   if (totalSessions === 0) {
-    return (
-      <p className="py-16 text-center text-muted-foreground">
-        No sessions yet.
-      </p>
-    );
+    return <FirstRunEmptyState />;
   }
 
   return (
@@ -116,16 +129,16 @@ function SessionListFiltered({
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
   const deserialized = useMemo(() => deserialize(sessions), [sessions]);
 
-  const emptyMessage = filter
-    ? STATUS_EMPTY_MESSAGES[filter]
-    : "No sessions yet.";
-
   return (
     <div className="flex flex-col gap-4">
       {deserialized.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
-          {emptyMessage}
-        </div>
+        filter ? (
+          <div className="rounded-lg border border-dashed py-12 text-center text-muted-foreground">
+            {STATUS_EMPTY_MESSAGES[filter]}
+          </div>
+        ) : (
+          <FirstRunEmptyState />
+        )
       ) : (
         <ul className="rounded-lg border bg-card">
           {deserialized.map((session) => (

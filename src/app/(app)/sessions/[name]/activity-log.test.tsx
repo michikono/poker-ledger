@@ -48,4 +48,34 @@ describe("ActivityLog", () => {
       .querySelector(".text-muted-foreground");
     expect(meta?.textContent).toContain("Charlene");
   });
+
+  // Spec 0020: replaced native `title=` attribute with a Tooltip so keyboard
+  // users can reach the absolute timestamp. Trigger is a button (focusable)
+  // and exposes the absolute time via aria-label.
+  it("exposes the absolute timestamp via a focusable trigger", () => {
+    const iso = "2026-05-12T14:30:00.000Z";
+    render(
+      <ActivityLog
+        entries={[
+          {
+            id: "e1",
+            actorUid: "u1",
+            actorName: "Alice",
+            actionType: "buy_in_added",
+            description: "Alice added $50.00 buy-in.",
+            createdAt: iso,
+          },
+        ]}
+      />,
+    );
+    const trigger = screen
+      .getByTestId("activity-log")
+      .querySelector("button[aria-label^='Logged ']");
+    expect(trigger).not.toBeNull();
+    // The absolute timestamp from `toLocaleString()` must be present in the
+    // aria-label so screen readers and keyboard users can reach it.
+    expect(trigger?.getAttribute("aria-label")).toContain(
+      new Date(iso).toLocaleString(),
+    );
+  });
 });

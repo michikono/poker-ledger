@@ -124,6 +124,7 @@ export function SessionSearchInput({
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
     };
   }, [query]);
 

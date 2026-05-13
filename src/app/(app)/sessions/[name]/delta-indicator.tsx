@@ -18,9 +18,9 @@ export function DeltaIndicator({ totals }: { totals: SessionTotals }) {
 
   const colorClass =
     state === "balanced"
-      ? "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-100 dark:border-emerald-700"
+      ? "bg-success/15 text-success border-success/30"
       : state === "out_of_range"
-        ? "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-900/40 dark:text-rose-100 dark:border-rose-700"
+        ? "bg-warning/15 text-warning border-warning/30"
         : "bg-muted text-muted-foreground border";
 
   return (

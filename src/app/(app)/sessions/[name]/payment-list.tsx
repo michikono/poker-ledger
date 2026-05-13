@@ -209,9 +209,7 @@ export function PaymentList({
                   </Button>
                 )}
                 {p.paid && (
-                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                    Paid
-                  </span>
+                  <span className="text-xs font-medium text-success">Paid</span>
                 )}
                 {status === "settled" || p.paid ? (
                   <Button
@@ -272,7 +270,7 @@ export function PaymentList({
           </DialogHeader>
           {qrModal && (
             <div className="flex flex-col items-center gap-3 py-2">
-              <div className="rounded-md bg-white p-3">
+              <div className="rounded-md bg-white p-3 ring-1 ring-foreground/10 dark:ring-foreground/25">
                 <QRCodeSVG
                   value={qrModal.url}
                   size={208}

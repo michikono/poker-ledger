@@ -38,9 +38,16 @@ const EMPTY_GROUPS = {
 };
 
 describe("SessionList (mode=all) — empty state", () => {
-  it("renders the empty state message when all groups are empty", () => {
+  it("renders the first-run state with a heading and a New session CTA", () => {
     render(<SessionList mode="all" groups={EMPTY_GROUPS} />);
-    expect(screen.getByText("No sessions yet.")).toBeInTheDocument();
+    expect(screen.getByTestId("sessions-first-run")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Track your first session" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New session" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No sessions yet.")).not.toBeInTheDocument();
   });
 });
 
@@ -141,5 +148,24 @@ describe("SessionList (mode=filtered)", () => {
       />,
     );
     expect(screen.getByText("No sessions settling.")).toBeInTheDocument();
+  });
+
+  // Spec 0020: when no status filter is active and there are zero sessions,
+  // show the first-run onboarding CTA, not a bare paragraph.
+  it("shows first-run state when no filter is active and there are no sessions", () => {
+    render(
+      <SessionList
+        mode="filtered"
+        sessions={[]}
+        currentPage={1}
+        totalCount={0}
+        pageSize={10}
+      />,
+    );
+    expect(screen.getByTestId("sessions-first-run")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Track your first session" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No sessions yet.")).not.toBeInTheDocument();
   });
 });
