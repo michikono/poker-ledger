@@ -18,7 +18,7 @@ describe("DeltaIndicator", () => {
     expect(el).toHaveTextContent("No buy-ins yet");
   });
 
-  it("shows balanced label and green class when shortfall ≤ 2%", () => {
+  it("shows balanced label and success class when shortfall ≤ 2%", () => {
     render(
       <DeltaIndicator
         totals={{
@@ -31,10 +31,12 @@ describe("DeltaIndicator", () => {
     const el = screen.getByTestId("delta-indicator");
     expect(el).toHaveAttribute("data-state", "balanced");
     expect(el).toHaveTextContent("$1.00 short");
-    expect(el.className).toMatch(/emerald/);
+    // Spec 0020: semantic success token, not raw emerald.
+    expect(el.className).toMatch(/text-success/);
+    expect(el.className).not.toMatch(/emerald/);
   });
 
-  it("shows out-of-range with red class when over-cashed", () => {
+  it("shows out-of-range with warning class when over-cashed", () => {
     render(
       <DeltaIndicator
         totals={{
@@ -47,7 +49,9 @@ describe("DeltaIndicator", () => {
     const el = screen.getByTestId("delta-indicator");
     expect(el).toHaveAttribute("data-state", "out_of_range");
     expect(el).toHaveTextContent("$10.00 over");
-    expect(el.className).toMatch(/rose/);
+    // Spec 0020: semantic warning token, not raw rose.
+    expect(el.className).toMatch(/text-warning/);
+    expect(el.className).not.toMatch(/rose/);
   });
 
   it("shows balanced label when shortfall is zero", () => {

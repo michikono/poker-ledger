@@ -282,4 +282,28 @@ describe("SessionSearchInput", () => {
     });
     expect(screen.getByText("crispy-salmon-001")).toBeInTheDocument();
   });
+
+  // Spec 0020: aborts the in-flight fetch on unmount so a stale response
+  // can't land after the component is gone.
+  it("aborts the in-flight fetch on unmount", async () => {
+    // Replace fetch with one that never resolves so the controller stays in
+    // flight at the moment of unmount.
+    global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+    const abortSpy = vi.spyOn(AbortController.prototype, "abort");
+
+    const { unmount } = render(<SessionSearchInput />);
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    await act(async () => {
+      fireEvent.change(input, { target: { value: "cr" } });
+      vi.advanceTimersByTime(300);
+    });
+    // At this point the controller has been created and fetch has been
+    // called but never resolves. Cleanup on unmount must abort it.
+    abortSpy.mockClear();
+    unmount();
+    expect(abortSpy).toHaveBeenCalled();
+
+    abortSpy.mockRestore();
+  });
 });

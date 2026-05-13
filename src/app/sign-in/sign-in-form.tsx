@@ -11,7 +11,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { getClientAuth } from "@/lib/firebase/client";
 import { createSession } from "./actions";
@@ -94,7 +93,9 @@ function SignInFormInner() {
           <div className="mx-auto mb-1 flex size-14 items-center justify-center rounded-2xl bg-felt/10">
             <CardIcon size={36} />
           </div>
-          <CardTitle className="text-xl">Poker Ledger</CardTitle>
+          <h1 className="font-heading text-xl leading-snug font-medium">
+            Poker Ledger
+          </h1>
           <CardDescription>Track your cash game sessions.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

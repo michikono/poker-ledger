@@ -338,10 +338,7 @@ export function PlayerDetailsSheet({
     setAddingBuyIn(true);
     try {
       const result = await withToken((token) =>
-        addBuyIn(
-          { sessionId, playerId: player.id, amountCents: cents },
-          token,
-        ),
+        addBuyIn({ sessionId, playerId: player.id, amountCents: cents }, token),
       );
       if (!result) return;
       if (result.success) {
@@ -358,7 +355,8 @@ export function PlayerDetailsSheet({
     } catch {
       setBuyInError({
         kind: "generic",
-        message: "Couldn't add the buy-in. Check your connection and try again.",
+        message:
+          "Couldn't add the buy-in. Check your connection and try again.",
       });
     } finally {
       setAddingBuyIn(false);
@@ -387,7 +385,8 @@ export function PlayerDetailsSheet({
     } catch {
       setRemoveError({
         buyInId,
-        message: "Couldn't remove the buy-in. Check your connection and try again.",
+        message:
+          "Couldn't remove the buy-in. Check your connection and try again.",
       });
     } finally {
       setRemovingId(null);

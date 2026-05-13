@@ -1,5 +1,42 @@
-import { describe, expect, it } from "vitest";
-import { isSafeInternalPath } from "./sign-in-form";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("firebase/auth", () => ({
+  GoogleAuthProvider: class {},
+  signInWithPopup: vi.fn(),
+}));
+
+vi.mock("firebase/app", () => ({
+  FirebaseError: class extends Error {},
+}));
+
+vi.mock("@/lib/firebase/client", () => ({
+  getClientAuth: () => ({
+    authStateReady: () => Promise.resolve(),
+  }),
+}));
+
+vi.mock("./actions", () => ({
+  createSession: vi.fn(),
+}));
+
+import { isSafeInternalPath, SignInForm } from "./sign-in-form";
+
+describe("SignInForm — heading hierarchy", () => {
+  // Spec 0020: sign-in page must expose a real <h1> so screen readers
+  // don't start at rank 0. CardTitle (a <div>) is not enough.
+  it("renders exactly one h1 with the project name", () => {
+    render(<SignInForm />);
+    const headings = screen.getAllByRole("heading", { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]).toHaveTextContent("Poker Ledger");
+  });
+});
 
 describe("isSafeInternalPath", () => {
   it("accepts a simple internal path", () => {
