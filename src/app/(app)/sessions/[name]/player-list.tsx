@@ -140,7 +140,7 @@ export function PlayerList({
               <p
                 id="add-player-error"
                 role="alert"
-                className="text-sm text-destructive"
+                className="text-sm text-destructive-fg"
               >
                 {error}
               </p>

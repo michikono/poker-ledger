@@ -123,6 +123,32 @@ describe("PlayerCard — display only", () => {
 
     expect(screen.queryByTestId("player-card-more-p1")).not.toBeInTheDocument();
   });
+
+  // Spec 0021: negative net uses the `--loss` token, not `--destructive`.
+  // `--destructive` is reserved for true error / destructive actions.
+  it("uses text-loss (not text-destructive) for a negative net", () => {
+    renderCard(
+      makePlayer({
+        id: "p1",
+        name: "Alice",
+        cashOutCents: 1000,
+        buyIns: [
+          {
+            id: "b1",
+            amountCents: 5000,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }),
+    );
+
+    // Find the Net cell by its label. Walk up to the wrapping <dd>.
+    const netLabel = screen.getByText("Net");
+    const netValue = netLabel.parentElement?.querySelector("dd");
+    expect(netValue).not.toBeNull();
+    expect(netValue?.className).toContain("text-loss");
+    expect(netValue?.className).not.toMatch(/text-destructive(?!-fg)/);
+  });
 });
 
 describe("PlayerCard — interaction", () => {

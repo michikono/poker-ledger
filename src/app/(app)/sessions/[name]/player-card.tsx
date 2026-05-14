@@ -77,6 +77,9 @@ export function PlayerCard({
     setEditing(true);
   }
 
+  // `—` (em-dash) is the tabular-empty placeholder for money cells.
+  // Intentional financial-UI convention, not the punctuation em-dash
+  // banned in user-facing prose copy.
   const netDisplay =
     totals.netCents === null
       ? "—"
@@ -172,9 +175,7 @@ export function PlayerCard({
             <dd
               className={cn(
                 "text-base font-medium tabular-nums",
-                totals.netCents !== null &&
-                  totals.netCents < 0 &&
-                  "text-destructive",
+                totals.netCents !== null && totals.netCents < 0 && "text-loss",
               )}
             >
               {netDisplay}
