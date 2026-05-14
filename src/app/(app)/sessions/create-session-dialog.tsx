@@ -21,7 +21,7 @@ import { describeErrorCode } from "@/lib/errors/messages";
 import { createSession } from "./actions";
 
 const AMOUNT_ERROR = "Enter a valid amount, e.g., 25 or 25.00.";
-const NAME_COLLISION_TOAST = "Couldn't create a session — please try again.";
+const NAME_COLLISION_TOAST = "Couldn't create a session. Please try again.";
 
 export function CreateSessionDialog({
   trigger,
@@ -131,7 +131,7 @@ export function CreateSessionDialog({
             <p
               id="create-session-default-buy-in-error"
               role="alert"
-              className="text-sm text-destructive"
+              className="text-sm text-destructive-fg"
             >
               {inlineError}
             </p>

@@ -478,7 +478,7 @@ export function PlayerDetailsSheet({
                   ? "Update name, Venmo handle, cash-out, and buy-ins."
                   : venmoEditable
                     ? "Update the Venmo handle. Other fields are locked while the session is settling."
-                    : "Read-only — this session can no longer be edited."}
+                    : "Read-only. This session can no longer be edited."}
               </DialogPrimitive.Description>
             </header>
 
@@ -513,7 +513,7 @@ export function PlayerDetailsSheet({
                         />
                         {saveError?.kind === "field" &&
                           saveError.field === "name" && (
-                            <span className="text-xs text-destructive">
+                            <span className="text-xs text-destructive-fg">
                               {saveError.message}
                             </span>
                           )}
@@ -567,7 +567,7 @@ export function PlayerDetailsSheet({
                         </div>
                         {saveError?.kind === "field" &&
                           saveError.field === "venmo" && (
-                            <span className="text-xs text-destructive">
+                            <span className="text-xs text-destructive-fg">
                               {saveError.message}
                             </span>
                           )}
@@ -643,7 +643,7 @@ export function PlayerDetailsSheet({
                         Add buy-in
                       </Button>
                       {buyInError && (
-                        <p className="text-xs text-destructive">
+                        <p className="text-xs text-destructive-fg">
                           {buyInError.message}
                         </p>
                       )}
@@ -698,7 +698,7 @@ export function PlayerDetailsSheet({
                       )}
 
                       {removeError && (
-                        <p role="alert" className="text-xs text-destructive">
+                        <p role="alert" className="text-xs text-destructive-fg">
                           {removeError.message}
                         </p>
                       )}
@@ -753,6 +753,9 @@ export function PlayerDetailsSheet({
                           className="text-base font-medium tabular-nums"
                           data-testid={`pds-cashout-text-${player.id}`}
                         >
+                          {/* `—` (em-dash) is the tabular-empty placeholder for
+                              money cells. Intentional financial-UI convention,
+                              not the punctuation em-dash banned in prose copy. */}
                           {player.cashOutCents === null
                             ? "—"
                             : formatCents(player.cashOutCents)}
@@ -770,7 +773,7 @@ export function PlayerDetailsSheet({
                   {saveError?.kind === "generic" && (
                     <div
                       role="alert"
-                      className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                      className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-fg"
                     >
                       {saveError.message}
                     </div>
@@ -833,7 +836,7 @@ export function PlayerDetailsSheet({
           {deleteError && (
             <div
               role="alert"
-              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive-fg"
             >
               {deleteError}
             </div>

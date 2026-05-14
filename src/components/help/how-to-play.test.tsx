@@ -6,15 +6,15 @@ import { HowToPlayGuide } from "./how-to-play";
 const SECTION_HEADINGS = [
   "The goal of a hand",
   "Who deals; the button",
-  "Forced bets — the blinds",
+  "Forced bets: the blinds",
   "The deal",
   "The four rounds of betting (the streets)",
   "Burn cards",
-  "What you can do on your turn — the betting actions",
+  "What you can do on your turn: the betting actions",
   "How big can you bet? (No-limit)",
   "The minimum bet and minimum raise",
   "All-in and side pots",
-  "Showdown — who wins",
+  "Showdown: who wins",
   "Buying in",
   "Joining the table mid-game",
 ];
