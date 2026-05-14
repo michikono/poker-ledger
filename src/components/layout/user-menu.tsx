@@ -1,10 +1,12 @@
 "use client";
 
+import { signOut as firebaseSignOut } from "firebase/auth";
 import { LogOutIcon } from "lucide-react";
 import { useTransition } from "react";
 import { signOut } from "@/app/sign-in/actions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { getClientAuth } from "@/lib/firebase/client";
 
 export type UserMenuProps = {
   firstName: string;
@@ -15,8 +17,14 @@ export function UserMenu({ firstName }: UserMenuProps) {
   const initial = firstName.charAt(0).toUpperCase() || "?";
 
   function handleSignOut() {
-    startTransition(() => {
-      signOut();
+    startTransition(async () => {
+      try {
+        await firebaseSignOut(getClientAuth());
+      } catch (err) {
+        // The server-side revoke is the source of truth; proceed regardless.
+        console.error("UserMenu: client signOut failed", err);
+      }
+      await signOut();
     });
   }
 

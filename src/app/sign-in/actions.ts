@@ -27,6 +27,17 @@ export async function createSession(idToken: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  if (sessionCookie) {
+    try {
+      const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+      await adminAuth.revokeRefreshTokens(decoded.uid);
+    } catch (err) {
+      // Sign-out must always complete from the user's perspective, even if the
+      // session cookie is already invalid or the Admin SDK fails. Log and proceed.
+      console.error("signOut: refresh-token revocation failed", err);
+    }
+  }
   cookieStore.delete("session");
   redirect("/sign-in");
 }

@@ -205,6 +205,13 @@ describe("addPlayer", () => {
     expect(runTransaction).not.toHaveBeenCalled();
   });
 
+  it("verifies the ID token with checkRevoked=true", async () => {
+    verifyIdToken.mockReset();
+    verifyIdToken.mockRejectedValueOnce(new Error("bad"));
+    await addPlayer({ sessionId: "s1", name: "Bob" }, "tok");
+    expect(verifyIdToken).toHaveBeenCalledWith("tok", true);
+  });
+
   it("returns INVALID_PLAYER_NAME for empty name", async () => {
     const result = await addPlayer({ sessionId: "s1", name: "   " }, "tok");
     expect(result.success).toBe(false);
