@@ -21,7 +21,7 @@ export async function createSession(
 ): Promise<ActionResult<{ sessionId: string }>> {
   let decoded: Awaited<ReturnType<typeof adminAuth.verifyIdToken>>;
   try {
-    decoded = await adminAuth.verifyIdToken(token);
+    decoded = await adminAuth.verifyIdToken(token, true);
   } catch {
     return {
       success: false,

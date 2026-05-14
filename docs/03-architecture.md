@@ -86,16 +86,21 @@ This is the authoritative description of how authentication is enforced. Other d
 3. **Subsequent navigation (mutation paths — Server Actions)**
     - Each mutation Server Action accepts a `token: string` parameter.
     - The client obtains a fresh token via `auth.currentUser.getIdToken()` immediately before invoking the action. Firebase Client SDK auto-refreshes the underlying ID token (~1 hr TTL) using its persisted refresh token; this call is fast and does not hit the network in the common case.
-    - The action calls `adminAuth.verifyIdToken(token)`. On failure, returns `{ success: false, error: { code: "UNAUTHENTICATED" } }`.
+    - The action calls `adminAuth.verifyIdToken(token, true)` — the `true` enables a revocation check, so tokens issued before `revokeRefreshTokens` was called for the user are rejected. On failure, returns `{ success: false, error: { code: "UNAUTHENTICATED" } }`.
     - The session cookie alone is NOT sufficient for mutations — a fresh ID token is required.
 
 4. **Sign-out**
-    - Client invokes `signOut()` Server Action (or hits the existing `sign-out-button.tsx`), which clears the session cookie.
-    - Client also calls Firebase Client SDK `auth.signOut()` to clear local auth state.
+    - The `UserMenu` sign-out handler (`src/components/layout/user-menu.tsx`) first calls Firebase Client SDK `signOut(auth)` to clear `currentUser` and remove the refresh token from IndexedDB.
+    - It then invokes the `signOut()` Server Action (`src/app/sign-in/actions.ts`), which:
+        1. Reads the `session` cookie and decodes it via `adminAuth.verifySessionCookie(cookie, true)` to recover the user's `uid`.
+        2. Calls `adminAuth.revokeRefreshTokens(uid)` so any refresh token that escaped the browser becomes unusable and ID tokens minted before this moment fail the `checkRevoked` step.
+        3. Deletes the `session` cookie.
+        4. Redirects to `/sign-in`.
+    - Sign-out is idempotent: missing/invalid cookie or Admin SDK failure still clears the cookie and redirects — the user must end up signed out from their perspective.
 
 5. **Cookie expiry / cross-tab sign-out**
     - Session cookie TTL is 5 days. After expiry, the user is redirected to `/sign-in` on next navigation.
-    - If the user signs out in tab A but tab B is open, tab B's cookie is gone but `auth.currentUser` is still set in memory. Next Server Action returns `UNAUTHENTICATED`; the client treats this as session-expired and redirects to `/sign-in?redirect=<current path>` with a "Session expired — please sign in again" toast.
+    - If the user signs out in tab A, tab B's `session` cookie is gone and (because A revoked refresh tokens) tab B's in-memory ID token will be rejected on its next mutation. The client treats this as session-expired and redirects to `/sign-in?redirect=<current path>` with a "Session expired — please sign in again" toast.
 
 ## Data flow
 

@@ -2,16 +2,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cookieSet = vi.fn();
 const cookieDelete = vi.fn();
+const cookieGet = vi.fn();
 const redirect = vi.fn((path: string) => {
   throw new Error(`__redirect__:${path}`);
 });
 
 const verifyIdToken = vi.fn();
 const createSessionCookie = vi.fn();
+const verifySessionCookie = vi.fn();
+const revokeRefreshTokens = vi.fn();
 const archiveStaleSessionsOnLogin = vi.fn();
 
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ set: cookieSet, delete: cookieDelete }),
+  cookies: async () => ({
+    set: cookieSet,
+    delete: cookieDelete,
+    get: cookieGet,
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -21,6 +28,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/auth/admin", () => ({
   adminAuth: {
     createSessionCookie: (...args: unknown[]) => createSessionCookie(...args),
+    verifySessionCookie: (...args: unknown[]) => verifySessionCookie(...args),
+    revokeRefreshTokens: (...args: unknown[]) => revokeRefreshTokens(...args),
   },
 }));
 
@@ -122,16 +131,66 @@ describe("createSession", () => {
 describe("signOut", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cookieGet.mockReturnValue({ value: "valid-session-cookie" });
+    verifySessionCookie.mockResolvedValue({ uid: "user-1" });
+    revokeRefreshTokens.mockResolvedValue(undefined);
   });
 
-  it("deletes the session cookie and redirects to /sign-in", async () => {
+  it("revokes refresh tokens, deletes the session cookie, and redirects", async () => {
+    await expect(signOut()).rejects.toThrow("__redirect__:/sign-in");
+
+    expect(verifySessionCookie).toHaveBeenCalledWith(
+      "valid-session-cookie",
+      true,
+    );
+    expect(revokeRefreshTokens).toHaveBeenCalledWith("user-1");
+    expect(cookieDelete).toHaveBeenCalledWith("session");
+    expect(redirect).toHaveBeenCalledWith("/sign-in");
+
+    // Order: revoke → delete cookie → redirect.
+    expect(revokeRefreshTokens.mock.invocationCallOrder[0]).toBeLessThan(
+      cookieDelete.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(cookieDelete.mock.invocationCallOrder[0]).toBeLessThan(
+      redirect.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it("still clears the cookie and redirects when no session cookie is present", async () => {
+    cookieGet.mockReturnValue(undefined);
+
+    await expect(signOut()).rejects.toThrow("__redirect__:/sign-in");
+
+    expect(verifySessionCookie).not.toHaveBeenCalled();
+    expect(revokeRefreshTokens).not.toHaveBeenCalled();
+    expect(cookieDelete).toHaveBeenCalledWith("session");
+    expect(redirect).toHaveBeenCalledWith("/sign-in");
+  });
+
+  it("still clears the cookie and redirects when verifySessionCookie throws", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    verifySessionCookie.mockRejectedValueOnce(new Error("expired cookie"));
+
+    await expect(signOut()).rejects.toThrow("__redirect__:/sign-in");
+
+    expect(revokeRefreshTokens).not.toHaveBeenCalled();
+    expect(cookieDelete).toHaveBeenCalledWith("session");
+    expect(redirect).toHaveBeenCalledWith("/sign-in");
+    consoleError.mockRestore();
+  });
+
+  it("still clears the cookie and redirects when revokeRefreshTokens throws", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    revokeRefreshTokens.mockRejectedValueOnce(new Error("admin sdk down"));
+
     await expect(signOut()).rejects.toThrow("__redirect__:/sign-in");
 
     expect(cookieDelete).toHaveBeenCalledWith("session");
     expect(redirect).toHaveBeenCalledWith("/sign-in");
-    // Order: delete first, then redirect.
-    expect(cookieDelete.mock.invocationCallOrder[0]).toBeLessThan(
-      redirect.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
-    );
+    consoleError.mockRestore();
   });
 });
