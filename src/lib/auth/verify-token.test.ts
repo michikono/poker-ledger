@@ -73,4 +73,32 @@ describe("verifyIdToken", () => {
 
     await expect(verifyIdToken("bad-token")).rejects.toThrow("Invalid token");
   });
+
+  it("calls adminAuth.verifyIdToken with checkRevoked=true", async () => {
+    mockVerifyIdToken.mockResolvedValueOnce({
+      uid: "user-123",
+      name: "John Doe",
+      email: "john@example.com",
+    });
+
+    await verifyIdToken("valid-token");
+
+    expect(mockVerifyIdToken).toHaveBeenCalledWith("valid-token", true);
+  });
+
+  it("rejects revoked tokens", async () => {
+    // Firebase Admin SDK throws auth/id-token-revoked when checkRevoked=true
+    // and the user's refresh tokens have been revoked after the token was issued.
+    const revokedError = Object.assign(
+      new Error("Firebase ID token revoked."),
+      {
+        code: "auth/id-token-revoked",
+      },
+    );
+    mockVerifyIdToken.mockRejectedValueOnce(revokedError);
+
+    await expect(verifyIdToken("revoked-token")).rejects.toThrow(
+      "Firebase ID token revoked.",
+    );
+  });
 });

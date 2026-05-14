@@ -62,7 +62,7 @@ The canonical auth flow is documented in `docs/03-architecture.md` → "Auth flo
 **Authentication layers (defense-in-depth):**
 1. **Proxy** (`src/proxy.ts`): presence-only cookie check. Redirects to `/sign-in` if the `session` cookie is absent. **Does NOT cryptographically verify** — that happens at layer 2.
 2. **App layout RSC** (`src/app/(app)/layout.tsx`): cryptographically verifies the session cookie via `adminAuth.verifySessionCookie(cookie, true)` (revocation check enabled). Failure → redirect. This is the primary check for read paths.
-3. **Server Actions**: every mutation requires a fresh Firebase ID token (passed by client via `auth.currentUser.getIdToken()`), verified by `adminAuth.verifyIdToken(token)`. The session cookie alone is NOT sufficient for mutations.
+3. **Server Actions**: every mutation requires a fresh Firebase ID token (passed by client via `auth.currentUser.getIdToken()`), verified by `adminAuth.verifyIdToken(token, true)` — the `true` enables a revocation check, so tokens issued before `revokeRefreshTokens` was called for the user are rejected. The session cookie alone is NOT sufficient for mutations.
 4. **Firestore Security Rules**: reads require `request.auth != null` as defense-in-depth. Writes are denied to clients — all writes flow through Server Actions using the Admin SDK (which bypasses rules).
 
 **Authorization (what an authenticated user can do):**
@@ -73,7 +73,8 @@ The canonical auth flow is documented in `docs/03-architecture.md` → "Auth flo
 - Session cookie TTL: **5 days** (`HttpOnly`, `Secure`, `SameSite=Strict`).
 - Firebase ID token TTL: **1 hour** (auto-refreshed by Firebase Client SDK using its persisted refresh token).
 - After session-cookie expiry: next navigation → `/sign-in`.
-- After cross-tab sign-out: in-memory `auth.currentUser` is stale; next Server Action returns `UNAUTHENTICATED`; client redirects to `/sign-in?redirect=...` with a "Session expired" toast.
+- **Sign-out revokes refresh tokens.** The `signOut()` Server Action calls `adminAuth.revokeRefreshTokens(uid)` before deleting the cookie. The client side also calls `signOut(auth)` from `firebase/auth` so `currentUser` is cleared and the refresh token is removed from IndexedDB. Combined with the `checkRevoked: true` flag on `verifyIdToken`, any ID token minted before sign-out is rejected at the mutation boundary, even if it has not yet expired and even if it was previously exfiltrated.
+- After cross-tab sign-out: tab B's cookie is gone, its `auth.currentUser` will be cleared on next refresh, and any cached ID token fails the next mutation's `verifyIdToken(token, true)` check; client redirects to `/sign-in?redirect=...` with a "Session expired" toast.
 
 **`displayName` privacy:**
 - The changelog stores **only** the user's first name (`displayName.split(' ')[0]`).
