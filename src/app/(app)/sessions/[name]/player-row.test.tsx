@@ -131,6 +131,23 @@ describe("PlayerRow — interaction", () => {
     expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
   });
 
+  it("closes the sheet from Cancel without the row's onClick re-opening it", () => {
+    // Regression: the sheet renders through a React Portal, but React's
+    // synthetic events still bubble along the component tree to the row's
+    // onClick. The Cancel click bubbled up and re-opened the sheet, so the
+    // user could never dismiss it (Cancel/backdrop appeared to do nothing).
+    renderRow(makePlayer({ id: "p1", name: "Alice" }));
+
+    fireEvent.click(screen.getByTestId("player-row-p1"));
+    expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+
+    expect(
+      screen.queryByTestId("player-details-sheet-p1"),
+    ).not.toBeInTheDocument();
+  });
+
   it("opens the sheet in read-only mode when archived", () => {
     renderRow(makePlayer({ id: "p1", name: "Alice" }), "archived");
 
