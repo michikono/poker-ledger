@@ -141,6 +141,7 @@ export function PlayerDetailsSheet({
         : (player.cashOutCents / 100).toFixed(2),
     );
     setSaveError(null);
+    setBuyInDraft("");
     setBuyInError(null);
     setRemoveError(null);
     setSaving(false);
@@ -176,14 +177,20 @@ export function PlayerDetailsSheet({
     return false;
   }, [nameDraft, venmoDraft, cashOutDraft, player]);
 
+  // A buy-in amount typed into the inline field but not yet added. It's easy to
+  // type a value and forget the "Add buy-in" step, so this counts as an unsaved
+  // change for the close guard below (and the button itself is emphasized once
+  // a value is present — see the Add buy-in button).
+  const pendingBuyIn = buyInsEditable && buyInDraft.trim() !== "";
+
   // Single entry point for every "user wants to leave" gesture (Cancel button,
   // backdrop click, Escape). Frictionless when there's nothing to lose; asks
-  // first when there are unsaved field edits. Buy-ins are excluded on purpose —
-  // they save immediately, so they're never "pending". Saving in progress is
-  // never interrupted.
+  // first when there are unsaved field edits OR a typed-but-unadded buy-in.
+  // Already-added buy-ins are saved immediately, so they're never "pending".
+  // Saving in progress is never interrupted.
   function attemptClose() {
     if (saving) return;
-    if (dirty) {
+    if (dirty || pendingBuyIn) {
       setConfirmingDiscard(true);
       return;
     }
@@ -650,11 +657,15 @@ export function PlayerDetailsSheet({
                         aria-invalid={buyInError ? true : undefined}
                         className="tabular-nums"
                       />
+                      {/* Emphasized (filled primary) the moment an amount is
+                          typed, so it's obvious the value isn't recorded until
+                          this is tapped. Disabled while empty for the same
+                          reason — there's nothing to add yet. */}
                       <Button
                         type="button"
-                        variant="outline"
+                        variant={pendingBuyIn ? "default" : "outline"}
                         onClick={() => void handleAddBuyIn()}
-                        disabled={busy}
+                        disabled={busy || !pendingBuyIn}
                         data-testid={`pds-add-buy-in-submit-${player.id}`}
                         className="w-full"
                       >

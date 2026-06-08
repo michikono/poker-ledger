@@ -108,12 +108,30 @@ describe("PlayerDetailsSheet — inline Add buy-in", () => {
     expect(mocks.setCashOut).not.toHaveBeenCalled();
   });
 
-  it("shows a validation error and does not submit when amount is empty", async () => {
+  it("Add buy-in is disabled while empty and activates once an amount is typed", () => {
     renderSheet();
 
-    const addBtn = screen.getByTestId("pds-add-buy-in-submit-p1");
+    const addBtn = screen.getByTestId(
+      "pds-add-buy-in-submit-p1",
+    ) as HTMLButtonElement;
+    // Nothing typed yet — there's nothing to add.
+    expect(addBtn.disabled).toBe(true);
+
+    const form = screen.getByTestId("pds-add-buy-in-form-p1");
+    const amount = form.querySelector("input") as HTMLInputElement;
+    fireEvent.change(amount, { target: { value: "20" } });
+
+    // A value is present — the button activates so the user notices it.
+    expect(addBtn.disabled).toBe(false);
+  });
+
+  it("validates the amount when Enter is pressed on an empty field", async () => {
+    renderSheet();
+
+    const form = screen.getByTestId("pds-add-buy-in-form-p1");
+    const amount = form.querySelector("input") as HTMLInputElement;
     await act(async () => {
-      fireEvent.click(addBtn);
+      fireEvent.keyDown(amount, { key: "Enter" });
     });
 
     expect(mocks.addBuyIn).not.toHaveBeenCalled();
@@ -364,6 +382,21 @@ describe("PlayerDetailsSheet — discard guard", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mocks.updatePlayer).not.toHaveBeenCalled();
     expect(mocks.setCashOut).not.toHaveBeenCalled();
+  });
+
+  it("a typed-but-unadded buy-in counts as a pending change on close", () => {
+    // The reported trap: type a buy-in amount, forget to press Add, then close
+    // — the value would silently vanish. Closing must warn first.
+    const { onOpenChange } = renderSheet();
+
+    const form = screen.getByTestId("pds-add-buy-in-form-p1");
+    const amount = form.querySelector("input") as HTMLInputElement;
+    fireEvent.change(amount, { target: { value: "20" } });
+
+    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+
+    expect(screen.getByTestId("pds-discard-confirm-p1")).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 });
 
