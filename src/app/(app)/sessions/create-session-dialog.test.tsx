@@ -149,7 +149,7 @@ describe("CreateSessionDialog", () => {
     await user.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(
-        "Couldn't create a session — please try again.",
+        "Couldn't create a session. Please try again.",
       ),
     );
     expect(push).not.toHaveBeenCalled();

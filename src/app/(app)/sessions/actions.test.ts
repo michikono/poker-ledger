@@ -69,6 +69,19 @@ describe("createSession", () => {
     expect(runTransaction).not.toHaveBeenCalled();
   });
 
+  it("verifies the ID token with checkRevoked=true", async () => {
+    verifyIdToken.mockResolvedValueOnce({ uid: "u1", name: "Alice Smith" });
+    const { tx } = makeTx([false]);
+    runTransaction.mockImplementationOnce(async (fn: (t: unknown) => unknown) =>
+      fn(tx),
+    );
+    generateSessionName.mockReturnValueOnce("alpha-bravo-001");
+
+    await createSession({}, "tok");
+
+    expect(verifyIdToken).toHaveBeenCalledWith("tok", true);
+  });
+
   it.each([
     ["non-integer", 12.5],
     ["zero", 0],

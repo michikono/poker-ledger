@@ -33,7 +33,7 @@ export function ActivityLog({ entries }: { entries: SessionLogView[] }) {
                     <button
                       type="button"
                       aria-label={`Logged ${absolute}`}
-                      className="w-fit cursor-default rounded text-left text-xs text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      className="w-fit rounded text-left text-xs text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     />
                   }
                 >

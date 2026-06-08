@@ -292,7 +292,7 @@ export function SessionView({
           <h2 className="text-lg font-semibold">Settle up</h2>
           {showZeroPaymentBanner ? (
             <p className="rounded-md border border-dashed bg-muted/40 p-4 text-sm text-muted-foreground">
-              Everyone broke even — nothing to settle.
+              Everyone broke even. Nothing to settle.
             </p>
           ) : (
             <PaymentList

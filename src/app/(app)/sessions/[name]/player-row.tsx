@@ -147,13 +147,16 @@ export function PlayerRow({
         className="p-3 text-right tabular-nums"
         data-testid={`cash-out-${player.id}`}
       >
+        {/* `—` (em-dash) is the tabular-empty placeholder for money cells.
+            Intentional financial-UI convention, not the punctuation em-dash
+            banned in user-facing prose copy. */}
         {player.cashOutCents === null ? "—" : formatCents(player.cashOutCents)}
       </td>
 
       <td
         className={cn(
           "p-3 text-right tabular-nums",
-          totals.netCents !== null && totals.netCents < 0 && "text-destructive",
+          totals.netCents !== null && totals.netCents < 0 && "text-loss",
         )}
       >
         {totals.netCents === null
