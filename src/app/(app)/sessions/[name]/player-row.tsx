@@ -78,8 +78,19 @@ export function PlayerRow({
     <tr
       ref={rowRef}
       className="cursor-pointer border-t hover:bg-muted/30"
-      onClick={() => openSheet("name")}
+      // The sheet below renders through a React Portal. Portals keep React's
+      // synthetic event bubbling along the COMPONENT tree (not the DOM tree),
+      // so a click/keypress inside the sheet bubbles up to this row. Without a
+      // guard, dismissing the sheet (Cancel button, backdrop click) would
+      // immediately re-open it via openSheet — the user could never close it.
+      // A genuine row interaction has its target inside this <tr>; a bubbled
+      // event from the portaled sheet does not (its DOM lives under <body>).
+      onClick={(e) => {
+        if (!e.currentTarget.contains(e.target as Node)) return;
+        openSheet("name");
+      }}
       onKeyDown={(e) => {
+        if (!e.currentTarget.contains(e.target as Node)) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           openSheet("name");
@@ -157,7 +168,10 @@ export function PlayerRow({
               : formatCents(totals.netCents)}
       </td>
 
-      {/* Sheet renders inside a Portal so it sits outside the <tr>/<td> tree. */}
+      {/* The sheet's DOM renders through a Portal (under <body>), but React
+          synthetic events still bubble up this component tree to the row's
+          handlers — which is why those handlers guard on currentTarget.contains
+          (see onClick/onKeyDown above) so dismissing the sheet can't re-open it. */}
       <td className="hidden">
         <PlayerDetailsSheet
           open={editing}
