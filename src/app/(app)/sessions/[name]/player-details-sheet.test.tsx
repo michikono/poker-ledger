@@ -304,6 +304,69 @@ describe("PlayerDetailsSheet — Save", () => {
   });
 });
 
+describe("PlayerDetailsSheet — discard guard", () => {
+  it("a clean form closes immediately without a discard prompt", () => {
+    const { onOpenChange } = renderSheet();
+
+    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+
+    expect(
+      screen.queryByTestId("pds-discard-confirm-p1"),
+    ).not.toBeInTheDocument();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("Cancel on a dirty form prompts to discard instead of closing", () => {
+    const { onOpenChange } = renderSheet();
+
+    const nameInput = screen.getByLabelText(/name/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "Alicia" } });
+
+    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+
+    // The sheet must NOT close — a confirmation appears first.
+    expect(screen.getByTestId("pds-discard-confirm-p1")).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("'Keep editing' dismisses the prompt and leaves the sheet open", () => {
+    const { onOpenChange } = renderSheet();
+
+    const nameInput = screen.getByLabelText(/name/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "Alicia" } });
+    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+
+    fireEvent.click(screen.getByTestId("pds-discard-keep-p1"));
+
+    expect(
+      screen.queryByTestId("pds-discard-confirm-p1"),
+    ).not.toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    // The edit is still there.
+    expect(nameInput.value).toBe("Alicia");
+  });
+
+  it("'Discard' confirms and closes the sheet", () => {
+    const { onOpenChange } = renderSheet();
+
+    const nameInput = screen.getByLabelText(/name/i, {
+      selector: "input",
+    }) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "Alicia" } });
+    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+
+    fireEvent.click(screen.getByTestId("pds-discard-confirm-yes-p1"));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(mocks.updatePlayer).not.toHaveBeenCalled();
+    expect(mocks.setCashOut).not.toHaveBeenCalled();
+  });
+});
+
 describe("PlayerDetailsSheet — settling mode", () => {
   function makeSettlingPlayer() {
     return makePlayer({
@@ -399,11 +462,12 @@ describe("PlayerDetailsSheet — settling mode", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("Cancel still works after the user has typed an unsaved Venmo handle (settled mode)", () => {
+  it("Cancel after an unsaved Venmo edit prompts to discard, then closes (settled mode)", () => {
     // Regression guard for the "I can't cancel out of the player details
     // screen sometimes, especially if the game is settled and I clicked on
-    // a player to edit their Venmo" report. Cancel must close the sheet
-    // even after a dirty edit, on the same render pass.
+    // a player to edit their Venmo" report. A dirty edit now routes Cancel
+    // through a discard confirmation, but the user must still be able to get
+    // out — Discard closes the sheet without persisting anything.
     const { onOpenChange } = renderSheet(makeSettlingPlayer(), "settled");
 
     const venmoInput = screen.getByLabelText(/Venmo handle/i, {
@@ -412,7 +476,10 @@ describe("PlayerDetailsSheet — settling mode", () => {
     fireEvent.change(venmoInput, { target: { value: "alice123" } });
 
     fireEvent.click(screen.getByTestId("pds-cancel-p1"));
+    expect(screen.getByTestId("pds-discard-confirm-p1")).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
 
+    fireEvent.click(screen.getByTestId("pds-discard-confirm-yes-p1"));
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mocks.updatePlayer).not.toHaveBeenCalled();
   });
@@ -438,7 +505,10 @@ describe("PlayerDetailsSheet — settling mode", () => {
     const cancel = screen.getByTestId("pds-cancel-p1") as HTMLButtonElement;
     expect(cancel.disabled).toBe(false);
 
+    // The venmo edit is still unsaved (the Save threw), so Cancel routes
+    // through the discard prompt — but the user is not trapped: Discard closes.
     fireEvent.click(cancel);
+    fireEvent.click(screen.getByTestId("pds-discard-confirm-yes-p1"));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 

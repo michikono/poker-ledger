@@ -123,6 +123,8 @@ export function PlayerDetailsSheet({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+
   const busy = saving || addingBuyIn || removingId !== null || deleting;
 
   // Reset drafts on open or whenever the underlying player changes (after a
@@ -145,6 +147,7 @@ export function PlayerDetailsSheet({
     setAddingBuyIn(false);
     setRemovingId(null);
     setDeleting(false);
+    setConfirmingDiscard(false);
   }, [open, player]);
 
   useEffect(() => {
@@ -172,6 +175,20 @@ export function PlayerDetailsSheet({
     if (cashOutDraft.trim() !== cashOriginal) return true;
     return false;
   }, [nameDraft, venmoDraft, cashOutDraft, player]);
+
+  // Single entry point for every "user wants to leave" gesture (Cancel button,
+  // backdrop click, Escape). Frictionless when there's nothing to lose; asks
+  // first when there are unsaved field edits. Buy-ins are excluded on purpose —
+  // they save immediately, so they're never "pending". Saving in progress is
+  // never interrupted.
+  function attemptClose() {
+    if (saving) return;
+    if (dirty) {
+      setConfirmingDiscard(true);
+      return;
+    }
+    onOpenChange(false);
+  }
 
   async function handleSave(e?: FormEvent) {
     e?.preventDefault();
@@ -424,7 +441,13 @@ export function PlayerDetailsSheet({
       <DialogPrimitive.Root
         open={open}
         onOpenChange={(next) => {
-          if (!next && saving) return;
+          // Route every base-ui-initiated close (backdrop, Escape) through the
+          // same unsaved-changes guard the Cancel button uses. Leaving `open`
+          // true keeps the sheet mounted while the discard prompt is shown.
+          if (!next) {
+            attemptClose();
+            return;
+          }
           onOpenChange(next);
         }}
       >
@@ -447,7 +470,7 @@ export function PlayerDetailsSheet({
                   variant="ghost"
                   aria-label={anyFieldEditable ? "Cancel" : "Close"}
                   disabled={saving}
-                  onClick={() => onOpenChange(false)}
+                  onClick={attemptClose}
                   data-testid={`pds-cancel-${player.id}`}
                 >
                   {anyFieldEditable ? "Cancel" : "Close"}
@@ -858,6 +881,41 @@ export function PlayerDetailsSheet({
             >
               {deleting && <Loader2 className="mr-1 size-4 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmingDiscard} onOpenChange={setConfirmingDiscard}>
+        <DialogContent
+          showCloseButton={false}
+          data-testid={`pds-discard-confirm-${player.id}`}
+        >
+          <DialogHeader>
+            <DialogTitle>Discard changes?</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes to {player.name}. Leave without saving?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmingDiscard(false)}
+              data-testid={`pds-discard-keep-${player.id}`}
+            >
+              Keep editing
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                setConfirmingDiscard(false);
+                onOpenChange(false);
+              }}
+              data-testid={`pds-discard-confirm-yes-${player.id}`}
+            >
+              Discard
             </Button>
           </DialogFooter>
         </DialogContent>
