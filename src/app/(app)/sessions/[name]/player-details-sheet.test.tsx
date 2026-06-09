@@ -77,6 +77,20 @@ beforeEach(() => {
   });
 });
 
+describe("PlayerDetailsSheet — header names the player", () => {
+  it("titles in_progress as 'Edit {name}'", () => {
+    renderSheet(makePlayer({ id: "p1", name: "Alice" }), "in_progress");
+    expect(
+      screen.getByRole("heading", { name: "Edit Alice" }),
+    ).toBeInTheDocument();
+  });
+
+  it("titles non-editable views with the player's name", () => {
+    renderSheet(makePlayer({ id: "p1", name: "Alice" }), "settling");
+    expect(screen.getByRole("heading", { name: "Alice" })).toBeInTheDocument();
+  });
+});
+
 describe("PlayerDetailsSheet — no buy-in section (0022)", () => {
   // Buy-ins now live in their own BuyInsModal; the edit sheet must show no
   // buy-in UI in any status.

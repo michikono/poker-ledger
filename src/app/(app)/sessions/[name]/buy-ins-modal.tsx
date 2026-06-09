@@ -206,32 +206,36 @@ export function BuyInsModal({
             data-testid={`buy-ins-modal-${player.id}`}
             className="fixed inset-0 z-50 flex flex-col bg-popover text-popover-foreground shadow-xl outline-none transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 md:inset-y-4 md:left-1/2 md:h-auto md:max-h-[calc(100svh-2rem)] md:w-[calc(100%-2rem)] md:max-w-md md:-translate-x-1/2 md:rounded-xl md:ring-1 md:ring-foreground/10"
           >
-            <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border px-2 py-2">
-              <div className="justify-self-start">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  aria-label="Close"
-                  disabled={busy}
-                  onClick={attemptClose}
-                  data-testid={`pbi-close-${player.id}`}
-                >
-                  Close
-                </Button>
+            <header className="flex flex-col gap-1 border-b border-border px-2 py-2">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <div className="justify-self-start">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label="Close"
+                    disabled={busy}
+                    onClick={attemptClose}
+                    data-testid={`pbi-close-${player.id}`}
+                  >
+                    Close
+                  </Button>
+                </div>
+                {/* Title is WHO the modal is for; the description states the
+                    action the user is about to take. */}
+                <DialogPrimitive.Title className="truncate text-center font-heading text-base font-medium">
+                  {player.name}
+                </DialogPrimitive.Title>
+                <div className="justify-self-end" />
               </div>
-              <DialogPrimitive.Title className="truncate text-center font-heading text-base font-medium">
-                Buy-ins
-              </DialogPrimitive.Title>
-              <div className="justify-self-end" />
-              <DialogPrimitive.Description className="sr-only">
-                {`Add or remove buy-ins for ${player.name}.`}
+              <DialogPrimitive.Description className="px-2 pb-1 text-center text-sm text-muted-foreground">
+                {player.buyIns.length > 0
+                  ? "Add a buy-in, or remove one below."
+                  : "Add a buy-in to get started."}
               </DialogPrimitive.Description>
             </header>
 
             <div className="flex-1 overflow-y-auto px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] md:pb-3">
               <div className="flex flex-col gap-4">
-                <p className="text-sm text-muted-foreground">{player.name}</p>
-
                 {/* Add a buy-in */}
                 <form
                   onSubmit={handleAdd}
