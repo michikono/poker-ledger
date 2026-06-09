@@ -52,8 +52,16 @@ function makePlayer(
 function renderCard(
   player: SessionPlayerView,
   status: SessionStatus = "in_progress",
+  defaultBuyInCents: number | null = null,
 ) {
-  return render(<PlayerCard sessionId="s1" status={status} player={player} />);
+  return render(
+    <PlayerCard
+      sessionId="s1"
+      status={status}
+      player={player}
+      defaultBuyInCents={defaultBuyInCents}
+    />,
+  );
 }
 
 beforeEach(() => {
@@ -168,5 +176,35 @@ describe("PlayerCard — interaction", () => {
     expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
     // Archived sessions show no Save action.
     expect(screen.queryByTestId("pds-save-p1")).not.toBeInTheDocument();
+  });
+
+  it("shows the buy-in '+' only while in_progress", () => {
+    const { unmount } = renderCard(makePlayer({ id: "p1", name: "Alice" }));
+    expect(screen.getByTestId("pbi-open-p1")).toBeInTheDocument();
+    unmount();
+
+    renderCard(makePlayer({ id: "p1", name: "Alice" }), "settling");
+    expect(screen.queryByTestId("pbi-open-p1")).not.toBeInTheDocument();
+  });
+
+  it("'+' opens the Buy-ins modal (not the edit sheet)", () => {
+    renderCard(makePlayer({ id: "p1", name: "Alice" }));
+
+    fireEvent.click(screen.getByTestId("pbi-open-p1"));
+
+    expect(screen.getByTestId("buy-ins-modal-p1")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("player-details-sheet-p1"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("prefills the buy-in amount from the session default", () => {
+    renderCard(makePlayer({ id: "p1", name: "Alice" }), "in_progress", 2500);
+
+    fireEvent.click(screen.getByTestId("pbi-open-p1"));
+
+    expect(
+      (screen.getByTestId("pbi-amount-p1") as HTMLInputElement).value,
+    ).toBe("25.00");
   });
 });

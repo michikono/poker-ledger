@@ -316,6 +316,7 @@ export function SessionView({
         sessionId={session.id}
         status={status}
         players={players}
+        defaultBuyInCents={session.defaultBuyInCents}
         playerRowsRef={playerRowsRef}
       />
 

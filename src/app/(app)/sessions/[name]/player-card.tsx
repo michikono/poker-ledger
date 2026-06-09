@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import {
   type Ref,
   useEffect,
@@ -12,22 +12,23 @@ import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { cn } from "@/lib/utils";
+import { BuyInsModal } from "./buy-ins-modal";
 import type { SessionPlayerView } from "./page";
 import { PlayerDetailsSheet } from "./player-details-sheet";
 import type { PlayerRowHandle } from "./player-row";
 import { computePlayerTotals } from "./totals";
 
 /**
- * Mobile player card. Display-only — every edit (name, Venmo, buy-ins,
- * cash-out, delete) lives in the PlayerDetailsSheet that opens when the
- * card is tapped. This keeps the in-progress card uncluttered and ensures
- * editing is the same on mobile and desktop (where PlayerRow opens the
- * same sheet).
+ * Mobile player card. Tapping the body opens the PlayerDetailsSheet (name,
+ * Venmo, cash-out, delete). Buy-ins are added/removed in their own modal,
+ * reached via the trailing "+" strip — kept separate from the profile editor
+ * so the most frequent action (recording a buy-in) is one tap from the roster.
  */
 export function PlayerCard({
   sessionId,
   status,
   player,
+  defaultBuyInCents,
   highlighted,
   onPlayerChanged,
   ref,
@@ -35,6 +36,7 @@ export function PlayerCard({
   sessionId: string;
   status: SessionStatus;
   player: SessionPlayerView;
+  defaultBuyInCents: number | null;
   highlighted?: boolean;
   onPlayerChanged?: (playerId: string) => void;
   ref?: Ref<PlayerRowHandle>;
@@ -44,6 +46,7 @@ export function PlayerCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const [editing, setEditing] = useState(false);
   const [editFocus, setEditFocus] = useState<"name" | "venmo">("name");
+  const [buyInsOpen, setBuyInsOpen] = useState(false);
 
   const totals = computePlayerTotals(
     player.buyIns.map((b) => ({ amountCents: b.amountCents })),
@@ -96,7 +99,7 @@ export function PlayerCard({
     <article
       ref={cardRef}
       data-testid={`player-card-${player.id}`}
-      className="rounded-lg border bg-card shadow-sm"
+      className="flex items-stretch overflow-hidden rounded-lg border bg-card shadow-sm"
     >
       <button
         type="button"
@@ -105,7 +108,7 @@ export function PlayerCard({
           editable ? `Edit ${player.name}` : `View details for ${player.name}`
         }
         data-testid={`player-card-name-${player.id}`}
-        className="group flex w-full flex-col gap-3 rounded-lg p-3 text-left transition-colors hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none"
+        className="group flex flex-1 flex-col gap-3 p-3 text-left transition-colors hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none"
       >
         {/* 1. Player name + tap-to-edit hint */}
         <header className="flex items-center justify-between gap-2">
@@ -184,6 +187,21 @@ export function PlayerCard({
         </dl>
       </button>
 
+      {/* Trailing full-height "+" strip: the one-tap path to add a buy-in.
+          A sibling of the edit button (not nested) so its taps never open the
+          edit sheet. Only while buy-ins are editable (in_progress). */}
+      {editable && (
+        <button
+          type="button"
+          onClick={() => setBuyInsOpen(true)}
+          aria-label={`Add buy-in for ${player.name}`}
+          data-testid={`pbi-open-${player.id}`}
+          className="flex w-12 shrink-0 items-center justify-center border-l border-border text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:bg-muted/50 focus-visible:text-foreground focus-visible:outline-none active:bg-muted"
+        >
+          <Plus className="size-5" />
+        </button>
+      )}
+
       <PlayerDetailsSheet
         open={editing}
         onOpenChange={setEditing}
@@ -193,6 +211,17 @@ export function PlayerCard({
         initialFocus={editFocus}
         {...(onPlayerChanged ? { onPlayerChanged } : {})}
       />
+
+      {editable && (
+        <BuyInsModal
+          open={buyInsOpen}
+          onOpenChange={setBuyInsOpen}
+          sessionId={sessionId}
+          player={player}
+          defaultBuyInCents={defaultBuyInCents}
+          {...(onPlayerChanged ? { onPlayerChanged } : {})}
+        />
+      )}
     </article>
   );
 }

@@ -58,7 +58,12 @@ beforeEach(() => {
 function renderList(options: { players?: SessionPlayerView[] } = {}) {
   const players = options.players ?? [];
   return render(
-    <PlayerList sessionId="s1" status="in_progress" players={players} />,
+    <PlayerList
+      sessionId="s1"
+      status="in_progress"
+      players={players}
+      defaultBuyInCents={null}
+    />,
   );
 }
 

@@ -10,6 +10,7 @@ export function PlayerTable({
   sessionId,
   status,
   players,
+  defaultBuyInCents,
   totals,
   highlightedId,
   onPlayerChanged,
@@ -18,6 +19,7 @@ export function PlayerTable({
   sessionId: string;
   status: SessionStatus;
   players: SessionPlayerView[];
+  defaultBuyInCents: number | null;
   totals: SessionTotals;
   highlightedId?: string | null;
   onPlayerChanged?: (playerId: string) => void;
@@ -42,6 +44,7 @@ export function PlayerTable({
               sessionId={sessionId}
               status={status}
               player={p}
+              defaultBuyInCents={defaultBuyInCents}
               highlighted={highlightedId === p.id}
               {...(onPlayerChanged ? { onPlayerChanged } : {})}
               ref={(handle) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -27,20 +27,12 @@ import {
 } from "@/lib/players/name";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { parseVenmoHandle } from "@/lib/venmo/url";
-import {
-  addBuyIn,
-  deletePlayer,
-  removeBuyIn,
-  setCashOut,
-  updatePlayer,
-} from "./actions";
+import { deletePlayer, setCashOut, updatePlayer } from "./actions";
 import type { SessionPlayerView } from "./page";
 
 type SaveError =
   | { kind: "field"; field: "name" | "venmo"; message: string }
   | { kind: "generic"; message: string };
-
-type RowError = { kind: "validation" | "generic"; message: string } | null;
 
 export type PlayerDetailsSheetProps = {
   open: boolean;
@@ -51,27 +43,24 @@ export type PlayerDetailsSheetProps = {
   initialFocus?: "name" | "venmo";
   /**
    * Notifies the parent (typically PlayerList) that this player just
-   * changed in some way the user should see — used to flash the row
-   * after save / add buy-in / remove buy-in / cash-out edit. The toast
-   * is fired from this component directly; the callback is purely for
-   * the visual highlight.
+   * changed in some way the user should see — used to flash the row after a
+   * save / cash-out edit. The toast is fired from this component directly;
+   * the callback is purely for the visual highlight.
    */
   onPlayerChanged?: (playerId: string) => void;
 };
 
 /**
- * Full-bleed mobile / centered-dialog desktop sheet that owns every
- * per-player edit. Per-field editability tracks the session status so
- * the sheet adapts:
+ * Full-bleed mobile / centered-dialog desktop sheet for per-player profile
+ * edits — name, Venmo, cash-out, delete. Buy-ins are NOT here; they have their
+ * own BuyInsModal reached via the per-player "+" on the roster. Per-field
+ * editability tracks the session status so the sheet adapts:
  *
- *   in_progress: name, Venmo, cash-out, buy-ins (add + remove), delete
- *                are all editable (full editor).
- *   settling / settled: only Venmo is editable. Name and cash-out
- *                show as text. Buy-ins collapse to a single sum line
- *                (no list, no add, no remove). Delete is hidden.
- *                Cash-out edits would invalidate the computed payments,
- *                so they require an explicit roll-back via the
- *                session-view CTA — surfaced inline as a hint here.
+ *   in_progress: name, Venmo, cash-out, delete are editable.
+ *   settling / settled: only Venmo is editable. Name and cash-out show as
+ *                text. Delete is hidden. Cash-out edits would invalidate the
+ *                computed payments, so they require an explicit roll-back via
+ *                the session-view CTA — surfaced inline as a hint here.
  *   archived:    everything is text. No Save action.
  */
 export function PlayerDetailsSheet({
@@ -92,7 +81,6 @@ export function PlayerDetailsSheet({
   const nameEditable = inProgress;
   const venmoEditable = !archived;
   const cashOutEditable = inProgress;
-  const buyInsEditable = inProgress;
   const deleteVisible = inProgress;
   // The header Save button shows up if any field is editable in this
   // mode — i.e., everything except `archived`.
@@ -109,28 +97,18 @@ export function PlayerDetailsSheet({
   const [saveError, setSaveError] = useState<SaveError | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [buyInDraft, setBuyInDraft] = useState("");
-  const [buyInError, setBuyInError] = useState<RowError>(null);
-  const [addingBuyIn, setAddingBuyIn] = useState(false);
-
-  const [removingId, setRemovingId] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState<{
-    buyInId: string;
-    message: string;
-  } | null>(null);
-
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
-  const busy = saving || addingBuyIn || removingId !== null || deleting;
+  const busy = saving || deleting;
 
   // Reset drafts on open or whenever the underlying player changes (after a
-  // server refresh produced new buy-ins / cash-out). Also reset every busy
-  // flag so a stuck `saving` from a prior in-flight request can't disable
-  // the Cancel button when the sheet reopens.
+  // server refresh produced a new cash-out). Also reset every busy flag so a
+  // stuck `saving` from a prior in-flight request can't disable the Cancel
+  // button when the sheet reopens.
   useEffect(() => {
     if (!open) return;
     setNameDraft(player.name);
@@ -141,12 +119,7 @@ export function PlayerDetailsSheet({
         : (player.cashOutCents / 100).toFixed(2),
     );
     setSaveError(null);
-    setBuyInDraft("");
-    setBuyInError(null);
-    setRemoveError(null);
     setSaving(false);
-    setAddingBuyIn(false);
-    setRemovingId(null);
     setDeleting(false);
     setConfirmingDiscard(false);
   }, [open, player]);
@@ -160,11 +133,6 @@ export function PlayerDetailsSheet({
     return () => cancelAnimationFrame(id);
   }, [open, initialFocus]);
 
-  const totalBuyInCents = useMemo(
-    () => player.buyIns.reduce((sum, b) => sum + b.amountCents, 0),
-    [player.buyIns],
-  );
-
   const dirty = useMemo(() => {
     if (nameDraft.trim() !== player.name) return true;
     const venmoOriginal = player.venmoUsername ?? "";
@@ -177,20 +145,12 @@ export function PlayerDetailsSheet({
     return false;
   }, [nameDraft, venmoDraft, cashOutDraft, player]);
 
-  // A buy-in amount typed into the inline field but not yet added. It's easy to
-  // type a value and forget the "Add buy-in" step, so this counts as an unsaved
-  // change for the close guard below (and the button itself is emphasized once
-  // a value is present — see the Add buy-in button).
-  const pendingBuyIn = buyInsEditable && buyInDraft.trim() !== "";
-
   // Single entry point for every "user wants to leave" gesture (Cancel button,
   // backdrop click, Escape). Frictionless when there's nothing to lose; asks
-  // first when there are unsaved field edits OR a typed-but-unadded buy-in.
-  // Already-added buy-ins are saved immediately, so they're never "pending".
-  // Saving in progress is never interrupted.
+  // first when there are unsaved field edits. Saving is never interrupted.
   function attemptClose() {
     if (saving) return;
-    if (dirty || pendingBuyIn) {
+    if (dirty) {
       setConfirmingDiscard(true);
       return;
     }
@@ -338,83 +298,6 @@ export function PlayerDetailsSheet({
     onPlayerChanged?.(player.id);
     onOpenChange(false);
     router.refresh();
-  }
-
-  async function handleAddBuyIn(e?: FormEvent) {
-    e?.preventDefault();
-    if (busy) return;
-    setBuyInError(null);
-
-    const trimmed = buyInDraft.trim();
-    if (!trimmed) {
-      setBuyInError({ kind: "validation", message: "Enter an amount." });
-      return;
-    }
-    const cents = parseDollars(trimmed);
-    if (cents === null || cents <= 0 || cents > 2_000_000) {
-      setBuyInError({
-        kind: "validation",
-        message: "Enter a valid amount, e.g., 25 or 25.00.",
-      });
-      return;
-    }
-
-    setAddingBuyIn(true);
-    try {
-      const result = await withToken((token) =>
-        addBuyIn({ sessionId, playerId: player.id, amountCents: cents }, token),
-      );
-      if (!result) return;
-      if (result.success) {
-        setBuyInDraft("");
-        toast.success(`Added ${formatCents(cents)} buy-in for ${player.name}`);
-        onPlayerChanged?.(player.id);
-        router.refresh();
-        return;
-      }
-      setBuyInError({
-        kind: "generic",
-        message: describeErrorCode(result.error.code),
-      });
-    } catch {
-      setBuyInError({
-        kind: "generic",
-        message:
-          "Couldn't add the buy-in. Check your connection and try again.",
-      });
-    } finally {
-      setAddingBuyIn(false);
-    }
-  }
-
-  async function handleRemoveBuyIn(buyInId: string) {
-    if (busy) return;
-    setRemoveError(null);
-    setRemovingId(buyInId);
-    try {
-      const result = await withToken((token) =>
-        removeBuyIn({ sessionId, playerId: player.id, buyInId }, token),
-      );
-      if (!result) return;
-      if (result.success) {
-        toast.success(`Removed buy-in from ${player.name}`);
-        onPlayerChanged?.(player.id);
-        router.refresh();
-        return;
-      }
-      setRemoveError({
-        buyInId,
-        message: describeErrorCode(result.error.code),
-      });
-    } catch {
-      setRemoveError({
-        buyInId,
-        message:
-          "Couldn't remove the buy-in. Check your connection and try again.",
-      });
-    } finally {
-      setRemovingId(null);
-    }
   }
 
   async function handleConfirmDelete() {
@@ -618,152 +501,9 @@ export function PlayerDetailsSheet({
                     )}
                   </div>
 
-                  {/* 3. Add a buy-in (flat, same shape as other fields). NOT
-                      a nested <form> — the outer save form wraps this section
-                      and browsers flatten nested forms; we use a <fieldset>
-                      and an explicit click handler so the submit signals never
-                      cross. */}
-                  {buyInsEditable && (
-                    <fieldset
-                      className="flex flex-col gap-1 border-0 p-0"
-                      aria-label={`Add buy-in for ${player.name}`}
-                      data-testid={`pds-add-buy-in-form-${player.id}`}
-                    >
-                      <label
-                        htmlFor={`pds-add-buy-in-${player.id}`}
-                        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-                      >
-                        Add a buy-in
-                      </label>
-                      {/* Input + Add button are stacked full-width so the
-                          input matches the width of every other field in the
-                          sheet (was previously inline-on-md+, which made the
-                          input visually narrower than its peers). */}
-                      <CurrencyInput
-                        id={`pds-add-buy-in-${player.id}`}
-                        placeholder="0.00"
-                        value={buyInDraft}
-                        onChange={setBuyInDraft}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            // Prevent the outer save form from firing when
-                            // the user just wants to add a buy-in.
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void handleAddBuyIn();
-                          }
-                        }}
-                        disabled={busy}
-                        aria-invalid={buyInError ? true : undefined}
-                        className="tabular-nums"
-                      />
-                      {/* Emphasized (filled primary) the moment an amount is
-                          typed, so it's obvious the value isn't recorded until
-                          this is tapped. Disabled while empty for the same
-                          reason — there's nothing to add yet. */}
-                      <Button
-                        type="button"
-                        variant={pendingBuyIn ? "default" : "outline"}
-                        onClick={() => void handleAddBuyIn()}
-                        disabled={busy || !pendingBuyIn}
-                        data-testid={`pds-add-buy-in-submit-${player.id}`}
-                        className="w-full"
-                      >
-                        {addingBuyIn ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Plus className="size-4" />
-                        )}
-                        Add buy-in
-                      </Button>
-                      {buyInError && (
-                        <p className="text-xs text-destructive-fg">
-                          {buyInError.message}
-                        </p>
-                      )}
-                    </fieldset>
-                  )}
-
-                  {/* 4. Buy-ins list (or sum line when not editable) */}
-                  {buyInsEditable ? (
-                    <section className="flex flex-col gap-2">
-                      <header className="flex items-baseline justify-between gap-2">
-                        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Buy-ins
-                        </h3>
-                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground tabular-nums">
-                          Total {formatCents(totalBuyInCents)}
-                        </span>
-                      </header>
-
-                      {player.buyIns.length === 0 ? (
-                        <p className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                          No buy-ins yet.
-                        </p>
-                      ) : (
-                        <ul className="flex flex-col divide-y divide-border rounded-md border bg-card">
-                          {player.buyIns.map((b) => (
-                            <li
-                              key={b.id}
-                              className="flex items-center justify-between gap-3 px-3 py-2"
-                              data-testid={`pds-buy-in-${b.id}`}
-                            >
-                              <span className="text-base font-medium tabular-nums">
-                                {formatCents(b.amountCents)}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => void handleRemoveBuyIn(b.id)}
-                                disabled={busy}
-                                aria-label={`Remove ${formatCents(b.amountCents)} buy-in`}
-                                data-testid={`pds-remove-buy-in-${b.id}`}
-                              >
-                                {removingId === b.id ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="size-4" />
-                                )}
-                                Remove
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-
-                      {removeError && (
-                        <p role="alert" className="text-xs text-destructive-fg">
-                          {removeError.message}
-                        </p>
-                      )}
-                    </section>
-                  ) : (
-                    // Settling/settled/archived: collapse to a single sum
-                    // line. Buy-ins are locked once settling begins, so the
-                    // detail of each buy-in isn't actionable — just show the
-                    // total + count.
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Buy-ins
-                      </span>
-                      <p
-                        className="text-base"
-                        data-testid={`pds-buy-ins-sum-${player.id}`}
-                      >
-                        <span className="font-medium tabular-nums">
-                          {formatCents(totalBuyInCents)}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {" · "}
-                          {player.buyIns.length === 1
-                            ? "1 buy-in"
-                            : `${player.buyIns.length} buy-ins`}
-                        </span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 5. Cash out (last before delete, per UX flow). */}
+                  {/* Cash out (last before delete, per UX flow). Buy-ins live
+                      in their own modal now (see BuyInsModal), reached via the
+                      per-player "+" on the roster — not in this editor. */}
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Cash out

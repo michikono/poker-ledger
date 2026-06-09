@@ -50,11 +50,17 @@ function makePlayer(
 function renderRow(
   player: SessionPlayerView,
   status: SessionStatus = "in_progress",
+  defaultBuyInCents: number | null = null,
 ) {
   return render(
     <table>
       <tbody>
-        <PlayerRow sessionId="s1" status={status} player={player} />
+        <PlayerRow
+          sessionId="s1"
+          status={status}
+          player={player}
+          defaultBuyInCents={defaultBuyInCents}
+        />
       </tbody>
     </table>,
   );
@@ -156,5 +162,37 @@ describe("PlayerRow — interaction", () => {
     expect(screen.getByTestId("player-details-sheet-p1")).toBeInTheDocument();
     // Archived sessions have no Save action.
     expect(screen.queryByTestId("pds-save-p1")).not.toBeInTheDocument();
+  });
+
+  it("shows the buy-in '+' only while in_progress", () => {
+    const { unmount } = renderRow(makePlayer({ id: "p1", name: "Alice" }));
+    expect(screen.getByTestId("pbi-open-p1")).toBeInTheDocument();
+    unmount();
+
+    renderRow(makePlayer({ id: "p1", name: "Alice" }), "settling");
+    expect(screen.queryByTestId("pbi-open-p1")).not.toBeInTheDocument();
+  });
+
+  it("'+' opens the Buy-ins modal and does NOT open the edit sheet", () => {
+    // The "+" lives inside the clickable <tr>; without stopPropagation its
+    // click would also trigger the row's open-edit handler.
+    renderRow(makePlayer({ id: "p1", name: "Alice" }));
+
+    fireEvent.click(screen.getByTestId("pbi-open-p1"));
+
+    expect(screen.getByTestId("buy-ins-modal-p1")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("player-details-sheet-p1"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("prefills the buy-in amount from the session default", () => {
+    renderRow(makePlayer({ id: "p1", name: "Alice" }), "in_progress", 2500);
+
+    fireEvent.click(screen.getByTestId("pbi-open-p1"));
+
+    expect(
+      (screen.getByTestId("pbi-amount-p1") as HTMLInputElement).value,
+    ).toBe("25.00");
   });
 });
