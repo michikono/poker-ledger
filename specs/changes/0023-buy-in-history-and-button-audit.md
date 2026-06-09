@@ -1,7 +1,7 @@
 # Change 0023: Buy-in timestamps + per-player history, and a button-size audit
 
 ## Status
-Proposed
+Accepted
 
 ## Owner
 Michi Kono
@@ -129,3 +129,4 @@ None blocking. (Resolved: history shows adds + removals read-only below the edit
 | Date | Status | Notes |
 |---|---|---|
 | 2026-06-09 | Proposed | Initial draft |
+| 2026-06-09 | Accepted | Approved by owner; implementation started |
