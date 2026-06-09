@@ -195,8 +195,8 @@ export function SettlingModal({
       const final = result.data.finalStatus;
       toast.success(
         final === "settled"
-          ? "Everyone broke even — session settled"
-          : "Payments computed — ready to settle",
+          ? "Everyone broke even. Session settled."
+          : "Payments computed. Ready to settle.",
       );
       router.refresh();
       return;
@@ -313,7 +313,7 @@ export function SettlingModal({
                         />
                       </div>
                       {venmoErr && (
-                        <span className="text-xs text-destructive">
+                        <span className="text-xs text-destructive-fg">
                           {venmoErr}
                         </span>
                       )}
@@ -387,7 +387,7 @@ export function SettlingModal({
                               />
                             </div>
                             {venmoErr && (
-                              <span className="text-xs text-destructive">
+                              <span className="text-xs text-destructive-fg">
                                 {venmoErr}
                               </span>
                             )}
@@ -404,7 +404,7 @@ export function SettlingModal({
               <DeltaIndicator totals={totals} />
               {!readiness.ok && (
                 <p
-                  className="text-sm text-destructive"
+                  className="text-sm text-destructive-fg"
                   data-testid="settling-error"
                 >
                   {readiness.reason}

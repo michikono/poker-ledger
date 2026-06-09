@@ -279,7 +279,7 @@ export function PaymentList({
                 />
               </div>
               <p className="text-center text-xs text-muted-foreground">
-                Scanning opens Venmo only — you'll still need to mark this
+                Scanning opens Venmo only. You'll still need to mark this
                 payment paid here after.
               </p>
             </div>

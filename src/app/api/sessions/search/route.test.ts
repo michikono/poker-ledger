@@ -70,6 +70,14 @@ describe("GET /api/sessions/search", () => {
       const res = await GET(makeReq("crispy", "bad-token"));
       expect(res.status).toBe(401);
     });
+
+    it("verifies the ID token with checkRevoked=true", async () => {
+      getQueryMock
+        .mockResolvedValueOnce(makeSnap([]))
+        .mockResolvedValueOnce(makeSnap([]));
+      await GET(makeReq("crispy"));
+      expect(verifyIdToken).toHaveBeenCalledWith("valid-token", true);
+    });
   });
 
   describe("input validation", () => {

@@ -8,7 +8,7 @@ import {
 describe("describeErrorCode", () => {
   // Table-driven: each known code maps to its expected message.
   const cases: Array<[ServerActionErrorCode, string]> = [
-    ["UNAUTHENTICATED", "Session expired — please sign in again."],
+    ["UNAUTHENTICATED", "Session expired. Please sign in again."],
     ["SESSION_NOT_FOUND", "Session not found."],
     [
       "SESSION_NOT_EDITABLE",
@@ -20,9 +20,9 @@ describe("describeErrorCode", () => {
       "INVALID_VENMO_USERNAME",
       "Venmo username must be 5–30 characters: letters, digits, _ . or -.",
     ],
-    ["PAYMENT_NOT_FOUND", "Some data is out of date — refreshing."],
-    ["PLAYER_NOT_FOUND", "Some data is out of date — refreshing."],
-    ["BUY_IN_NOT_FOUND", "Some data is out of date — refreshing."],
+    ["PAYMENT_NOT_FOUND", "Some data is out of date. Refreshing."],
+    ["PLAYER_NOT_FOUND", "Some data is out of date. Refreshing."],
+    ["BUY_IN_NOT_FOUND", "Some data is out of date. Refreshing."],
     ["INVALID_INPUT", "All players must have a cash-out set."],
     [
       "BALANCE_OUT_OF_RANGE",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import {
   type Ref,
   useEffect,
@@ -9,9 +9,11 @@ import {
   useState,
 } from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
+import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { cn } from "@/lib/utils";
+import { BuyInsModal } from "./buy-ins-modal";
 import type { SessionPlayerView } from "./page";
 import { PlayerDetailsSheet } from "./player-details-sheet";
 import { computePlayerTotals } from "./totals";
@@ -29,6 +31,7 @@ export function PlayerRow({
   sessionId,
   status,
   player,
+  defaultBuyInCents,
   highlighted,
   onPlayerChanged,
   ref,
@@ -36,6 +39,7 @@ export function PlayerRow({
   sessionId: string;
   status: SessionStatus;
   player: SessionPlayerView;
+  defaultBuyInCents: number | null;
   highlighted?: boolean;
   onPlayerChanged?: (playerId: string) => void;
   ref?: Ref<PlayerRowHandle>;
@@ -45,6 +49,7 @@ export function PlayerRow({
   const rowRef = useRef<HTMLTableRowElement | null>(null);
   const [editing, setEditing] = useState(false);
   const [editFocus, setEditFocus] = useState<"name" | "venmo">("name");
+  const [buyInsOpen, setBuyInsOpen] = useState(false);
 
   const totals = computePlayerTotals(
     player.buyIns.map((b) => ({ amountCents: b.amountCents })),
@@ -78,8 +83,19 @@ export function PlayerRow({
     <tr
       ref={rowRef}
       className="cursor-pointer border-t hover:bg-muted/30"
-      onClick={() => openSheet("name")}
+      // The sheet below renders through a React Portal. Portals keep React's
+      // synthetic event bubbling along the COMPONENT tree (not the DOM tree),
+      // so a click/keypress inside the sheet bubbles up to this row. Without a
+      // guard, dismissing the sheet (Cancel button, backdrop click) would
+      // immediately re-open it via openSheet — the user could never close it.
+      // A genuine row interaction has its target inside this <tr>; a bubbled
+      // event from the portaled sheet does not (its DOM lives under <body>).
+      onClick={(e) => {
+        if (!e.currentTarget.contains(e.target as Node)) return;
+        openSheet("name");
+      }}
       onKeyDown={(e) => {
+        if (!e.currentTarget.contains(e.target as Node)) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           openSheet("name");
@@ -111,21 +127,43 @@ export function PlayerRow({
       </td>
 
       <td className="p-3">
-        {player.buyIns.length === 0 ? (
-          <span className="text-xs text-muted-foreground">None yet.</span>
-        ) : (
-          <div className="flex flex-wrap items-center gap-1">
-            {player.buyIns.map((b) => (
-              <span
-                key={b.id}
-                className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums"
-                data-testid={`buy-in-${b.id}`}
-              >
-                {formatCents(b.amountCents)}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-2">
+          {player.buyIns.length === 0 ? (
+            <span className="text-xs text-muted-foreground">None yet.</span>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1">
+              {player.buyIns.map((b) => (
+                <span
+                  key={b.id}
+                  className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums"
+                  data-testid={`buy-in-${b.id}`}
+                >
+                  {formatCents(b.amountCents)}
+                </span>
+              ))}
+            </div>
+          )}
+          {editable && (
+            // Buy-ins open in their own modal. stopPropagation so this click
+            // (which is inside the row) doesn't also trigger the row's
+            // open-edit handler.
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                setBuyInsOpen(true);
+              }}
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-label={`Add buy-in for ${player.name}`}
+              data-testid={`pbi-open-${player.id}`}
+              className="shrink-0"
+            >
+              <Plus className="size-4" />
+            </Button>
+          )}
+        </div>
       </td>
 
       <td className="p-3 text-right tabular-nums">
@@ -136,13 +174,16 @@ export function PlayerRow({
         className="p-3 text-right tabular-nums"
         data-testid={`cash-out-${player.id}`}
       >
+        {/* `—` (em-dash) is the tabular-empty placeholder for money cells.
+            Intentional financial-UI convention, not the punctuation em-dash
+            banned in user-facing prose copy. */}
         {player.cashOutCents === null ? "—" : formatCents(player.cashOutCents)}
       </td>
 
       <td
         className={cn(
           "p-3 text-right tabular-nums",
-          totals.netCents !== null && totals.netCents < 0 && "text-destructive",
+          totals.netCents !== null && totals.netCents < 0 && "text-loss",
         )}
       >
         {totals.netCents === null
@@ -154,7 +195,10 @@ export function PlayerRow({
               : formatCents(totals.netCents)}
       </td>
 
-      {/* Sheet renders inside a Portal so it sits outside the <tr>/<td> tree. */}
+      {/* The sheet's DOM renders through a Portal (under <body>), but React
+          synthetic events still bubble up this component tree to the row's
+          handlers — which is why those handlers guard on currentTarget.contains
+          (see onClick/onKeyDown above) so dismissing the sheet can't re-open it. */}
       <td className="hidden">
         <PlayerDetailsSheet
           open={editing}
@@ -165,6 +209,16 @@ export function PlayerRow({
           initialFocus={editFocus}
           {...(onPlayerChanged ? { onPlayerChanged } : {})}
         />
+        {editable && (
+          <BuyInsModal
+            open={buyInsOpen}
+            onOpenChange={setBuyInsOpen}
+            sessionId={sessionId}
+            player={player}
+            defaultBuyInCents={defaultBuyInCents}
+            {...(onPlayerChanged ? { onPlayerChanged } : {})}
+          />
+        )}
       </td>
     </tr>
   );

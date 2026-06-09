@@ -59,9 +59,9 @@ _Flow 1: Host creates a session — happy path and silent retry on name collisio
 2. Modal prompts for player name (free text, 1–50 chars).
 3. Server validates: non-empty, unique within session (case-insensitive).
 4. Server creates Player record and writes changelog entry. Player appears in the table.
-5. If a default buy-in was set, the player's first buy-in is pre-populated (user can confirm or change).
-6. User clicks "Add Buy-in" on a player row.
-7. User enters amount (dollars and cents, e.g., $0.25).
+5. If a default buy-in was set, the player's first buy-in is created automatically on add.
+6. To record further buy-ins, the user taps the "+" on a player's card/row, which opens a dedicated Buy-ins modal (separate from the player editor).
+7. The amount is pre-filled to the session default (if set); the user confirms or changes it and taps "Add buy-in". The modal stays open for fast rebuys and also lists/removes existing buy-ins.
 8. Server converts to cents, validates (> 0), creates BuyIn record, writes changelog entry.
 9. Table updates with the new buy-in and revised totals.
 
@@ -81,8 +81,8 @@ flowchart TD
     G --> E
     F -- Yes --> H[Create Player\nWrite changelog]
     H --> I[Player in table]
-    I --> J[Click Add Buy-in]
-    J --> K[Enter amount]
+    I --> J["Tap + → Buy-ins modal"]
+    J --> K[Confirm/enter amount]
     K --> L{Amount > 0?}
     L -- No --> M[Inline error]
     M --> K

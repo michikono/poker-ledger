@@ -1,4 +1,4 @@
-export const GENERIC_ERROR = "Something went wrong — please try again.";
+export const GENERIC_ERROR = "Something went wrong. Please try again.";
 
 export type ServerActionErrorCode =
   | "UNAUTHENTICATED"
@@ -21,7 +21,7 @@ export function describeErrorCode(code: string): string {
   const narrowed = code as ServerActionErrorCode;
   switch (narrowed) {
     case "UNAUTHENTICATED":
-      return "Session expired — please sign in again.";
+      return "Session expired. Please sign in again.";
     case "SESSION_NOT_FOUND":
       return "Session not found.";
     case "SESSION_NOT_EDITABLE":
@@ -35,7 +35,7 @@ export function describeErrorCode(code: string): string {
     case "PAYMENT_NOT_FOUND":
     case "PLAYER_NOT_FOUND":
     case "BUY_IN_NOT_FOUND":
-      return "Some data is out of date — refreshing.";
+      return "Some data is out of date. Refreshing.";
     case "INVALID_INPUT":
       return "All players must have a cash-out set.";
     case "BALANCE_OUT_OF_RANGE":

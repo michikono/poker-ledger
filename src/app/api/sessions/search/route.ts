@@ -23,7 +23,7 @@ export async function GET(req: Request): Promise<Response> {
     );
   }
   try {
-    await adminAuth.verifyIdToken(token);
+    await adminAuth.verifyIdToken(token, true);
   } catch {
     return NextResponse.json(
       { error: { code: "UNAUTHENTICATED" } },

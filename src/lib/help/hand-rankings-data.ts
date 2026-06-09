@@ -29,7 +29,7 @@ export const HAND_RANKINGS = [
     oddsLabel: "1 in 30,940 (0.0032%)",
     oddsHumanReadable: "About 1 in 30,000",
     explanation:
-      "10 J Q K A all of one suit. The unbeatable hand — nothing in poker beats it.",
+      "10 J Q K A all of one suit. The unbeatable hand: nothing in poker beats it.",
     svgPath: "/help/hand-rankings/royal-flush.svg",
   },
   {

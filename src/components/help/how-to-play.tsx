@@ -25,7 +25,7 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
 
         <Section title="The goal of a hand">
           <p>
-            You want the best 5-card hand at <em>showdown</em> — the moment at
+            You want the best 5-card hand at <em>showdown</em>, the moment at
             the end of the hand when remaining players reveal their cards. Each
             player has 7 cards available: their own 2 face-down cards (their{" "}
             <em>hole cards</em>) plus the 5 shared face-up cards on the table.
@@ -49,15 +49,15 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
         <Section title="Who deals; the button">
           <p>
             Someone shuffles and deals each hand. A small puck on the table (the{" "}
-            <em>dealer button</em>) marks who is "the dealer" for that hand —
-            for accounting, that is. Even if one designated person is physically
+            <em>dealer button</em>) marks who is "the dealer" for that hand (for
+            accounting, that is). Even if one designated person is physically
             dealing all the cards, the button still moves: it shifts one seat
             clockwise after every hand. The button decides where the forced bets
             and the action start.
           </p>
         </Section>
 
-        <Section title="Forced bets — the blinds">
+        <Section title="Forced bets: the blinds">
           <p>
             Before any cards are dealt, the two players directly clockwise from
             the dealer button are required to put in money. These forced bets
@@ -72,7 +72,7 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
 
         <Section title="The deal">
           <p>
-            Each player is dealt 2 cards face-down — their hole cards. Only the
+            Each player is dealt 2 cards face-down, their hole cards. Only the
             player who got them sees them.
           </p>
         </Section>
@@ -106,7 +106,7 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
             </li>
           </ul>
           <p>
-            Visually, the four rounds look like this — each player keeps their
+            Visually, the four rounds look like this: each player keeps their
             two face-down hole cards throughout, and the shared community cards
             in the middle grow by one (or three) each round:
           </p>
@@ -114,9 +114,9 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
           <Example>
             <p>
               Pre-flop, you check your hole cards (<Hand>A♥ K♥</Hand>) and call
-              the big blind. The flop comes <Hand>A♠ 7♦ 4♣</Hand> — you bet,
-              opponent calls. The turn is <Hand>K♣</Hand> — you bet, opponent
-              calls. The river is <Hand>2♥</Hand> — you bet, and opponent folds.
+              the big blind. The flop comes <Hand>A♠ 7♦ 4♣</Hand>. You bet;
+              opponent calls. The turn is <Hand>K♣</Hand>. You bet; opponent
+              calls. The river is <Hand>2♥</Hand>. You bet, and opponent folds.
               You win the pot without showing your hand.
             </p>
           </Example>
@@ -136,31 +136,31 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
           </p>
         </Section>
 
-        <Section title="What you can do on your turn — the betting actions">
+        <Section title="What you can do on your turn: the betting actions">
           <p>When the action gets to you, here are your options:</p>
           <ul className="ml-5 list-disc space-y-1">
             <li>
-              <strong>Fold</strong> — give up your cards and exit the hand. You
+              <strong>Fold.</strong> Give up your cards and exit the hand. You
               lose anything you've already put in. You stop being part of this
               hand.
             </li>
             <li>
-              <strong>Check</strong> — pass without putting any chips in. You
+              <strong>Check.</strong> Pass without putting any chips in. You
               only have this option when nobody has put a bet in front of you
               yet this round.
             </li>
             <li>
-              <strong>Call</strong> — match the current bet to stay in the hand.
+              <strong>Call.</strong> Match the current bet to stay in the hand.
             </li>
             <li>
-              <strong>Bet</strong> — be the first this round to put chips in.
+              <strong>Bet.</strong> Be the first this round to put chips in.
               (You can only "bet" if no one has put any in yet this round.)
             </li>
             <li>
-              <strong>Raise</strong> — increase a bet that's already there.
+              <strong>Raise.</strong> Increase a bet that's already there.
             </li>
             <li>
-              <strong>All-in</strong> — push every chip you have. Always
+              <strong>All-in.</strong> Push every chip you have. Always
               available; covered separately below.
             </li>
           </ul>
@@ -200,18 +200,18 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
               <strong>Minimum bet, post-flop.</strong> The flop has been dealt;
               everyone has checked to you. If you want to bet, the smallest
               legal bet is <strong>$2</strong> (one big blind). You can always
-              go higher — $5, $20, all-in — but you can't bet $1.
+              go higher ($5, $20, all-in), but you can't bet $1.
             </p>
             <p>
               <strong>Minimum raise, pre-flop.</strong> The first player to act
-              raises the bet from $2 up to <strong>$6</strong> — a $4 raise.
+              raises the bet from $2 up to <strong>$6</strong>, a $4 raise.
             </p>
             <p>
               You want to re-raise. The most recent raise was $4, so your raise
-              has to be at least $4 on top of the current $6 bet — meaning the
+              has to be at least $4 on top of the current $6 bet, meaning the
               new total has to be at least <strong>$10</strong>. You can raise
               to $10, $20, $50, or any amount up to your stack (all-in). What
-              you <em>can't</em> do is raise to, say, $7 or $9 — that's smaller
+              you <em>can't</em> do is raise to, say, $7 or $9. That's smaller
               than the previous raise and not legal.
             </p>
           </Example>
@@ -234,13 +234,13 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
               The first $50 from each player ($150 total) goes into the{" "}
               <strong>main pot</strong>. A can win this. The next $50 from B and
               C ($100 total) goes into <strong>side pot 1</strong>. Only B and C
-              can win this — A is already capped out. C's last $100 has nothing
+              can win this; A is already capped out. C's last $100 has nothing
               to call (since B is out of chips), so it's returned to C uncalled.
             </p>
           </Example>
         </Section>
 
-        <Section title="Showdown — who wins">
+        <Section title="Showdown: who wins">
           <p>
             If two or more players are still in after the river's betting round,
             they show their cards. The last player who put in a bet or raise on
@@ -254,14 +254,14 @@ export function HowToPlayGuide({ open, onOpenChange }: HowToPlayGuideProps) {
               show first because you were the last aggressor: <Hand>A♥ K♥</Hand>{" "}
               giving you two pair, aces and kings. Opponent shows{" "}
               <Hand>8♠ 8♣</Hand> giving them three eights ("three of a kind").
-              Three of a kind beats two pair — opponent wins.
+              Three of a kind beats two pair. Opponent wins.
             </p>
           </Example>
         </Section>
 
         <Section title="Buying in">
           <p>
-            When you sit down at the table, you exchange cash for chips — that's
+            When you sit down at the table, you exchange cash for chips. That's
             your <em>buy-in</em>. There's no fixed minimum or maximum at this
             table; players agree on a sensible buy-in on the spot. (A common
             starter for a casual cash game is around 50× the big blind, but it's

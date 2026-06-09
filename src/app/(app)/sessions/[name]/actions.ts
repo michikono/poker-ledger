@@ -55,7 +55,7 @@ function errFromCode(code: string) {
 
 async function authenticate(token: string) {
   try {
-    const decoded = await adminAuth.verifyIdToken(token);
+    const decoded = await adminAuth.verifyIdToken(token, true);
     return { ok: true as const, decoded };
   } catch {
     return { ok: false as const };
