@@ -1,7 +1,7 @@
 # Change 0024: Log initial (default) buy-ins as events + newest-first buy-in order
 
 ## Status
-Proposed
+Accepted
 
 ## Owner
 Michi Kono
@@ -120,3 +120,4 @@ None blocking.
 | Date | Status | Notes |
 |---|---|---|
 | 2026-06-09 | Proposed | Initial draft |
+| 2026-06-09 | Accepted | Approved by owner; implementation started |
