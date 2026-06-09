@@ -19,8 +19,10 @@ import { withToken } from "@/lib/auth/client-token";
 import { formatCents } from "@/lib/currency/format";
 import { parseDollars } from "@/lib/currency/parse";
 import { describeErrorCode } from "@/lib/errors/messages";
+import { cn } from "@/lib/utils";
 import { addBuyIn, removeBuyIn } from "./actions";
-import type { SessionPlayerView } from "./page";
+import { formatRelativeTime } from "./format-log";
+import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 
 type RowError = { kind: "validation" | "generic"; message: string } | null;
 
@@ -31,6 +33,11 @@ export type BuyInsModalProps = {
   player: SessionPlayerView;
   /** Session default buy-in; prefills the amount when set (> 0). */
   defaultBuyInCents: number | null;
+  /**
+   * This player's buy-in events (adds + removals), newest-first, derived from
+   * the session change_log. Read-only — shown in the History section.
+   */
+  history: BuyInHistoryEntry[];
   /** Flash the player's row/card after an add or remove. */
   onPlayerChanged?: (playerId: string) => void;
 };
@@ -47,6 +54,7 @@ export function BuyInsModal({
   sessionId,
   player,
   defaultBuyInCents,
+  history,
   onPlayerChanged,
 }: BuyInsModalProps) {
   const router = useRouter();
@@ -259,9 +267,12 @@ export function BuyInsModal({
                     aria-invalid={addError ? true : undefined}
                     className="tabular-nums"
                   />
+                  {/* Buttons here use the default size scale (h-11 mobile /
+                      h-8 desktop) — the same scale as the edit sheet and the
+                      confirm dialogs. No ad-hoc `touch`: default already meets
+                      the >=44px mobile target. */}
                   <Button
                     type="submit"
-                    size="touch"
                     variant={amount.trim() ? "default" : "outline"}
                     disabled={busy || !amount.trim()}
                     data-testid={`pbi-add-${player.id}`}
@@ -304,13 +315,20 @@ export function BuyInsModal({
                           className="flex items-center justify-between gap-3 px-3 py-2"
                           data-testid={`pbi-row-${b.id}`}
                         >
-                          <span className="text-base font-medium tabular-nums">
-                            {formatCents(b.amountCents)}
+                          <span className="flex flex-col gap-0.5">
+                            <span className="text-base font-medium tabular-nums">
+                              {formatCents(b.amountCents)}
+                            </span>
+                            <span
+                              className="text-xs text-muted-foreground"
+                              data-testid={`pbi-row-time-${b.id}`}
+                            >
+                              added {formatRelativeTime(b.createdAt)}
+                            </span>
                           </span>
                           <Button
                             type="button"
                             variant="outline"
-                            size="touch"
                             onClick={() => void handleRemove(b.id)}
                             disabled={busy}
                             aria-label={`Remove ${formatCents(b.amountCents)} buy-in`}
@@ -334,6 +352,52 @@ export function BuyInsModal({
                     </p>
                   )}
                 </section>
+
+                {/* Read-only history: every add and removal for this player so
+                    it's clear which buy-ins are valid and what changed. Newest
+                    first; sourced from the change_log (last 200 events). */}
+                {history.length > 0 && (
+                  <section
+                    className="flex flex-col gap-2"
+                    data-testid={`pbi-history-${player.id}`}
+                  >
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      History
+                    </h3>
+                    <ul className="flex flex-col gap-1">
+                      {history.map((e) => {
+                        const removed = e.kind === "removed";
+                        return (
+                          <li
+                            key={e.id}
+                            className="flex items-baseline justify-between gap-3 text-sm"
+                            data-testid={`pbi-history-${e.id}`}
+                          >
+                            <span
+                              className={cn(
+                                "tabular-nums",
+                                removed
+                                  ? "text-muted-foreground line-through"
+                                  : "font-medium",
+                              )}
+                            >
+                              {removed ? "−" : "+"}
+                              {formatCents(e.amountCents)}
+                              {removed && (
+                                <span className="ml-1.5 align-middle text-[11px] uppercase tracking-wide no-underline">
+                                  removed
+                                </span>
+                              )}
+                            </span>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {e.actorName} · {formatRelativeTime(e.createdAt)}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                )}
               </div>
             </div>
           </DialogPrimitive.Popup>

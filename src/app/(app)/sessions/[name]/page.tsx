@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { adminDb } from "@/lib/firebase/admin";
 import { asSessionStatus, tsToIso } from "@/lib/firestore/serialize";
 import type { SessionStatus } from "@/lib/sessions/types";
+import { groupBuyInHistory } from "./buy-in-history";
 import { SessionView } from "./session-view";
+
+export type { BuyInHistoryEntry } from "./buy-in-history";
 
 export type SessionPlayerView = {
   id: string;
@@ -141,6 +144,23 @@ export default async function SessionPage({
     };
   });
 
+  // Per-player buy-in history (adds + removals) for the Buy-ins modal. Derived
+  // from the same (newest-first) change_log read, so it inherits its 200-entry
+  // cap — older buy-in events beyond that window aren't shown. `metadata` is
+  // only available here on the raw docs (SessionLogView intentionally omits it).
+  const buyInHistoryByPlayer = groupBuyInHistory(
+    sortedLogDocs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        actionType: (data.action_type as string) ?? "",
+        actorName: (data.actor_name as string) ?? "Anonymous",
+        createdAt: tsToIso(data.created_at),
+        metadata: (data.metadata ?? {}) as Record<string, unknown>,
+      };
+    }),
+  );
+
   const session: SessionViewModel = {
     id: name,
     name: (sessionData.name as string) ?? name,
@@ -163,6 +183,7 @@ export default async function SessionPage({
       players={players}
       payments={payments}
       log={log}
+      buyInHistoryByPlayer={buyInHistoryByPlayer}
     />
   );
 }

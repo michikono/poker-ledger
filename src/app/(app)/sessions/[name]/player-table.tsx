@@ -2,7 +2,7 @@
 
 import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
-import type { SessionPlayerView } from "./page";
+import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 import { PlayerRow, type PlayerRowHandle } from "./player-row";
 import type { SessionTotals } from "./totals";
 
@@ -11,6 +11,7 @@ export function PlayerTable({
   status,
   players,
   defaultBuyInCents,
+  buyInHistoryByPlayer,
   totals,
   highlightedId,
   onPlayerChanged,
@@ -20,6 +21,7 @@ export function PlayerTable({
   status: SessionStatus;
   players: SessionPlayerView[];
   defaultBuyInCents: number | null;
+  buyInHistoryByPlayer: Record<string, BuyInHistoryEntry[]>;
   totals: SessionTotals;
   highlightedId?: string | null;
   onPlayerChanged?: (playerId: string) => void;
@@ -45,6 +47,7 @@ export function PlayerTable({
               status={status}
               player={p}
               defaultBuyInCents={defaultBuyInCents}
+              buyInHistory={buyInHistoryByPlayer[p.id] ?? []}
               highlighted={highlightedId === p.id}
               {...(onPlayerChanged ? { onPlayerChanged } : {})}
               ref={(handle) => {

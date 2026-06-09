@@ -1,7 +1,7 @@
 # Change 0023: Buy-in timestamps + per-player history, and a button-size audit
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -91,13 +91,13 @@ None.
 
 ## Acceptance criteria
 
-- [ ] Current buy-in rows show "added {relative time}".
-- [ ] A read-only per-player History section lists adds and removals (amount, actor, relative time), newest-first, removals visually distinct; absent when empty.
-- [ ] Card "+" is labeled "Buy in"; "Tap to edit" sits next to the name, clearly separate from the "+".
-- [ ] Button sizes are consistent across the Buy-ins modal, edit sheet, settling modal, and confirm dialogs (one scale; ≥44px mobile).
-- [ ] No regressions to add/remove/prefill/discard behavior or totals.
-- [ ] All quality gates pass; verified in-browser on mobile (375px) and desktop.
-- [ ] Spec conformance review completed; relevant docs checked.
+- [x] Current buy-in rows show "added {relative time}".
+- [x] A read-only per-player History section lists adds and removals (amount, actor, relative time), newest-first, removals visually distinct; absent when empty.
+- [x] Card "+" is labeled "Buy in"; "Tap to edit" sits next to the name, clearly separate from the "+".
+- [x] Button sizes are consistent across the Buy-ins modal, edit sheet, settling modal, and confirm dialogs (one scale; ≥44px mobile). Audit found the Buy-ins modal's `touch` overrides were the only deviation — normalized to `default`; the other modals already used `default`.
+- [x] No regressions to add/remove/prefill/discard behavior or totals.
+- [x] All quality gates pass (667 unit tests + build); verified in-browser on mobile (393px) and desktop.
+- [x] Spec conformance review completed; relevant docs checked (no diagram changes needed).
 
 ## Rollout/deployment notes
 
@@ -130,3 +130,4 @@ None blocking. (Resolved: history shows adds + removals read-only below the edit
 |---|---|---|
 | 2026-06-09 | Proposed | Initial draft |
 | 2026-06-09 | Accepted | Approved by owner; implementation started |
+| 2026-06-09 | Implemented | Built; all gates green; verified in-browser mobile + desktop |

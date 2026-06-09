@@ -60,6 +60,7 @@ function renderCard(
       status={status}
       player={player}
       defaultBuyInCents={defaultBuyInCents}
+      buyInHistory={[]}
     />,
   );
 }
@@ -196,6 +197,14 @@ describe("PlayerCard — interaction", () => {
     expect(
       screen.queryByTestId("player-details-sheet-p1"),
     ).not.toBeInTheDocument();
+  });
+
+  it("labels the buy-in affordance 'Buy in' (visible + accessible)", () => {
+    renderCard(makePlayer({ id: "p1", name: "Alice" }));
+
+    const open = screen.getByTestId("pbi-open-p1");
+    expect(open).toHaveAccessibleName("Add buy-in for Alice");
+    expect(open.textContent).toMatch(/Buy in/i);
   });
 
   it("prefills the buy-in amount from the session default", () => {

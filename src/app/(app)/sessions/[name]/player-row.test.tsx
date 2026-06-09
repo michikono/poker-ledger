@@ -60,6 +60,7 @@ function renderRow(
           status={status}
           player={player}
           defaultBuyInCents={defaultBuyInCents}
+          buyInHistory={[]}
         />
       </tbody>
     </table>,

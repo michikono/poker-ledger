@@ -14,7 +14,7 @@ import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { cn } from "@/lib/utils";
 import { BuyInsModal } from "./buy-ins-modal";
-import type { SessionPlayerView } from "./page";
+import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 import { PlayerDetailsSheet } from "./player-details-sheet";
 import { computePlayerTotals } from "./totals";
 
@@ -32,6 +32,7 @@ export function PlayerRow({
   status,
   player,
   defaultBuyInCents,
+  buyInHistory,
   highlighted,
   onPlayerChanged,
   ref,
@@ -40,6 +41,7 @@ export function PlayerRow({
   status: SessionStatus;
   player: SessionPlayerView;
   defaultBuyInCents: number | null;
+  buyInHistory: BuyInHistoryEntry[];
   highlighted?: boolean;
   onPlayerChanged?: (playerId: string) => void;
   ref?: Ref<PlayerRowHandle>;
@@ -216,6 +218,7 @@ export function PlayerRow({
             sessionId={sessionId}
             player={player}
             defaultBuyInCents={defaultBuyInCents}
+            history={buyInHistory}
             {...(onPlayerChanged ? { onPlayerChanged } : {})}
           />
         )}
