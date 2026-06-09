@@ -366,8 +366,10 @@ export function PlayerDetailsSheet({
                   {anyFieldEditable ? "Cancel" : "Close"}
                 </Button>
               </div>
+              {/* Name the player so it's clear whose details these are. Uses
+                  the persisted name (stable while the name field is edited). */}
               <DialogPrimitive.Title className="truncate text-center font-heading text-base font-medium">
-                {inProgress ? "Edit player" : "Player details"}
+                {inProgress ? `Edit ${player.name}` : player.name}
               </DialogPrimitive.Title>
               <div className="justify-self-end">
                 {anyFieldEditable && (
@@ -388,7 +390,7 @@ export function PlayerDetailsSheet({
               </div>
               <DialogPrimitive.Description className="sr-only">
                 {inProgress
-                  ? "Update name, Venmo handle, cash-out, and buy-ins."
+                  ? "Update name, Venmo handle, and cash-out."
                   : venmoEditable
                     ? "Update the Venmo handle. Other fields are locked while the session is settling."
                     : "Read-only. This session can no longer be edited."}

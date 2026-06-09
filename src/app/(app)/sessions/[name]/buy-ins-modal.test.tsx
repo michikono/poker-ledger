@@ -67,6 +67,19 @@ beforeEach(() => {
   });
 });
 
+describe("BuyInsModal — header", () => {
+  it("titles the modal with the player's name and describes the action", () => {
+    renderModal(makePlayer({ id: "p1", name: "Alice" }));
+
+    // WHO: the title is the player's name.
+    expect(screen.getByRole("heading", { name: "Alice" })).toBeInTheDocument();
+    // ACTION: the description states what the user is about to do.
+    expect(
+      screen.getByText(/Add a buy-in to get started/i),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("BuyInsModal — prefill", () => {
   it("prefills the amount from the session default", () => {
     renderModal(makePlayer({ id: "p1", name: "Alice" }), 2500);
