@@ -1,7 +1,7 @@
 # Change 0022: Dedicated Buy-ins modal + per-player "+" affordance
 
 ## Status
-Proposed
+Accepted
 
 ## Owner
 Michi Kono
@@ -149,3 +149,4 @@ None blocking. (Resolved in planning: "+" opens the modal prefilled rather than 
 | Date | Status | Notes |
 |---|---|---|
 | 2026-06-08 | Proposed | Initial draft |
+| 2026-06-08 | Accepted | Approved by owner; implementation started |
