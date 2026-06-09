@@ -1,7 +1,7 @@
 # Change 0022: Dedicated Buy-ins modal + per-player "+" affordance
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -50,7 +50,7 @@ None. Buy-ins remain `sessions/{id}/players/{id}/buy_ins/{id}` with `amount_cent
 
 ## Diagram impact
 
-- `docs/01-user-flows.md` — if a buy-in flow is depicted, update it to show the buy-in entry point as the per-player "+" → Buy-ins modal rather than via the Edit modal. (Verify during implementation; if no such diagram exists, "None.")
+- `docs/01-user-flows.md` — Flow 2 ("Adds a Player and Records Buy-ins"): updated prose + flowchart so the buy-in entry point is the per-player "+" → Buy-ins modal. (Done.) No other diagrams affected.
 
 ## API impact
 
@@ -97,15 +97,15 @@ Pure logic (amount parsing/validation) already lives in `parseDollars` and is co
 
 ## Acceptance criteria
 
-- [ ] A `BuyInsModal` exists; the "+" on each in-progress player card (mobile) and row (desktop) opens it, prefilled to the session default (empty when unset).
-- [ ] Adding keeps the modal open, resets to the prefill, updates the list/total, and toasts; removing works.
-- [ ] Closing with an untouched prefill is frictionless; closing with a changed-but-unadded amount prompts to discard.
-- [ ] The Edit modal shows no buy-in section in in_progress, settling, and archived; the card/row still show the buy-in total.
-- [ ] No "+" / Buy-ins modal appears in settling / settled / archived.
-- [ ] Mobile-first: "+" tap target ≥44px on mobile; modal is full-bleed with a scrolling body and safe-area padding; no horizontal scroll at 360px width.
-- [ ] All quality gates pass (or failures documented with remediation plan).
-- [ ] Spec conformance review completed.
-- [ ] Relevant docs/diagrams updated.
+- [x] A `BuyInsModal` exists; the "+" on each in-progress player card (mobile) and row (desktop) opens it, prefilled to the session default (empty when unset).
+- [x] Adding keeps the modal open, resets to the prefill, updates the list/total, and toasts; removing works.
+- [x] Closing with an untouched prefill is frictionless; closing with a changed-but-unadded amount prompts to discard.
+- [x] The Edit modal shows no buy-in section in in_progress, settling, and archived; the card/row still show the buy-in total.
+- [x] No "+" / Buy-ins modal appears in settling / settled / archived.
+- [x] Mobile-first: "+" tap target ≥44px on mobile (verified 48px); modal is full-bleed with a scrolling body and safe-area padding; no horizontal scroll at 393px width.
+- [x] All quality gates pass (format, lint, type-check, 656 unit tests, build).
+- [x] Spec conformance review completed.
+- [x] Relevant docs/diagrams updated (`docs/01-user-flows.md` Flow 2 prose + diagram now reflect the "+" → Buy-ins modal).
 
 ## Rollout/deployment notes
 
@@ -150,3 +150,4 @@ None blocking. (Resolved in planning: "+" opens the modal prefilled rather than 
 |---|---|---|
 | 2026-06-08 | Proposed | Initial draft |
 | 2026-06-08 | Accepted | Approved by owner; implementation started |
+| 2026-06-08 | Implemented | Built, all gates green (656 unit tests + build), verified in-browser on mobile + desktop |

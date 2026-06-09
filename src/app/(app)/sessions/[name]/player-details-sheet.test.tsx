@@ -77,104 +77,34 @@ beforeEach(() => {
   });
 });
 
-describe("PlayerDetailsSheet — inline Add buy-in", () => {
-  it("calls addBuyIn (not updatePlayer/setCashOut) when the inline Add button is clicked", async () => {
-    mocks.addBuyIn.mockResolvedValueOnce({
-      success: true,
-      data: { buyInId: "b1" },
-    });
-    renderSheet();
-
-    const input = screen.getByTestId(
-      "pds-add-buy-in-form-p1",
-    ) as HTMLFormElement;
-    const amount = input.querySelector("input") as HTMLInputElement;
-    fireEvent.change(amount, { target: { value: "20" } });
-
-    const addBtn = screen.getByTestId("pds-add-buy-in-submit-p1");
-    await act(async () => {
-      fireEvent.click(addBtn);
-    });
-
-    expect(mocks.addBuyIn).toHaveBeenCalledTimes(1);
-    expect(mocks.addBuyIn).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1", amountCents: 2000 },
-      "tok",
-    );
-    // Critical regression guard: clicking the inline Add button must NOT
-    // accidentally trigger the outer save handler (which previously happened
-    // because nested <form> elements get flattened by browsers).
-    expect(mocks.updatePlayer).not.toHaveBeenCalled();
-    expect(mocks.setCashOut).not.toHaveBeenCalled();
-  });
-
-  it("Add buy-in is disabled while empty and activates once an amount is typed", () => {
-    renderSheet();
-
-    const addBtn = screen.getByTestId(
-      "pds-add-buy-in-submit-p1",
-    ) as HTMLButtonElement;
-    // Nothing typed yet — there's nothing to add.
-    expect(addBtn.disabled).toBe(true);
-
-    const form = screen.getByTestId("pds-add-buy-in-form-p1");
-    const amount = form.querySelector("input") as HTMLInputElement;
-    fireEvent.change(amount, { target: { value: "20" } });
-
-    // A value is present — the button activates so the user notices it.
-    expect(addBtn.disabled).toBe(false);
-  });
-
-  it("validates the amount when Enter is pressed on an empty field", async () => {
-    renderSheet();
-
-    const form = screen.getByTestId("pds-add-buy-in-form-p1");
-    const amount = form.querySelector("input") as HTMLInputElement;
-    await act(async () => {
-      fireEvent.keyDown(amount, { key: "Enter" });
-    });
-
-    expect(mocks.addBuyIn).not.toHaveBeenCalled();
-    expect(screen.getByText(/Enter an amount/)).toBeInTheDocument();
-  });
-
-  it("submits Add via Enter on the amount input without triggering the outer save", async () => {
-    mocks.addBuyIn.mockResolvedValueOnce({
-      success: true,
-      data: { buyInId: "b1" },
-    });
-    renderSheet();
-
-    const form = screen.getByTestId("pds-add-buy-in-form-p1");
-    const amount = form.querySelector("input") as HTMLInputElement;
-    fireEvent.change(amount, { target: { value: "15" } });
-    await act(async () => {
-      fireEvent.keyDown(amount, { key: "Enter" });
-    });
-
-    expect(mocks.addBuyIn).toHaveBeenCalledTimes(1);
-    expect(mocks.addBuyIn).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1", amountCents: 1500 },
-      "tok",
-    );
-    expect(mocks.updatePlayer).not.toHaveBeenCalled();
-    expect(mocks.setCashOut).not.toHaveBeenCalled();
-  });
-
-  it("orders fields: name → venmo → add buy-in → buy-ins list → cash out → delete", () => {
+describe("PlayerDetailsSheet — no buy-in section (0022)", () => {
+  // Buy-ins now live in their own BuyInsModal; the edit sheet must show no
+  // buy-in UI in any status.
+  it.each([
+    "in_progress",
+    "settling",
+    "archived",
+  ] as const)("renders no add field, list, or sum line when %s", (status) => {
     renderSheet(
       makePlayer({
         id: "p1",
         name: "Alice",
         buyIns: [
-          {
-            id: "b1",
-            amountCents: 2500,
-            createdAt: new Date().toISOString(),
-          },
+          { id: "b1", amountCents: 2500, createdAt: new Date().toISOString() },
         ],
       }),
+      status,
     );
+
+    expect(
+      screen.queryByTestId("pds-add-buy-in-form-p1"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("pds-buy-in-b1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("pds-buy-ins-sum-p1")).not.toBeInTheDocument();
+  });
+
+  it("orders the remaining fields: name → venmo → cash out → delete", () => {
+    renderSheet(makePlayer({ id: "p1", name: "Alice" }));
 
     const sheet = screen.getByTestId("player-details-sheet-p1");
     const indexOf = (testId: string) => {
@@ -188,69 +118,12 @@ describe("PlayerDetailsSheet — inline Add buy-in", () => {
 
     const nameLabel = labelIndex(/^Name$/);
     const venmoLabel = labelIndex(/^Venmo handle$/);
-    const addForm = indexOf("pds-add-buy-in-form-p1");
-    const buyIn = indexOf("pds-buy-in-b1");
     const cashOutLabel = labelIndex(/^Cash out$/);
     const deleteBtn = indexOf("pds-delete-p1");
 
     expect(nameLabel).toBeLessThan(venmoLabel);
-    expect(venmoLabel).toBeLessThan(addForm);
-    expect(addForm).toBeLessThan(buyIn);
-    expect(buyIn).toBeLessThan(cashOutLabel);
+    expect(venmoLabel).toBeLessThan(cashOutLabel);
     expect(cashOutLabel).toBeLessThan(deleteBtn);
-  });
-
-  it("renders the Add a buy-in BEFORE the existing buy-ins list", () => {
-    renderSheet(
-      makePlayer({
-        id: "p1",
-        name: "Alice",
-        buyIns: [
-          {
-            id: "b1",
-            amountCents: 2500,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      }),
-    );
-
-    const addForm = screen.getByTestId("pds-add-buy-in-form-p1");
-    const buyInRow = screen.getByTestId("pds-buy-in-b1");
-    // DOCUMENT_POSITION_FOLLOWING (4) means buyInRow follows addForm in the
-    // DOM. Asserting order so a future refactor can't quietly flip them back.
-    expect(
-      addForm.compareDocumentPosition(buyInRow) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-
-  it("removes a buy-in via the row-level Remove button", async () => {
-    mocks.removeBuyIn.mockResolvedValueOnce({ success: true });
-    renderSheet(
-      makePlayer({
-        id: "p1",
-        name: "Alice",
-        buyIns: [
-          {
-            id: "b1",
-            amountCents: 2500,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      }),
-    );
-
-    const remove = screen.getByTestId("pds-remove-buy-in-b1");
-    await act(async () => {
-      fireEvent.click(remove);
-    });
-
-    expect(mocks.removeBuyIn).toHaveBeenCalledTimes(1);
-    expect(mocks.removeBuyIn).toHaveBeenCalledWith(
-      { sessionId: "s1", playerId: "p1", buyInId: "b1" },
-      "tok",
-    );
   });
 });
 
@@ -383,21 +256,6 @@ describe("PlayerDetailsSheet — discard guard", () => {
     expect(mocks.updatePlayer).not.toHaveBeenCalled();
     expect(mocks.setCashOut).not.toHaveBeenCalled();
   });
-
-  it("a typed-but-unadded buy-in counts as a pending change on close", () => {
-    // The reported trap: type a buy-in amount, forget to press Add, then close
-    // — the value would silently vanish. Closing must warn first.
-    const { onOpenChange } = renderSheet();
-
-    const form = screen.getByTestId("pds-add-buy-in-form-p1");
-    const amount = form.querySelector("input") as HTMLInputElement;
-    fireEvent.change(amount, { target: { value: "20" } });
-
-    fireEvent.click(screen.getByTestId("pds-cancel-p1"));
-
-    expect(screen.getByTestId("pds-discard-confirm-p1")).toBeInTheDocument();
-    expect(onOpenChange).not.toHaveBeenCalled();
-  });
 });
 
 describe("PlayerDetailsSheet — settling mode", () => {
@@ -436,12 +294,10 @@ describe("PlayerDetailsSheet — settling mode", () => {
     expect(venmoInput.disabled).toBe(false);
   });
 
-  it("collapses buy-ins to a single sum line (no list, no add buy-in)", () => {
+  it("shows no buy-in section in settling (buy-ins live in their own modal)", () => {
     renderSheet(makeSettlingPlayer(), "settling");
 
-    const sum = screen.getByTestId("pds-buy-ins-sum-p1");
-    expect(sum.textContent).toMatch(/\$50\.00/);
-    expect(sum.textContent).toMatch(/2 buy-ins/);
+    expect(screen.queryByTestId("pds-buy-ins-sum-p1")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pds-buy-in-b1")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("pds-add-buy-in-form-p1"),

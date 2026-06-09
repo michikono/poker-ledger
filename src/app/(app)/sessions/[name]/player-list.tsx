@@ -25,11 +25,13 @@ export function PlayerList({
   sessionId,
   status,
   players,
+  defaultBuyInCents,
   playerRowsRef,
 }: {
   sessionId: string;
   status: SessionStatus;
   players: SessionPlayerView[];
+  defaultBuyInCents: number | null;
   playerRowsRef?: { current: Map<string, PlayerRowHandle> };
 }) {
   const router = useRouter();
@@ -175,6 +177,7 @@ export function PlayerList({
                 sessionId={sessionId}
                 status={status}
                 player={p}
+                defaultBuyInCents={defaultBuyInCents}
                 highlighted={highlightedId === p.id}
                 onPlayerChanged={highlight}
                 ref={(handle) => {
@@ -195,6 +198,7 @@ export function PlayerList({
               sessionId={sessionId}
               status={status}
               players={players}
+              defaultBuyInCents={defaultBuyInCents}
               totals={totals}
               highlightedId={highlightedId}
               onPlayerChanged={highlight}
