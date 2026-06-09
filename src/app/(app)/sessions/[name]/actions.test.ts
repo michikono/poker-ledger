@@ -279,8 +279,9 @@ describe("addPlayer", () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.playerId).toBeTruthy();
 
-    // 3 sets: player, default buy-in, changelog
-    expect(txSet).toHaveBeenCalledTimes(3);
+    // 4 sets: player, player_added changelog, default buy-in, buy_in_added
+    // changelog (the starting buy-in is logged for balance lineage).
+    expect(txSet).toHaveBeenCalledTimes(4);
     // 1 update on session for player_count + updated_at
     expect(txUpdate).toHaveBeenCalledTimes(1);
 
@@ -292,26 +293,51 @@ describe("addPlayer", () => {
       created_by_uid: "u1",
     });
 
-    const buyInWrite = txSet.mock.calls[1]?.[1] as Record<string, unknown>;
-    expect(buyInWrite).toMatchObject({ amount_cents: 5000 });
-
-    const changelogWrite = txSet.mock.calls[2]?.[1] as Record<string, unknown>;
-    expect(changelogWrite).toMatchObject({
+    const playerAddedWrite = txSet.mock.calls[1]?.[1] as Record<
+      string,
+      unknown
+    >;
+    expect(playerAddedWrite).toMatchObject({
       action_type: "player_added",
       actor_uid: "u1",
       actor_name: "Alice",
+      seq: 0,
     });
+
+    const buyInWrite = txSet.mock.calls[2]?.[1] as Record<string, unknown>;
+    expect(buyInWrite).toMatchObject({ amount_cents: 5000 });
+
+    // The starting buy-in is logged as a buy_in_added event so it shows in the
+    // player's History — same shape as a manual buy-in, ordered after
+    // player_added via seq.
+    const startingBuyInLog = txSet.mock.calls[3]?.[1] as Record<
+      string,
+      unknown
+    >;
+    expect(startingBuyInLog).toMatchObject({
+      action_type: "buy_in_added",
+      actor_name: "Alice",
+      seq: 1,
+      metadata: { player_id: expect.any(String), amount_cents: 5000 },
+    });
+    expect(
+      (startingBuyInLog.metadata as Record<string, unknown>).buy_in_id,
+    ).toBeTruthy();
   });
 
-  it("does not create a buy-in when default_buy_in_cents is null", async () => {
+  it("does not create a buy-in or buy_in_added event when default is null", async () => {
     queueGets(
       snap({ status: "in_progress", default_buy_in_cents: null }),
       querySnap([]),
     );
     const result = await addPlayer({ sessionId: "s1", name: "Bob" }, "tok");
     expect(result.success).toBe(true);
-    // 2 sets: player, changelog
+    // 2 sets: player, player_added changelog (no buy-in, no buy_in_added).
     expect(txSet).toHaveBeenCalledTimes(2);
+    const types = txSet.mock.calls.map(
+      (c) => (c[1] as Record<string, unknown>).action_type,
+    );
+    expect(types).not.toContain("buy_in_added");
   });
 });
 

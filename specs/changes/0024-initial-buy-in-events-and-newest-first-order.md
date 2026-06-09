@@ -1,7 +1,7 @@
 # Change 0024: Log initial (default) buy-ins as events + newest-first buy-in order
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -82,12 +82,12 @@ None.
 
 ## Acceptance criteria
 
-- [ ] Adding a player with a default buy-in writes a `buy_in_added` changelog entry (correct metadata + a `seq` placing it after `player_added`); no such entry when there's no default.
-- [ ] That initial buy-in appears in the player's History and the Activity log.
-- [ ] Buy-ins render newest-first in the card pills, row pills, and the Buy-ins modal current list — matching History.
-- [ ] Totals, add/remove, and discard behavior unchanged.
-- [ ] All quality gates pass; verified in-browser (mobile + desktop): add a player with a default → open Buy-ins → the starting buy-in shows in History; multiple buy-ins list newest-first.
-- [ ] Spec conformance review completed.
+- [x] Adding a player with a default buy-in writes a `buy_in_added` changelog entry (correct metadata + `seq: 1`, after `player_added`'s `seq: 0`); no such entry when there's no default.
+- [x] That initial buy-in appears in the player's History and the Activity log (verified: "starting buy-in" in the log, `+$25.00` in History).
+- [x] Buy-ins render newest-first in the card pills, row pills, and the Buy-ins modal current list (verified: $40 above $25 after a second add) — matching History.
+- [x] Totals, add/remove, and discard behavior unchanged.
+- [x] All quality gates pass (667 unit tests + build); verified in-browser on mobile (393px) and desktop.
+- [x] Spec conformance review completed.
 
 ## Rollout/deployment notes
 
@@ -121,3 +121,4 @@ None blocking.
 |---|---|---|
 | 2026-06-09 | Proposed | Initial draft |
 | 2026-06-09 | Accepted | Approved by owner; implementation started |
+| 2026-06-09 | Implemented | Built; all gates green; verified in-browser mobile + desktop |

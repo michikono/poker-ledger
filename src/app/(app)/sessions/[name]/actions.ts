@@ -132,20 +132,17 @@ export async function addPlayer(
         updated_at: FieldValue.serverTimestamp(),
       });
 
-      if (typeof defaultBuyIn === "number" && defaultBuyIn > 0) {
-        const buyInRef = newPlayerRef.collection("buy_ins").doc();
-        tx.set(buyInRef, {
-          amount_cents: defaultBuyIn,
-          created_by_uid: auth.decoded.uid,
-          created_at: FieldValue.serverTimestamp(),
-        });
-      }
+      const hasDefaultBuyIn =
+        typeof defaultBuyIn === "number" && defaultBuyIn > 0;
 
       tx.update(sessionRef, {
         player_count: FieldValue.increment(1),
         updated_at: FieldValue.serverTimestamp(),
       });
 
+      // player_added and the starting-buy-in event share a server timestamp
+      // (same transaction), so `seq` orders them: the buy-in (seq 1) sorts just
+      // after "added player" (seq 0) in the newest-first log.
       const changelogRef = sessionRef.collection("change_log").doc();
       tx.set(changelogRef, {
         actor_uid: auth.decoded.uid,
@@ -156,8 +153,37 @@ export async function addPlayer(
           player_id: newPlayerRef.id,
           player_name: trimmed,
         },
+        seq: 0,
         created_at: FieldValue.serverTimestamp(),
       });
+
+      // Auto-apply the session default buy-in AND log it as a real
+      // buy_in_added event so the player's balance lineage is complete in the
+      // History / Activity log. Reuses buy_in_added (same metadata) so existing
+      // grouping renders it like any other buy-in.
+      if (hasDefaultBuyIn) {
+        const buyInRef = newPlayerRef.collection("buy_ins").doc();
+        tx.set(buyInRef, {
+          amount_cents: defaultBuyIn,
+          created_by_uid: auth.decoded.uid,
+          created_at: FieldValue.serverTimestamp(),
+        });
+
+        const initialBuyInLogRef = sessionRef.collection("change_log").doc();
+        tx.set(initialBuyInLogRef, {
+          actor_uid: auth.decoded.uid,
+          actor_name: actorName,
+          action_type: "buy_in_added",
+          description: `${actorName} added ${moneyMd(defaultBuyIn)} starting buy-in for ${trimmed}.`,
+          metadata: {
+            player_id: newPlayerRef.id,
+            amount_cents: defaultBuyIn,
+            buy_in_id: buyInRef.id,
+          },
+          seq: 1,
+          created_at: FieldValue.serverTimestamp(),
+        });
+      }
 
       return newPlayerRef.id;
     });

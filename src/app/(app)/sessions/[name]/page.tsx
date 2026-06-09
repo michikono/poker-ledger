@@ -71,9 +71,11 @@ export default async function SessionPage({
 
   const buyInsByPlayer = await Promise.all(
     playersSnap.docs.map(async (doc) => {
+      // Newest-first so the card pills, row pills, and Buy-ins modal list all
+      // match the History section's ordering. Totals are order-independent.
       const buyInsSnap = await doc.ref
         .collection("buy_ins")
-        .orderBy("created_at", "asc")
+        .orderBy("created_at", "desc")
         .get();
       return buyInsSnap.docs.map((b) => ({
         id: b.id,
