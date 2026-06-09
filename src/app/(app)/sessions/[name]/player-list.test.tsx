@@ -63,6 +63,7 @@ function renderList(options: { players?: SessionPlayerView[] } = {}) {
       status="in_progress"
       players={players}
       defaultBuyInCents={null}
+      buyInHistoryByPlayer={{}}
     />,
   );
 }

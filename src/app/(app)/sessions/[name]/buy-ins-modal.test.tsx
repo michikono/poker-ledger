@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -26,7 +26,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { BuyInsModal } from "./buy-ins-modal";
-import type { SessionPlayerView } from "./page";
+import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 
 function makePlayer(
   partial: Partial<SessionPlayerView> & Pick<SessionPlayerView, "id" | "name">,
@@ -43,6 +43,7 @@ function makePlayer(
 function renderModal(
   player: SessionPlayerView = makePlayer({ id: "p1", name: "Alice" }),
   defaultBuyInCents: number | null = null,
+  history: BuyInHistoryEntry[] = [],
 ) {
   const onOpenChange = vi.fn();
   const utils = render(
@@ -52,6 +53,7 @@ function renderModal(
       sessionId="s1"
       player={player}
       defaultBuyInCents={defaultBuyInCents}
+      history={history}
     />,
   );
   return { ...utils, onOpenChange };
@@ -150,6 +152,62 @@ describe("BuyInsModal — add", () => {
     expect(
       (screen.getByTestId("pbi-add-p1") as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+});
+
+describe("BuyInsModal — timestamps", () => {
+  it("shows when each current buy-in was added", () => {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    renderModal(
+      makePlayer({
+        id: "p1",
+        name: "Alice",
+        buyIns: [{ id: "b1", amountCents: 2500, createdAt: fiveMinAgo }],
+      }),
+    );
+
+    const time = screen.getByTestId("pbi-row-time-b1");
+    expect(time.textContent).toMatch(/added/i);
+    expect(time.textContent).toMatch(/ago|just now/i);
+  });
+});
+
+describe("BuyInsModal — history", () => {
+  const iso = (minAgo: number) =>
+    new Date(Date.now() - minAgo * 60 * 1000).toISOString();
+
+  it("renders adds and removals, marking removals; no actions in history", () => {
+    renderModal(makePlayer({ id: "p1", name: "Alice" }), null, [
+      {
+        id: "h1",
+        kind: "added",
+        amountCents: 2500,
+        actorName: "Otter",
+        createdAt: iso(3),
+      },
+      {
+        id: "h2",
+        kind: "removed",
+        amountCents: 2500,
+        actorName: "Otter",
+        createdAt: iso(8),
+      },
+    ]);
+
+    const history = screen.getByTestId("pbi-history-p1");
+    expect(history).toBeInTheDocument();
+    // Both events present.
+    expect(screen.getByTestId("pbi-history-h1")).toBeInTheDocument();
+    const removed = screen.getByTestId("pbi-history-h2");
+    expect(removed.textContent).toMatch(/removed/i);
+    // History is read-only — no remove buttons inside it.
+    expect(within(history).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("hides the history section when there are no events", () => {
+    renderModal(makePlayer({ id: "p1", name: "Alice" }), null, []);
+
+    expect(screen.queryByTestId("pbi-history-p1")).not.toBeInTheDocument();
   });
 });
 

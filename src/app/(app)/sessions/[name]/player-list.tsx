@@ -15,7 +15,7 @@ import {
 import type { SessionStatus } from "@/lib/sessions/types";
 import { addPlayer } from "./actions";
 import { DeltaIndicator } from "./delta-indicator";
-import type { SessionPlayerView } from "./page";
+import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 import { PlayerCard } from "./player-card";
 import type { PlayerRowHandle } from "./player-row";
 import { PlayerTable } from "./player-table";
@@ -26,12 +26,14 @@ export function PlayerList({
   status,
   players,
   defaultBuyInCents,
+  buyInHistoryByPlayer,
   playerRowsRef,
 }: {
   sessionId: string;
   status: SessionStatus;
   players: SessionPlayerView[];
   defaultBuyInCents: number | null;
+  buyInHistoryByPlayer: Record<string, BuyInHistoryEntry[]>;
   playerRowsRef?: { current: Map<string, PlayerRowHandle> };
 }) {
   const router = useRouter();
@@ -178,6 +180,7 @@ export function PlayerList({
                 status={status}
                 player={p}
                 defaultBuyInCents={defaultBuyInCents}
+                buyInHistory={buyInHistoryByPlayer[p.id] ?? []}
                 highlighted={highlightedId === p.id}
                 onPlayerChanged={highlight}
                 ref={(handle) => {
@@ -199,6 +202,7 @@ export function PlayerList({
               status={status}
               players={players}
               defaultBuyInCents={defaultBuyInCents}
+              buyInHistoryByPlayer={buyInHistoryByPlayer}
               totals={totals}
               highlightedId={highlightedId}
               onPlayerChanged={highlight}

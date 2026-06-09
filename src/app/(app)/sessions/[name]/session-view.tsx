@@ -39,6 +39,7 @@ import {
 } from "./actions";
 import { DefaultBuyInModal } from "./default-buy-in-modal";
 import type {
+  BuyInHistoryEntry,
   SessionLogView,
   SessionPaymentView,
   SessionPlayerView,
@@ -54,11 +55,13 @@ export function SessionView({
   players,
   payments,
   log,
+  buyInHistoryByPlayer,
 }: {
   session: SessionViewModel;
   players: SessionPlayerView[];
   payments: SessionPaymentView[];
   log: SessionLogView[];
+  buyInHistoryByPlayer: Record<string, BuyInHistoryEntry[]>;
 }) {
   const router = useRouter();
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -317,6 +320,7 @@ export function SessionView({
         status={status}
         players={players}
         defaultBuyInCents={session.defaultBuyInCents}
+        buyInHistoryByPlayer={buyInHistoryByPlayer}
         playerRowsRef={playerRowsRef}
       />
 

@@ -13,7 +13,7 @@ import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
 import { cn } from "@/lib/utils";
 import { BuyInsModal } from "./buy-ins-modal";
-import type { SessionPlayerView } from "./page";
+import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 import { PlayerDetailsSheet } from "./player-details-sheet";
 import type { PlayerRowHandle } from "./player-row";
 import { computePlayerTotals } from "./totals";
@@ -29,6 +29,7 @@ export function PlayerCard({
   status,
   player,
   defaultBuyInCents,
+  buyInHistory,
   highlighted,
   onPlayerChanged,
   ref,
@@ -37,6 +38,7 @@ export function PlayerCard({
   status: SessionStatus;
   player: SessionPlayerView;
   defaultBuyInCents: number | null;
+  buyInHistory: BuyInHistoryEntry[];
   highlighted?: boolean;
   onPlayerChanged?: (playerId: string) => void;
   ref?: Ref<PlayerRowHandle>;
@@ -110,8 +112,10 @@ export function PlayerCard({
         data-testid={`player-card-name-${player.id}`}
         className="group flex flex-1 flex-col gap-3 p-3 text-left transition-colors hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none"
       >
-        {/* 1. Player name + tap-to-edit hint */}
-        <header className="flex items-center justify-between gap-2">
+        {/* 1. Player name with the edit hint directly beneath it, so the hint
+            clearly refers to opening the editor (the "Buy in" strip is on the
+            far right and labels itself). */}
+        <header className="flex flex-col gap-0.5">
           <span className="flex min-w-0 items-center gap-1.5 text-base font-medium">
             <span className="truncate underline-offset-4 group-hover:underline">
               {player.name}
@@ -124,7 +128,7 @@ export function PlayerCard({
               />
             )}
           </span>
-          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Pencil aria-hidden="true" className="size-3.5" />
             {editable ? "Tap to edit" : "Tap for details"}
           </span>
@@ -187,18 +191,20 @@ export function PlayerCard({
         </dl>
       </button>
 
-      {/* Trailing full-height "+" strip: the one-tap path to add a buy-in.
+      {/* Trailing full-height "Buy in" strip: the one-tap path to add a buy-in.
           A sibling of the edit button (not nested) so its taps never open the
-          edit sheet. Only while buy-ins are editable (in_progress). */}
+          edit sheet. Labeled (icon + "Buy in") so it's unmistakable. Only while
+          buy-ins are editable (in_progress). */}
       {editable && (
         <button
           type="button"
           onClick={() => setBuyInsOpen(true)}
           aria-label={`Add buy-in for ${player.name}`}
           data-testid={`pbi-open-${player.id}`}
-          className="flex w-12 shrink-0 items-center justify-center border-l border-border text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:bg-muted/50 focus-visible:text-foreground focus-visible:outline-none active:bg-muted"
+          className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-l border-border text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:bg-muted/50 focus-visible:text-foreground focus-visible:outline-none active:bg-muted"
         >
           <Plus className="size-5" />
+          <span className="text-[11px] font-medium leading-none">Buy in</span>
         </button>
       )}
 
@@ -219,6 +225,7 @@ export function PlayerCard({
           sessionId={sessionId}
           player={player}
           defaultBuyInCents={defaultBuyInCents}
+          history={buyInHistory}
           {...(onPlayerChanged ? { onPlayerChanged } : {})}
         />
       )}
