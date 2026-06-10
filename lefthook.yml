@@ -1,3 +1,19 @@
+post-checkout:
+  commands:
+    # Bootstrap a freshly created worktree. git fires post-checkout on
+    # `git worktree add` (and on every branch checkout). A new worktree has no
+    # node_modules of its own — worktrees don't share them — so we detect that
+    # exact state and run `npm install`. Ordinary branch switches keep their
+    # node_modules and are skipped, so this never slows down day-to-day work.
+    # Runs synchronously, so the worktree is ready when the command returns.
+    # This makes the repo self-bootstrapping and removes the need for an
+    # external (e.g. Orca) setup trigger. Skip with LEFTHOOK=0. See spec 0025.
+    bootstrap-deps:
+      run: |
+        if [ -d node_modules ]; then exit 0; fi
+        printf '\n[lefthook] Fresh worktree (no node_modules) — running npm install...\n'
+        npm install
+
 pre-commit:
   commands:
     typecheck:
