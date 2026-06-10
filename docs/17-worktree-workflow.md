@@ -58,6 +58,17 @@ The branch name should match the spec number and a short slug:
 - `fix/local-dev-env`
 - `chore/update-quality-gates`
 
+### Automatic dependency install
+
+A new worktree gets its own `node_modules` (worktrees do not share them), so dependencies must be installed before `npm run dev` or the test suite will work. This is automated: a `post-checkout` git hook (declared in `lefthook.yml`, installed into the shared `.git/hooks` by `lefthook install`) runs `npm install` whenever a checkout lands in a directory with no `node_modules` — which is exactly the state of a freshly added worktree.
+
+- It runs **synchronously**, so `git worktree add` (and Orca's "new worktree") blocks until install finishes; the worktree is ready when the command returns.
+- Ordinary branch switches in an existing worktree already have `node_modules`, so the hook is a no-op and adds no latency. If a branch switch changes `package-lock.json`, run `npm install` yourself — the hook only bootstraps an empty worktree, it doesn't keep deps in sync.
+- The trigger lives in the repo, not in any per-machine tool config, so it works for anyone who clones and installs once. An external setup trigger (e.g. Orca's per-repo setup command) is therefore unnecessary.
+- Escape hatch: set `LEFTHOOK=0` to skip all git hooks, including this install.
+
+See change spec `0025-worktree-bootstrap-hook` for the rationale.
+
 ---
 
 ## Running Claude Code in a worktree
