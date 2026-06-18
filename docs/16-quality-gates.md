@@ -99,10 +99,31 @@
 
 ### Security / secrets scan
 
-**Current:** manual eyeball review of `git diff` and `git log -p` for the new commits before push. The earlier prescribed grep (`git log -p | grep -iE 'password|secret|token|key|credential'`) generates false positives on words like "tokenize" and is unreliable; it should not be relied on as a gate.
-**Recommended (future):** add `gitleaks` to CI for deterministic secrets scanning. Until then, this gate is **manual-only** and depends on reviewer discipline.
-**Blocks local completion:** Yes (manual)
-**Blocks merge:** Yes (manual)
+**Command:** `node scripts/secret-scan.mjs` — runs automatically in the `pre-commit` hook.
+**Blocks local completion:** Yes
+**Blocks merge:** Yes
+**Tool:** In-repo scanner (`scripts/secret-scan.mjs`), no external dependency.
+**What it does:** scans the **added lines of staged changes** for high-signal secret patterns (`PRIVATE KEY` blocks, `AKIA…`, `AIza…`, `sk_live_…`, `gh[pousr]_…`, `xox[baprs]-…`). A match blocks the commit and names the file and pattern. Scanning only added lines (not whole files or history) keeps it fast and avoids re-flagging already-committed content. The detection logic is unit-tested (`scripts/secret-scan.test.mjs`). A legitimate fixture line that must contain a secret-shaped literal (e.g. this scanner's own tests) can carry an inline `pragma: allowlist secret` marker to be skipped.
+**Not a security boundary:** local, defense-in-depth, and bypassable (`git commit --no-verify` for a confirmed false positive). It reduces accidental secret commits on this public repo; it does not guarantee anything against a determined actor. CI-side scanning (`gitleaks`) remains future work (see "When CI is added").
+
+---
+
+### Settings guard
+
+**Command:** `node scripts/settings-guard.mjs` — runs in the `pre-commit` hook, only when `.claude/settings.json` is staged.
+**Blocks local completion:** Yes (when `.claude/settings.json` is staged)
+**Blocks merge:** Yes (when `.claude/settings.json` is staged)
+**Tool:** In-repo guard (`scripts/settings-guard.mjs`), no external dependency.
+**What it does:** validates the staged `.claude/settings.json` parses as JSON and rejects arbitrary-execution wildcard grants — bare interpreters/runners with only a wildcard for arguments (`Bash(node *)`, `Bash(npx *)`, `Bash(sh *)`, `Bash(* *)`). Scoped argument-wildcards (`Bash(npm test *)`) pass. Enforces the settings-hygiene rule in CLAUDE.md and ADR 0007. Unit-tested (`scripts/settings-guard.test.mjs`). Bypass (not recommended): `git commit --no-verify`.
+
+---
+
+### Claude edit guards (PreToolUse)
+
+**Mechanism:** a `PreToolUse` hook on `Edit`/`Write` in `.claude/settings.json` runs `scripts/claude-edit-guard.mjs`. **Affects Claude Code sessions only** (not human `git` operations), and is not a security boundary.
+**Branch guard (blocks):** denies editing tracked source (`src/**`, `scripts/**`, `firestore.rules`) while on `main`, directing work to a worktree feature branch (rule #11). Deterministic.
+**Spec-presence guard (warns):** on a feature branch whose name carries a spec number with no matching `Accepted`/`In Progress`/`Implemented` spec, emits a non-blocking warning (rule #1). Heuristic — warn only, never blocks; silent when the branch carries no spec number.
+**Contract:** confirmed against Claude Code as of 2026-06-18 — deny via `hookSpecificOutput.permissionDecision: "deny"`, warn via `systemMessage`, both with exit 0. The decision logic is unit-tested (`scripts/claude-edit-guard.test.mjs`); the script fails open (allows) on any parse/git error so it can never wedge editing.
 
 ---
 

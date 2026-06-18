@@ -1,7 +1,7 @@
 # Change 0028: Lifecycle enforcement hooks
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -128,9 +128,9 @@ Unlike 0025/0026, this change introduces real pure logic (pattern matching, JSON
 
 ## Open questions
 
-1. Exact `PreToolUse` hook output contract (deny vs. warn) — confirm against the installed Claude Code version during implementation. Non-blocking for spec acceptance; resolve before coding.
-2. Should spec-presence warn at most once per session to reduce noise? Non-blocking; default to per-edit but conservative matching, revisit if noisy.
-3. Which directories count as "tracked source" for branch-guard — default to `src/**`; consider including `firestore.rules`, `scripts/**`. Non-blocking; finalize in implementation.
+1. Exact `PreToolUse` hook output contract — **resolved (2026-06-18):** deny via `hookSpecificOutput.permissionDecision: "deny"` (+ `permissionDecisionReason`), warn via `systemMessage`, both with exit 0; matcher `Edit|Write`; command referenced via `${CLAUDE_PROJECT_DIR}`. The script fails open on any error.
+2. Should spec-presence warn at most once per session? **Resolved:** kept per-edit but conservative (only warns when the branch carries a spec number with no ready spec; silent otherwise). Revisit if noisy.
+3. Which directories count as "tracked source" — **resolved:** `src/**`, `scripts/**`, and `firestore.rules`.
 
 ## Links
 
@@ -147,3 +147,4 @@ Unlike 0025/0026, this change introduces real pure logic (pattern matching, JSON
 |---|---|---|
 | 2026-06-18 | Proposed | Initial draft. Enforces the rules in change 0026; chosen policy: block deterministic, warn heuristic. |
 | 2026-06-18 | Accepted | Owner accepted; policy confirmed: block deterministic, warn heuristic. |
+| 2026-06-18 | Implemented | lefthook secret-scan + settings-guard; PreToolUse branch-guard (block) + spec-presence (warn); scripts with vitest unit tests; docs/16 + CLAUDE.md updated. Order inverted with 0027 per owner. |

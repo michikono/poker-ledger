@@ -91,7 +91,7 @@ All work happens in isolated worktrees on feature branches — never on `main`. 
 
 `npm run check` is the aggregate gate (`format:check`, `lint`, `type-check`, `test`, `build`) and must pass before any change is declared done. Per-gate criteria and the full list: `docs/16-quality-gates.md`; each change spec states explicit pass/fail criteria.
 
-Categories: formatting, lint, typecheck, unit tests (before completion); integration tests, build, secrets scan (before merge); local smoke test + spec-conformance review (before declaring done); preview smoke test (after merge to `main`). Pre-commit hooks (Lefthook) run type-check + lint + unit tests on every commit — all must pass, no bypassing.
+Categories: formatting, lint, typecheck, unit tests (before completion); integration tests, build, secrets scan (before merge); local smoke test + spec-conformance review (before declaring done); preview smoke test (after merge to `main`). Pre-commit hooks (Lefthook) run secret-scan, settings-guard, type-check, lint, and unit tests on every commit — all must pass, no bypassing. Claude-side `PreToolUse` guards additionally block editing tracked source on `main` and warn when no `Accepted` spec matches the branch (see `docs/16`). These hooks are local, defense-in-depth, and bypassable (`--no-verify`) — not a security boundary.
 
 ---
 

@@ -16,6 +16,15 @@ post-checkout:
 
 pre-commit:
   commands:
+    # Block high-signal secrets in staged content. Defense-in-depth, not a
+    # security boundary; bypass a confirmed false positive with --no-verify.
+    # Pure node, no dependency. See spec 0028 and docs/16.
+    secret-scan:
+      run: node scripts/secret-scan.mjs
+    # Reject a staged .claude/settings.json that fails to parse or grants an
+    # arbitrary-execution wildcard (e.g. Bash(node *)). See ADR 0007 / spec 0028.
+    settings-guard:
+      run: node scripts/settings-guard.mjs
     typecheck:
       run: npm run type-check
     lint:
