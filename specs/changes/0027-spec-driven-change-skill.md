@@ -1,7 +1,7 @@
 # Change 0027: Invokable `/spec` spec-driven-change skill
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -126,3 +126,4 @@ No deployment impact. On merge, `/spec` becomes available to anyone who clones t
 |---|---|---|
 | 2026-06-18 | Proposed | Initial draft. Depends on ADR 0008 and the rules in change 0026. |
 | 2026-06-18 | Accepted | Owner accepted. Tracks `.claude/skills/` via ADR 0008. |
+| 2026-06-18 | Implemented | `.gitignore` exempts `.claude/skills/`; `/spec` skill added; `skills/README.md` documents reference-vs-invokable; CLAUDE.md points to `/spec`. Sequenced after 0028 per owner. |

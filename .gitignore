@@ -17,10 +17,13 @@ firebase.runtime.json
 .env*
 !.env.local.example
 
-# Claude Code: commit the shared, secret-free team settings; ignore all per-user state
-# (transcripts, agent configs, MCP credentials, settings.local.json)
+# Claude Code: commit the shared, secret-free team settings and invokable skills;
+# ignore all other per-user state (transcripts, agent configs, MCP credentials,
+# settings.local.json). See ADR 0007 (settings) and ADR 0008 (skills).
 .claude/*
 !.claude/settings.json
+!.claude/skills/
+!.claude/skills/**
 
 # Dependencies
 node_modules/
