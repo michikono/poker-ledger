@@ -36,7 +36,7 @@ PR body prepared and includes:
 - [ ] Deployment notes (env vars, migrations)
 - [ ] Known limitations
 
-**Claude Code creates PR with `gh pr create`. Claude reports PR URL. Claude does not merge.**
+**Claude Code creates the PR with `gh pr create`, reports the PR URL, and enables auto-merge with `gh pr merge --auto --rebase` (after rebasing onto the latest `origin/main`).**
 
 ---
 
@@ -52,9 +52,9 @@ After the PR is open:
 
 ---
 
-## Stage 3: Merge readiness (human decision)
+## Stage 3: Merge readiness (branch-protection gate)
 
-Before merging to `main`:
+Satisfied before the PR auto-merges to `main`:
 
 - [ ] All Stage 1 items complete
 - [ ] All Stage 2 items complete
@@ -64,7 +64,7 @@ Before merging to `main`:
 - [ ] Change spec marked `Implemented`
 - [ ] ADRs created for any durable architectural decisions made during this change
 
-**Human merges the PR.** Claude Code does not merge unless explicitly instructed.
+**GitHub auto-merges the PR** once branch-protection checks (and any required reviews) pass. Claude enables auto-merge; it never force-merges or bypasses protections.
 
 ---
 

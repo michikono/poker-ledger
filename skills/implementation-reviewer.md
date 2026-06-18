@@ -32,7 +32,7 @@ Structured findings across these categories:
 
 Final verdict: **Ready for PR creation** / **Needs changes before PR** (with specific list of required changes).
 
-Note: "Ready for PR creation" means Claude can create the PR. It does not mean the PR should be merged — that is a human decision after preview review.
+Note: "Ready for PR creation" means Claude can create the PR and enable auto-merge. The actual merge is still deferred to GitHub branch protection (required checks and any required reviews) — review readiness is not the same as merge completion.
 
 ## Hard rules
 

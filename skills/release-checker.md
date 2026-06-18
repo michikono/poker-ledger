@@ -7,7 +7,7 @@ Verify release readiness at each stage of the worktree-first PR workflow. The th
 ## When to use
 
 - Before Claude creates a PR (Stage 1: PR creation readiness)
-- Before a human merges a PR (Stage 2: merge readiness)
+- Before the PR auto-merges (Stage 2: merge readiness)
 - After merge, to verify production (Stage 3: production release readiness)
 
 ## Inputs expected
@@ -48,7 +48,7 @@ Checks:
 
 ---
 
-## Stage 2: Merge readiness (human decision)
+## Stage 2: Merge readiness (branch-protection gate)
 
 **Verdict options: Ready to merge / Not ready (with blockers)**
 
@@ -63,7 +63,7 @@ Checks:
 8. **ADRs** — created for any durable architectural decisions.
 
 **Hard rules for this stage:**
-- This stage is a human decision. Do not approve a merge on Claude's behalf.
+- Merge is deferred to GitHub branch protection (required checks and any required reviews). Never force-merge or bypass protections.
 - Do not report "Ready to merge" if the preview deployment has not been reviewed.
 - Do not report "Ready to merge" if docs are stale.
 
@@ -92,4 +92,4 @@ Checks:
 - Run commands and report actual results — do not estimate or assume.
 - Be specific about every failure: name the file, the gate, and the exact error.
 - Do not conflate stages — "ready to create PR" does not mean "ready to merge."
-- **Never merge on Claude's behalf.** Merging is always a human decision.
+- **Never force-merge or bypass branch protection.** Auto-merge defers to GitHub's required checks and reviews.

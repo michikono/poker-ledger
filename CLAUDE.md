@@ -10,7 +10,7 @@ Mandatory rules for Claude Code in this repository. This file is the rules plus 
 
 Implications for Claude Code:
 
-- **Commit only the shared, secret-free `.claude/settings.json`; never commit any other per-user state.** `.gitignore` allows that one file (`.claude/*` then `!.claude/settings.json`) and ignores everything else under `.claude/` — transcripts, agent configs, MCP credentials, and `.claude/settings.local.json`. The committed `settings.json` holds only project-wide, shareable configuration (permission rules for the standard dev gates, etc.) — never secrets, tokens, or per-user/machine-specific paths, and never outward-facing or destructive actions in its allowlist (`git push`, `gh pr create`, `curl`, `kill`/`pkill`). Personal per-repo overrides go in `.claude/settings.local.json` (ignored); cross-project preferences go in your user-level `~/.claude/settings.json`. Treat `.claude/settings.json` like any other public tracked file. See ADR 0007.
+- **Commit only the shared, secret-free `.claude/settings.json`; never commit any other per-user state.** `.gitignore` allows that one file (`.claude/*` then `!.claude/settings.json`) and ignores everything else under `.claude/` — transcripts, agent configs, MCP credentials, and `.claude/settings.local.json`. The committed `settings.json` holds only project-wide, shareable configuration (permission rules for the standard dev gates, etc.) — never secrets, tokens, or per-user/machine-specific paths, and never outward-facing or destructive actions in its allowlist (`git push`, `gh pr create`, `curl`, `kill`/`pkill`). Personal per-repo overrides go in `.claude/settings.local.json` (ignored); cross-project preferences go in your user-level `~/.claude/settings.json`. Treat `.claude/settings.json` like any other public tracked file. Never grant a wildcard that permits arbitrary code execution — bare interpreters/shells (`Bash(node *)`, `Bash(sh *)`, `Bash(bash *)`) or unscoped runners (`Bash(npx *)`); scope every grant to a specific subcommand (`Bash(npm test *)` is acceptable). Keep keys at their schema-correct nesting and ensure the file parses as JSON before committing. See ADR 0007.
 - **Never commit secrets, credentials, tokens, service-account JSON, or private keys.** `.env*` is gitignored except `.env.local.example` (which must contain only placeholder values like `demo-api-key`). Before any commit, scan staged content for high-signal secret patterns (`PRIVATE KEY`, `AKIA`, `AIza`, `sk_live_`, `ghp_`, `xox[bp]-`, etc.).
 - **No internal hostnames, IP addresses, real customer data, or third-party identifiers** (Slack channel IDs, internal Linear/Jira IDs, employee names beyond the LICENSE author) anywhere in tracked files. Test fixtures use RFC 2606 reserved domains (`@example.com`).
 - **Branch names, commit messages, and PR titles/bodies are public.** Do not embed internal context, team names, or anything that wouldn't be appropriate on a public-facing page.
@@ -23,7 +23,7 @@ When in doubt, ask before committing. The cost of pausing is low; the cost of an
 
 ## Non-negotiable rules
 
-1. **Every non-trivial change has an `Accepted` change spec** in `/specs/changes/` before work begins. Implement one spec at a time.
+1. **Every non-trivial change has an `Accepted` change spec** in `/specs/changes/` before work begins. Implement one spec at a time. "Non-trivial" is about user-visible effect and risk, **not** diff size: any change to app behavior or UI — including small visual tweaks like a button color, label, or spacing — needs a spec. Only docs-only and pure-scaffolding changes are exempt. A change looking like a one-liner is not a reason to skip the spec.
 2. **Do not expand scope beyond the accepted spec.** If scope needs to grow, stop and update the spec first.
 3. **If a spec is ambiguous or proves wrong, stop and fix the spec before coding.**
 4. **Keep changes small and reviewable** — prefer multiple small PRs over one large one.
@@ -34,7 +34,7 @@ When in doubt, ask before committing. The cost of pausing is low; the cost of an
 9. **Before large changes, summarize intended files and approach and wait for confirmation.**
 10. **After implementing a spec, review the implementation against it** before declaring done.
 11. **Never commit or push to `main`.** All work happens on feature branches in worktrees.
-12. **Claude may create PRs (`gh pr create`); Claude must not merge PRs** unless explicitly instructed.
+12. **Claude may create PRs (`gh pr create`) and enable auto-merge (`gh pr merge --auto`).** Merges are governed by GitHub branch protection (required status checks and any required reviews); never bypass those protections or force-merge.
 13. **Never force-push** unless explicitly instructed and the justification is documented.
 14. **Mobile-first is mandatory for every UI change** (see below). Desktop-only patterns require an ADR.
 
@@ -80,8 +80,9 @@ Spec-driven development. Each meaningful slice gets a change spec in `/specs/cha
 All work happens in isolated worktrees on feature branches — never on `main`. Full lifecycle: `docs/17-worktree-workflow.md`.
 
 - **Branch names:** `docs/<topic>`, `spec/<change-name>`, `feature/<slice-name>`, `fix/<bug-name>`, `chore/<maintenance-name>`. Commit messages are clear and specific.
+- **Enter the worktree before editing.** After creating or switching to a worktree, confirm `pwd` and `git branch --show-current` (≠ `main`) before the first edit. Never edit from the main checkout while implementing a slice — a worktree that is set up but not entered is the most common cause of changes landing in the wrong place.
 - **Before opening a PR:** confirm working directory, branch (≠ `main`), and worktree; gates pass (or failures documented); no secrets staged; change spec linked (unless docs- or scaffold-only).
-- **PRs:** Claude creates them with `gh pr create` and reports the URL; a human merges. The PR body must cover: change spec link, summary, acceptance criteria, gates run, local-development impact, deployment notes, known limitations. Requires the GitHub CLI — if `gh` is missing, prompt to install rather than skip.
+- **PRs & auto-merge:** Claude creates PRs with `gh pr create`, reports the URL, then enables auto-merge with `gh pr merge --auto --rebase`. **Before enabling auto-merge**, `git fetch origin` and rebase the branch onto the latest `origin/main` — GitHub blocks auto-merge when the branch is behind a protected base. If a clean rebase isn't possible at PR time because CI or a dependency PR is still in flight, **schedule a follow-up** (via `/schedule`) to rebase-and-enable-auto-merge once the blocker clears, rather than leaving the PR un-mergeable. Auto-merge defers the actual merge to GitHub's branch-protection gates (it does not bypass them). The PR body must cover: change spec link, summary, acceptance criteria, gates run, local-development impact, deployment notes, known limitations. Requires the GitHub CLI — if `gh` is missing, prompt to install rather than skip.
 - **Before merging to `main`,** run the release checklist: `templates/release-checklist-template.md`.
 
 ---

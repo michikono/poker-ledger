@@ -15,17 +15,17 @@ flowchart TD
     D -- Yes --> E[Spec conformance review]
     E --> F{All criteria met?}
     F -- No --> C
-    F -- Yes --> G[git push\nfeature branch]
-    G --> H[gh pr create\nClaude creates PR]
-    H --> I[Human reviews PR\n+ Vercel preview]
-    I --> J{Human approves\nand merges?}
+    F -- Yes --> G[git fetch + rebase\nthen git push]
+    G --> H[gh pr create +\ngh pr merge --auto]
+    H --> I[Branch-protection\nchecks + Vercel preview]
+    I --> J{Checks pass?}
     J -- Changes needed --> C
-    J -- Yes --> K[Vercel production deploy]
+    J -- Yes --> K[GitHub auto-merges\nVercel production deploy]
     K --> L[Update docs\nmark spec Implemented]
     L --> M[Remove worktree]
     M --> N([Done])
 ```
-_End-to-end lifecycle — Claude creates the PR; the human merges._
+_End-to-end lifecycle — Claude creates the PR and enables auto-merge; GitHub merges once branch-protection checks pass._
 
 ---
 
@@ -98,11 +98,12 @@ gh pr create \
   --head feature/0001-nextjs-shell \
   --title "Describe the change" \
   --body-file /tmp/pr-body.md
+gh pr merge <number> --auto --rebase
 ```
 
-Claude reports the PR URL. **Claude does not merge the PR.** The human reviews, checks the Vercel preview, and merges.
+Claude reports the PR URL and enables auto-merge. GitHub merges once branch-protection checks (and any required reviews) pass; the Vercel preview is available for review while checks run.
 
-### After PR is merged (by human)
+### After the PR merges
 
 ```sh
 cd <main-repo-path>
@@ -127,9 +128,9 @@ git branch -d feature/0001-nextjs-shell
 ## Production deployment workflow
 
 1. All deterministic gates pass locally (`npm run check`).
-2. Claude creates PR with `gh pr create`. Claude reports the PR URL.
-3. Human reviews PR and Vercel preview deployment.
-4. **Human merges PR to `main`.** Claude does not merge.
+2. Claude creates the PR with `gh pr create`, then (after rebasing onto the latest `origin/main`) enables auto-merge with `gh pr merge --auto --rebase`.
+3. Branch-protection checks run; the Vercel preview is available for review.
+4. **GitHub auto-merges to `main`** once required checks (and any required reviews) pass.
 5. Vercel automatically deploys to production.
 6. Verify production deployment in Vercel dashboard.
 7. Run post-deploy smoke test.

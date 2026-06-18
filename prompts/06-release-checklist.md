@@ -23,7 +23,7 @@ Use the skill at `/skills/release-checker.md` and work through the stage-specifi
 7. **Spec conformance** — are all acceptance criteria met?
 8. **PR body** — is the body ready with all required sections?
 
-If all Stage 1 items pass: create the PR with `gh pr create`, report the PR URL, and stop. **Do not merge.**
+If all Stage 1 items pass: create the PR with `gh pr create`, report the PR URL, then (after rebasing onto the latest `origin/main`) enable auto-merge with `gh pr merge --auto --rebase`. The merge is deferred to GitHub branch-protection gates.
 
 **If checking merge readiness (Stage 2):**
 
@@ -32,7 +32,7 @@ If all Stage 1 items pass: create the PR with `gh pr create`, report the PR URL,
 11. **Docs** — are all affected `/docs/` files updated?
 12. **Production env vars** — are all required variables set in Vercel?
 
-Report Stage 2 findings for human review. **Do not merge on Claude's behalf.**
+Report Stage 2 findings. Auto-merge (already enabled) completes once branch-protection checks and any required reviews pass; never force-merge or bypass protections.
 
 **If checking post-production (Stage 3):**
 
