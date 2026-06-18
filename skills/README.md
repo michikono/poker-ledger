@@ -8,9 +8,18 @@ A skill is a markdown file that tells Claude Code how to behave for a specific c
 
 Skills in this directory are **project-local**. They define behaviors tailored to this project's workflow, conventions, and quality standards.
 
-## How to invoke a skill
+## Two homes for skills
 
-Reference a skill explicitly in your prompt:
+- **Reference skills (`/skills/*.md`, this directory)** — behavior-definition docs referenced by name. They are not slash-commands; invoke by asking Claude to "use the `<name>` skill."
+- **Invokable skills (`.claude/skills/<name>/SKILL.md`)** — runnable as a `/<name>` slash command. Tracked and shared per ADR 0008 (the `.gitignore` exempts `.claude/skills/` just as it exempts `.claude/settings.json`). An invokable `SKILL.md` should **reference** the relevant reference skills, `/prompts`, and `/docs` rather than duplicate them.
+
+| Invokable skill | When to use |
+|---|---|
+| `/spec` | Any non-trivial change (including UI-only tweaks). Drafts an `Accepted` change spec from the template, then implements it on a worktree with TDD, quality gates, and an auto-merged PR. |
+
+## How to invoke a reference skill
+
+Reference it explicitly in your prompt:
 
 > "Use the `spec-reviewer` skill to review `specs/changes/0003-auth-model.md`."
 

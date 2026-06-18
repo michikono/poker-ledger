@@ -65,7 +65,7 @@ A deviation from any rule above requires an ADR in `/specs/decisions/` titled `N
 
 ## How work flows
 
-Spec-driven development. Each meaningful slice gets a change spec in `/specs/changes/` (status `Accepted`) before work starts; after it's accepted and merged, update `/docs` to reflect reality.
+Spec-driven development. Each meaningful slice gets a change spec in `/specs/changes/` (status `Accepted`) before work starts; after it's accepted and merged, update `/docs` to reflect reality. The `/spec` skill (`.claude/skills/spec/`) runs this flow end-to-end — draft → accept → implement (TDD) → gates → PR + auto-merge → conformance review — and is the canonical entry point for a non-trivial change.
 
 - **Durable docs** (`/docs`) are living — they reflect current state, keep them current.
 - **Change specs** (`/specs/changes`) are historical — mark `Implemented`/`Superseded`, never rewrite. Statuses: `Proposed` → `Accepted` → `In Progress` → `Implemented` (or `Superseded`). Required sections: see `/templates/change-spec-template.md`. Every spec states its test strategy.
