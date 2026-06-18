@@ -1,7 +1,7 @@
 # Change 0026: Operating-model deltas + hardened auto-merge flow
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -42,6 +42,7 @@ The statements that echo the old prohibition are updated in the same pass so the
 - CLAUDE.md "Git & worktree workflow" section ("a human merges").
 - `skills/worktree-guide.md` ("Never merge a PR. Merging is human-controlled.").
 - `docs/17-worktree-workflow.md` prose and the lifecycle flowchart's "Human merges?" decision node.
+- The release/lifecycle docs that echo the prohibition: `docs/13-dev-lifecycle.md`, `docs/14-release-process.md`, `prompts/06-release-checklist.md`, `prompts/10-worktree-finish.md`, `templates/release-checklist-template.md`, `skills/release-checker.md`, `skills/implementation-reviewer.md`. The release checklist stays a readiness gate; it no longer asserts a human-only merge.
 
 Rules #11 (never commit/push to `main`) and #13 (never force-push) are unaffected and still hold — removing the merge prohibition does not loosen those.
 
@@ -103,7 +104,7 @@ No automated tests (pure documentation). Verification is a manual doc-consistenc
 - [ ] CLAUDE.md requires confirming `pwd` + `git branch --show-current` (≠ main) after entering a worktree and before the first edit.
 - [ ] CLAUDE.md defines the arbitrary-execution wildcard prohibition vs. permitted scoped argument-wildcards, schema-correct nesting, and "settings.json must parse before commit."
 - [ ] CLAUDE.md documents the `gates → fetch/rebase → gh pr create → gh pr merge --auto` flow, including the scheduled-rebase fallback when blocked by in-flight CI.
-- [ ] Rule #12's merge prohibition is removed (rewritten in place to permit creating PRs + enabling auto-merge under branch protection); the "a human merges" / "Never merge a PR" statements in CLAUDE.md, `docs/17-worktree-workflow.md`, and `skills/worktree-guide.md` are updated to match.
+- [ ] Rule #12's merge prohibition is removed (rewritten in place to permit creating PRs + enabling auto-merge under branch protection); the "a human merges" / "Never merge a PR" statements are updated to match in CLAUDE.md, `docs/17-worktree-workflow.md`, `skills/worktree-guide.md`, **and** the release/lifecycle docs that echo the old prohibition — `docs/13-dev-lifecycle.md`, `docs/14-release-process.md`, `prompts/06-release-checklist.md`, `prompts/10-worktree-finish.md`, `templates/release-checklist-template.md`, `skills/release-checker.md`, `skills/implementation-reviewer.md`. Reconciliation: feature PRs auto-merge under branch protection; the release checklist remains a readiness gate but no longer asserts a human-only merge.
 - [ ] `docs/17-worktree-workflow.md` prose and flowchart updated in lockstep.
 - [ ] `skills/worktree-guide.md` updated to match.
 - [ ] `npm run check` passes.
@@ -140,3 +141,4 @@ No deployment impact. Documentation takes effect on merge to `main`.
 |---|---|---|
 | 2026-06-18 | Proposed | Initial draft from the 2026-06-11 usage report. |
 | 2026-06-18 | Accepted | Owner accepted; rule #12 merge prohibition removed (not reconciled). |
+| 2026-06-18 | Implemented | CLAUDE.md, docs/13/14/17, worktree-guide, release-checker, implementation-reviewer, prompts/06/10, release-checklist template updated; auto-merge flow documented. |

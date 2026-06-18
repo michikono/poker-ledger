@@ -11,15 +11,17 @@ flowchart LR
     A([main: clean]) --> B[git worktree add\n../worktrees/poker-ledger-NNNN]
     B --> C[implement + commit\ninside worktree]
     C --> D[npm run check\nall gates pass]
-    D --> E[git push -u origin\nfeature/NNNN-name]
-    E --> F[gh pr create\n--base main]
-    F --> G[Human reviews PR\n+ Vercel preview]
-    G --> H{Human merges?}
-    H -- No --> C
-    H -- Yes --> I[git worktree remove\ngit branch -d]
-    I --> A
+    D --> E[git fetch + rebase\nonto origin/main]
+    E --> F[git push -u origin\nfeature/NNNN-name]
+    F --> G[gh pr create\n--base main]
+    G --> H[gh pr merge\n--auto --rebase]
+    H --> J{Branch-protection\nchecks pass?}
+    J -- No / CI in flight --> C
+    J -- Yes --> K[GitHub auto-merges]
+    K --> L[git worktree remove\ngit branch -d]
+    L --> A
 ```
-_Worktree lifecycle — Claude creates PR; human merges._
+_Worktree lifecycle — Claude creates the PR and enables auto-merge; GitHub merges once branch-protection checks pass._
 
 ---
 
@@ -110,18 +112,20 @@ git status
 git add <specific files>
 git commit -m "Initialize Next.js shell"
 
-# 4. Push (triggers Vercel preview deployment)
+# 4. Rebase onto latest main, then push (triggers Vercel preview deployment)
+git fetch origin && git rebase origin/main
 git push -u origin feature/0001-nextjs-shell
 
-# 5. Create PR (Claude Code does this; human merges)
+# 5. Create PR + enable auto-merge (Claude Code does this)
 gh pr create \
   --base main \
   --head feature/0001-nextjs-shell \
   --title "Initialize Next.js shell" \
   --body-file /tmp/pr-body.md
-# Claude reports the PR URL. Claude does not merge.
+gh pr merge <number> --auto --rebase
+# Claude reports the PR URL. GitHub merges once branch-protection checks pass.
 
-# 6. After the human merges, clean up
+# 6. After the PR merges, clean up
 cd <absolute-path-to-main-repo>
 git checkout main
 git pull
@@ -145,17 +149,20 @@ git push -u origin feature/0001-nextjs-shell      # triggers Vercel preview
 
 ## Creating a PR from a worktree
 
-After pushing, Claude Code creates the PR using the GitHub CLI:
+After pushing, Claude Code creates the PR and enables auto-merge using the GitHub CLI:
 
 ```sh
+git fetch origin && git rebase origin/main     # auto-merge is blocked if the branch is behind main
+git push --force-with-lease                     # only if the rebase moved commits
 gh pr create \
   --base main \
   --head feature/0001-nextjs-shell \
   --title "Describe the change" \
   --body-file /tmp/pr-body.md
+gh pr merge <number> --auto --rebase            # defers the merge to branch-protection gates
 ```
 
-**Claude Code must not merge the PR.** After creating it, Claude reports the PR URL and waits. The human reviews the PR and the Vercel preview, then merges.
+**Claude enables auto-merge; it never force-merges or bypasses branch protection.** After creating the PR, Claude rebases onto the latest `origin/main` (auto-merge is blocked when the branch is behind a protected base), enables auto-merge with `gh pr merge --auto --rebase`, and reports the PR URL. GitHub merges once required checks (and any required reviews) pass. If a clean rebase isn't possible at PR time because CI or a dependency PR is still in flight, schedule a follow-up (`/schedule`) to rebase and enable auto-merge once it clears.
 
 ### PR body requirements
 
@@ -181,7 +188,7 @@ The GitHub CLI is not required for local development. It is required for Claude 
 
 ## Finishing and removing a worktree
 
-After the PR is merged by a human:
+After the PR has merged:
 
 ```sh
 # Return to the main repo

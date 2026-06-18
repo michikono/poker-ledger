@@ -20,7 +20,7 @@ Before Claude Code creates a PR:
 - [ ] Missing or failing gates documented in change spec with remediation plan
 - [ ] PR body prepared with: change spec link, summary, acceptance criteria, gates run, local dev impact, deployment notes, known limitations
 
-Claude Code creates the PR with `gh pr create`. Claude reports the PR URL and stops. **Claude does not merge.**
+Claude Code creates the PR with `gh pr create`, reports the PR URL, and (after rebasing onto the latest `origin/main`) enables auto-merge with `gh pr merge --auto --rebase`. The merge is deferred to GitHub branch protection; Claude never force-merges or bypasses it.
 
 After PR is open:
 
@@ -44,7 +44,7 @@ Before requesting PR review (human step — verify Claude's work):
 
 ## Production release checklist
 
-Before merging to `main` (human step):
+Satisfied before the PR auto-merges to `main` (enforced via branch protection where possible):
 
 - [ ] All PR creation checklist items complete
 - [ ] All preview checklist items complete
@@ -57,7 +57,7 @@ Before merging to `main` (human step):
 - [ ] Change spec marked `Implemented`
 - [ ] ADRs created for any durable architectural decisions made
 
-**Human merges the PR.** Claude Code does not merge.
+**GitHub auto-merges the PR** once branch-protection checks (and any required reviews) pass. Claude enables auto-merge; it never force-merges or bypasses protections.
 
 After merge:
 

@@ -124,11 +124,14 @@ Write the PR body to `/tmp/pr-body.md` with this structure:
 **Step 8: Create PR**
 
 ```sh
+git fetch origin && git rebase origin/main     # auto-merge is blocked if the branch is behind main
+git push --force-with-lease                     # only if the rebase moved commits
 gh pr create \
   --base main \
   --head feature/NNNN-name \
   --title "[title matching the change spec goal]" \
   --body-file /tmp/pr-body.md
+gh pr merge <number> --auto --rebase            # defer the merge to branch-protection gates
 ```
 
 If `gh` is not installed:
@@ -137,9 +140,9 @@ brew install gh
 gh auth login
 ```
 
-After the PR is created, report the PR URL.
+After the PR is created, report the PR URL and enable auto-merge.
 
-**Do not merge the PR.** The human reviews the PR and the Vercel preview, then merges.
+**Claude enables auto-merge; it never force-merges or bypasses branch protection.** GitHub merges once required checks (and any required reviews) pass. If a clean rebase isn't possible now (CI in flight), schedule a follow-up (`/schedule`) to rebase and enable auto-merge.
 
 ---
 
@@ -149,13 +152,13 @@ Output:
 - PR URL
 - Summary of gates run and their results
 - Any open issues or known limitations noted in the PR body
-- Reminder that merge is a human step
+- Auto-merge enabled; GitHub merges once branch-protection checks pass
 
 ---
 
-**Step 10: Post-merge cleanup (run only after the human merges)**
+**Step 10: Post-merge cleanup (run only after the PR actually merges)**
 
-After you are told the PR has been merged:
+After the PR has merged (auto-merge may still be pending on CI):
 
 ```sh
 cd <absolute-path-to-main-repo>
