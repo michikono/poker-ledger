@@ -208,11 +208,12 @@ If a gate does not yet exist when a change spec is implemented:
 
 Locally, the same gates run via the `pre-commit` hook (`lefthook.yml`) and `npm run check`.
 
+All five jobs are **required status checks** on `main` (ADR 0009): a PR cannot merge until they pass, the rule applies to administrators (no bypass), and branches must be up to date before merging. Required checks are matched by job name, so renaming a job in `ci.yml` must be paired with a branch-protection update.
+
 ### Future hardening
 
 - Secrets scan in CI (`gitleaks`) mirroring the local `secret-scan` hook.
 - A `npm run check:full` that also runs integration/E2E so local completion matches the CI surface.
-- Making the `spec-gate` and other jobs **required** status checks in GitHub branch protection (a repo-settings decision).
 
 ---
 
