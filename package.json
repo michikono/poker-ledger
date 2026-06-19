@@ -18,7 +18,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "gen:hand-rankings": "node scripts/generate-hand-svgs.mjs",
-    "check": "node scripts/lockfile-guard.mjs && npm run format:check && npm run lint && npm run type-check && npm run test && npm run build",
+    "check": "node scripts/lockfile-guard.mjs && node scripts/spec-status-guard.mjs && npm run format:check && npm run lint && npm run type-check && npm run test && npm run build",
     "postinstall": "lefthook install"
   },
   "packageManager": "npm@10.9.7",

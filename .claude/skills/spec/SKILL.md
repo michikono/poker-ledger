@@ -42,7 +42,7 @@ This skill runs the operating model in `CLAUDE.md` as an explicit, ordered proce
 
 ### 6. Review and close out
 - Run the spec-conformance review (`prompts/04-review-implementation.md` / `skills/implementation-reviewer.md`): compare to the spec, flag deviations / missing gates / missing tests / scope creep / local-dev regressions; confirm diagrams match prose.
-- After the PR merges, mark the spec `Implemented` and update affected `/docs` so durable docs reflect reality.
+- **Mark the spec `Implemented` in the implementation PR itself** — update the `## Status` line *and* add a `## Status history` row (`Implemented` = "merged via this PR"). Don't leave this as a post-merge step: `scripts/spec-status-guard.mjs` requires `## Status` to match the latest history row, so the flip is part of the change. Update affected `/docs` in the same PR so durable docs reflect reality.
 
 ## Hard rules
 
