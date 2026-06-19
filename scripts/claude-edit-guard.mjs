@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SOURCE_RE = /(^|\/)(src|scripts)\/|(^|\/)firestore\.rules$/;
@@ -44,14 +44,39 @@ export function decide({ branch, isSource, specReady }) {
   return { action: "allow" };
 }
 
+// Resolve the branch of the worktree that actually contains the edited file,
+// not the Claude session cwd. A session anchored to the `main` checkout may
+// legitimately edit files inside a feature-branch worktree; keying off the
+// file's own directory avoids a false `main` deny. Falls back to cwd when the
+// file path resolves no branch (missing/new path outside a repo).
+// gitBranch(dir) -> branch string ("" on failure).
+export function resolveBranch({ filePath, cwd, gitBranch }) {
+  if (typeof filePath === "string" && filePath !== "") {
+    const fromFile = gitBranch(dirname(filePath));
+    if (fromFile) return fromFile;
+  }
+  return gitBranch(cwd);
+}
+
+// Resolve the worktree root that contains the edited file so the Accepted-spec
+// check reads the right repo's `specs/changes`. Falls back to cwd.
+// gitToplevel(dir) -> toplevel path string ("" on failure).
+export function resolveSpecsRoot({ filePath, cwd, gitToplevel }) {
+  if (typeof filePath === "string" && filePath !== "") {
+    const fromFile = gitToplevel(dirname(filePath));
+    if (fromFile) return fromFile;
+  }
+  return gitToplevel(cwd) || cwd;
+}
+
 function specStatus(body) {
   const match = /##\s*Status\s*\n+\s*([A-Za-z ]+)/.exec(body);
   return match ? match[1].trim() : "Unknown";
 }
 
-function readSpecs(cwd) {
+function readSpecs(root) {
   try {
-    const dir = join(cwd, "specs/changes");
+    const dir = join(root, "specs/changes");
     return readdirSync(dir)
       .filter((f) => /^\d{4}-.*\.md$/.test(f))
       .map((f) => ({
@@ -60,6 +85,28 @@ function readSpecs(cwd) {
       }));
   } catch {
     return [];
+  }
+}
+
+function gitBranchOf(dir) {
+  try {
+    return execFileSync(
+      "git",
+      ["-C", dir, "rev-parse", "--abbrev-ref", "HEAD"],
+      { encoding: "utf8" },
+    ).trim();
+  } catch {
+    return "";
+  }
+}
+
+function gitToplevelOf(dir) {
+  try {
+    return execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    return "";
   }
 }
 
@@ -79,19 +126,14 @@ function main() {
   const cwd = payload?.cwd ?? process.cwd();
   if (!isSourcePath(filePath)) process.exit(0);
 
-  let branch = "";
-  try {
-    branch = execFileSync("git", ["-C", cwd, "branch", "--show-current"], {
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    process.exit(0);
-  }
+  const branch = resolveBranch({ filePath, cwd, gitBranch: gitBranchOf });
+  if (!branch) process.exit(0);
 
+  const root = resolveSpecsRoot({ filePath, cwd, gitToplevel: gitToplevelOf });
   const result = decide({
     branch,
     isSource: true,
-    specReady: hasAcceptedSpecForBranch(branch, readSpecs(cwd)),
+    specReady: hasAcceptedSpecForBranch(branch, readSpecs(root)),
   });
 
   if (result.action === "deny") {
