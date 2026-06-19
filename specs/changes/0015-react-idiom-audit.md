@@ -1,7 +1,7 @@
 # Change 0015: React-idiom audit and cleanup
 
 ## Status
-In Progress
+Implemented
 
 ## Owner
 Michi Kono
@@ -160,6 +160,29 @@ This removes one `useState`, one `useEffect`, and the `flashCount` import path.
 
 The next PR for this spec implements F1; after that the spec moves to `Implemented` (since no other patterns surfaced).
 
+## Re-audit and close-out (2026-06-19)
+
+The 2026-05-07 audit above went stale: specs 0016–0028 landed in the interim, and **0018 rewrote `player-row.tsx`**. A fresh sweep (all 8 categories, plus a manual read of every `useEffect`/timer site — including the modal/sheet/card components that did not exist in May) was re-run against current `main`.
+
+**F1 is resolved — but not by this spec.** The `flashCount` nonce is gone. The flash mechanism now lives in `player-list.tsx`, which owns a `highlightedId`, sets it from event handlers via a plain `highlight(id)` function, and passes a `highlighted` prop down to each row/card. Each row/card replays the CSS animation via a `useEffect([highlighted])`. Because the triggering event lives in the *parent* and the child only sees a prop, this effect is the idiomatic React-19 shape — not the anti-pattern F1 described. The 0018 rewrite incidentally fixed the smell.
+
+**Fresh findings table (2026-06-19):**
+
+| Category | Result |
+|---|---|
+| 1 · `querySelector`/`getElementById` | Clean (none) |
+| 2 · `useEffect` as event handler | F1's instance gone; the four `useEffect([open, …])` modal "reset on open" effects are the documented "reset state when a prop changes" pattern, each with a considered dependency choice (`buy-ins-modal` even comments why it keys on `open` not `player`) — intentional |
+| 3 · `useState` duplicating URL state | Clean |
+| 4 · `setTimeout`/`rAF` after render | 3 sites, all intentional — search debounce (`session-search-input`, F2), 2 s highlight auto-clear (`player-list`), focus-select-after-mount (`player-details-sheet`, the relocated F3, now with `cancelAnimationFrame` cleanup) |
+| 5 · ref mutation in render body | Clean |
+| 6 · `data-testid` queried in prod | Clean |
+| 7 · manual scroll/focus | All event-driven, intentional |
+| 8 · `forwardRef` boilerplate | Clean (React 19) |
+
+**One action taken — shared flash hook.** `player-row.tsx` and `player-card.tsx` carried byte-identical flash `useEffect` blocks (desktop row vs. mobile card). Extracted into `useFlashOnChange(ref, active)` (`src/app/(app)/sessions/[name]/use-flash-on-change.ts`) consumed by both, with a co-located unit test. This is local DRY cleanup — collapsing a duplicated effect into one tested helper — not the "architectural rewrite" the Non-goals exclude; component behaviour is unchanged and the existing suites stay green.
+
+**Outcome:** every audit category is now clean or intentionally kept with a comment. No other actionable React-idiom smell surfaced.
+
 ## Open questions
 
 1. **One mega-PR or one-per-pattern?** Recommendation: one-per-pattern, per the project's "small reviewable PRs" rule. Mega-PRs are explicitly discouraged in `CLAUDE.md`.
@@ -177,3 +200,4 @@ The next PR for this spec implements F1; after that the spec moves to `Implement
 |---|---|---|
 | 2026-05-04 | Proposed | Spawned out of 0014 implementation review |
 | 2026-05-07 | In Progress | Punch list produced (see *Audit findings*); 1 actionable finding (F1), 5 intentional/keep findings, remaining 6 patterns clean. |
+| 2026-06-19 | Implemented | Re-audited against current `main` (the 2026-05-07 findings had gone stale; 0018 rewrote `player-row.tsx`). F1 found already resolved by the 0018 rewrite; fresh sweep surfaced no new actionable smell. One local cleanup taken — extracted the duplicated flash effect into `useFlashOnChange` (with test). See *Re-audit and close-out (2026-06-19)*. |
