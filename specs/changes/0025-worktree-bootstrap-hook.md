@@ -1,7 +1,7 @@
 # Change 0025: Auto-install dependencies on fresh worktree checkout
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -129,3 +129,4 @@ Resolved at acceptance:
 |---|---|---|
 | 2026-06-10 | Proposed | Initial draft |
 | 2026-06-10 | Accepted | Open questions resolved (node_modules-absence guard; npm install). Verified post-checkout fires on `git worktree add` and lefthook resolves via the main checkout's absolute node_modules path. |
+| 2026-06-19 | Implemented | Implementation merged to `main` (commits `6068206`, `e8b4143`). Status header was stale; corrected as a bookkeeping fix. |

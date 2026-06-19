@@ -1,7 +1,7 @@
 # Change 0021: Destructive contrast, `--loss` token, em-dash sweep
 
 ## Status
-Accepted
+Implemented
 
 ## Owner
 Michi Kono
@@ -188,3 +188,4 @@ None blocking.
 |---|---|---|
 | 2026-05-13 | Proposed | Initial draft |
 | 2026-05-13 | Accepted | Approved by owner: "run these all at once" |
+| 2026-06-19 | Implemented | Implementation merged to `main` (commit `8b3a62b`). Status header was stale; corrected as a bookkeeping fix. |
