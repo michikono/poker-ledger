@@ -127,6 +127,26 @@
 
 ---
 
+### Spec status guard
+
+**Command:** `node scripts/spec-status-guard.mjs` — runs in the `pre-commit` hook, inside `npm run check`, and as a CI step.
+**Blocks local completion:** Yes
+**Blocks merge:** Yes
+**Tool:** In-repo guard (`scripts/spec-status-guard.mjs`), no external dependency.
+**What it does:** validates every `specs/changes/NNNN-*.md` so a spec cannot drift into the wrong state. It fails when the `## Status` value is not a valid enum (`Proposed`, `Accepted`, `In Progress`, `Implemented`, `Superseded`), when `## Status` disagrees with the latest `## Status history` row (the two-places drift), when a history transition is a **silent backslide** (a backward rank move with no annotation — `Implemented → Accepted`), or when history dates are not monotonic. The model is permissive on forward skips (real specs go `Proposed → Implemented`) and on **annotated** reverts (e.g. spec 0005's `In Progress (rebase)`), and treats `Superseded` as terminal. Unit-tested (`scripts/spec-status-guard.test.mjs`), including a meta-test that the whole `specs/changes/` tree is consistent. Bypass (not recommended): `git commit --no-verify`. See spec 0031.
+
+---
+
+### PR spec-reference gate
+
+**Command:** `node scripts/pr-spec-reference.mjs` — runs as a CI step on every PR (`pull_request`).
+**Blocks local completion:** No (CI-side)
+**Blocks merge:** Yes (when configured as a required check)
+**Tool:** In-repo guard (`scripts/pr-spec-reference.mjs`), no external dependency.
+**What it does:** enforces the spec-first rule mechanically at the PR boundary. It fails when the head branch carries a spec number whose `specs/changes/NNNN-*.md` is missing or still `Proposed` (code must not land for an unaccepted spec), or when a branch with **no** spec number changes tracked source (`src/**`, `scripts/**`, `firestore.rules`). A docs-/scaffold-only change on a no-spec branch passes. The branch-slug heuristic is shared with the Claude edit guard; the status parser is shared with the spec-status guard. Unit-tested (`scripts/pr-spec-reference.test.mjs`). See spec 0031.
+
+---
+
 ### Local smoke test
 
 **Definition:** Developer runs the app locally and manually verifies core user flows work end-to-end.
@@ -146,7 +166,7 @@
 ### Aggregate gate
 
 **Command:** `npm run check`
-**Definition:** `format:check && lint && type-check && test && build` (sequential)
+**Definition:** `lockfile-guard && spec-status-guard && format:check && lint && type-check && test && build` (sequential)
 **Blocks local completion:** Yes
 **Blocks merge:** Yes
 **Notes:** This is the **fast subset** — it does not include integration tests or E2E (those require the emulator/full server). Once CI is configured, a `npm run check:full` script will be added that includes those layers; PR merge will block on `check:full`. Until then, integration/E2E coverage is the human reviewer's responsibility.
@@ -178,21 +198,21 @@ If a gate does not yet exist when a change spec is implemented:
 
 ### Current state
 
-**GitHub Actions CI is not yet configured.** Tests run locally via the pre-commit hook (`lefthook.yml` runs lint + typecheck + unit tests) and via `npm run check`. There is no automatic gate on PRs at the GitHub level — review discipline is the only gate.
+**GitHub Actions CI is configured** (`.github/workflows/ci.yml`), running on every `pull_request` to `main` and on push to `main`. Jobs:
 
-Spec 0001 explicitly deferred CI to a future change spec. This is tracked as deferred work; the gap should be closed before the team grows beyond a single committer.
+- **Spec Status & Reference** (`spec-gate`) — `scripts/spec-status-guard.mjs` + `scripts/pr-spec-reference.mjs` (spec 0031).
+- **Type Check & Lint** (`quality`) — `npm run type-check`, `npm run lint`.
+- **Unit Tests** (`unit`) — `npm run test`.
+- **Emulator Tests** (`emulator`) — Firestore emulator + `npm run test:emulator`.
+- **E2E Tests** (`e2e`) — full stack + `npm run test:e2e`.
 
-### When CI is added (future spec)
+Locally, the same gates run via the `pre-commit` hook (`lefthook.yml`) and `npm run check`.
 
-GitHub Actions will run on every PR push:
+### Future hardening
 
-- Unit tests (`npm test`)
-- Integration tests (`npm run test:integration`) — emulator started in CI using `demo-poker-ledger`
-- E2E tests (`npm run test:e2e`) — full stack started in CI
-- Format check, lint, typecheck, build
-- Secrets scan (`gitleaks`)
-- Merge to `main` blocked if any gate fails
-- Gate configuration lives in `.github/workflows/ci.yml`
+- Secrets scan in CI (`gitleaks`) mirroring the local `secret-scan` hook.
+- A `npm run check:full` that also runs integration/E2E so local completion matches the CI surface.
+- Making the `spec-gate` and other jobs **required** status checks in GitHub branch protection (a repo-settings decision).
 
 ---
 

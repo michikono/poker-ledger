@@ -7,6 +7,25 @@ on:
     branches: [main]
 
 jobs:
+  spec-gate:
+    name: Spec Status & Reference
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Every change spec must be internally consistent (status enum, status
+      # matches latest history row, legal transitions, monotonic dates).
+      - run: node scripts/spec-status-guard.mjs
+      # A PR must reference an Accepted (or later) spec; a code change on a
+      # branch with no spec number is rejected. See spec 0031.
+      - run: node scripts/pr-spec-reference.mjs
+
   quality:
     name: Type Check & Lint
     runs-on: ubuntu-latest

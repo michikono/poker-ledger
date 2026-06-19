@@ -30,6 +30,11 @@ pre-commit:
     # node; remedy is `npm ci`. See spec 0029.
     lockfile-guard:
       run: node scripts/lockfile-guard.mjs
+    # Fail fast when a change spec's `## Status` is invalid, disagrees with the
+    # latest Status-history row, makes an illegal (silent backslide) transition,
+    # or has out-of-order history dates. Deterministic, pure node. See spec 0031.
+    spec-status-guard:
+      run: node scripts/spec-status-guard.mjs
     typecheck:
       run: npm run type-check
     lint:
