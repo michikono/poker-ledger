@@ -225,10 +225,12 @@
   *,
   *::before,
   *::after {
+    /* biome-ignore-start lint/complexity/noImportantStyles: !important is required to override author-level animation/transition declarations regardless of specificity so reduced-motion is reliably honored */
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+    /* biome-ignore-end lint/complexity/noImportantStyles: end reduced-motion override */
   }
 
   .player-row-flash {
