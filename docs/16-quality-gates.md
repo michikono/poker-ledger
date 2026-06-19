@@ -121,7 +121,7 @@
 ### Claude edit guards (PreToolUse)
 
 **Mechanism:** a `PreToolUse` hook on `Edit`/`Write` in `.claude/settings.json` runs `scripts/claude-edit-guard.mjs`. **Affects Claude Code sessions only** (not human `git` operations), and is not a security boundary.
-**Branch guard (blocks):** denies editing tracked source (`src/**`, `scripts/**`, `firestore.rules`) while on `main`, directing work to a worktree feature branch (rule #11). Deterministic.
+**Branch guard (blocks):** denies editing tracked source (`src/**`, `scripts/**`, `firestore.rules`) while on `main`, directing work to a worktree feature branch (rule #11). Deterministic. The branch is resolved from the **worktree that contains the edited file** (`git -C <dir of file> rev-parse --abbrev-ref HEAD`), not the Claude session cwd — so a session anchored to the `main` checkout can still edit files inside a feature-branch worktree (change 0030). Falls back to the session cwd when the file path resolves no branch.
 **Spec-presence guard (warns):** on a feature branch whose name carries a spec number with no matching `Accepted`/`In Progress`/`Implemented` spec, emits a non-blocking warning (rule #1). Heuristic — warn only, never blocks; silent when the branch carries no spec number.
 **Contract:** confirmed against Claude Code as of 2026-06-18 — deny via `hookSpecificOutput.permissionDecision: "deny"`, warn via `systemMessage`, both with exit 0. The decision logic is unit-tested (`scripts/claude-edit-guard.test.mjs`); the script fails open (allows) on any parse/git error so it can never wedge editing.
 
