@@ -25,6 +25,11 @@ pre-commit:
     # arbitrary-execution wildcard (e.g. Bash(node *)). See ADR 0007 / spec 0028.
     settings-guard:
       run: node scripts/settings-guard.mjs
+    # Block a foreign lockfile (pnpm/yarn) or a @biomejs/biome that drifted off
+    # the package-lock.json pin from reaching a commit. Deterministic, pure
+    # node; remedy is `npm ci`. See spec 0029.
+    lockfile-guard:
+      run: node scripts/lockfile-guard.mjs
     typecheck:
       run: npm run type-check
     lint:

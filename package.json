@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "preinstall": "node scripts/package-manager-guard.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
@@ -17,8 +18,13 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "gen:hand-rankings": "node scripts/generate-hand-svgs.mjs",
-    "check": "npm run format:check && npm run lint && npm run type-check && npm run test && npm run build",
+    "check": "node scripts/lockfile-guard.mjs && npm run format:check && npm run lint && npm run type-check && npm run test && npm run build",
     "postinstall": "lefthook install"
+  },
+  "packageManager": "npm@10.9.7",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -38,7 +44,7 @@
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "2.4.14",
     "@firebase/rules-unit-testing": "^5.0.1",
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4.2.4",

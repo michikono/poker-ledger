@@ -16,7 +16,7 @@
 ## Prerequisites
 
 - **Node.js 20+** — check `.nvmrc` for the pinned version; use `nvm use` if you have nvm
-- **npm** — bundled with Node.js
+- **npm** — bundled with Node.js. **This repo is npm-only.** A `preinstall` guard aborts `pnpm`/`yarn` installs (they ignore `package-lock.json` and drift `node_modules` off the pinned toolchain), `engine-strict` in `.npmrc` enforces the `engines` range, and a `lockfile-guard` fails `npm run check`/pre-commit on a stray `pnpm-lock.yaml`/`yarn.lock` or a `@biomejs/biome` version drift. If you hit either, the fix is `npm ci`. See spec 0029.
 - **Git**
 - **Firebase CLI** — `npm install -g firebase-tools` (required to start the emulator)
 - **Java 11+** — required by the Firebase emulator (check with `java -version`)
@@ -217,6 +217,8 @@ A linter rule for `window.location.reload()` is desirable but not yet configured
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `npm install` fails | Node version mismatch | Check `.nvmrc`; run `nvm use` |
+| `lint`/`format` fail right after a fresh worktree, or `lockfile-guard` reports Biome drift | `node_modules` drifted (often a stray `pnpm install` re-resolving to a newer Biome) | `rm -f pnpm-lock.yaml pnpm-workspace.yaml yarn.lock && npm ci` |
+| `npm install` aborts with "This repo is npm-only" | Ran `pnpm`/`yarn` instead of npm | Use `npm install` / `npm ci` |
 | `npm run dev` fails to start | Firebase CLI not installed | `npm install -g firebase-tools` |
 | `npm run dev` fails to start | Java not found | Install Java 11+ (`brew install openjdk`) |
 | Firestore writes fail | Emulator not running | Ensure `npm run dev` is running; check port 8080 |
