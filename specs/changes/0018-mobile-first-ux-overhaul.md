@@ -1,7 +1,7 @@
 # Change 0018: Mobile-first UX overhaul
 
 ## Status
-Accepted (revised 2026-05-09 to include flow-level mobile fixes — see "Revision: flow-level mobile fixes" below)
+Implemented (revised 2026-05-09 to include flow-level mobile fixes — see "Revision: flow-level mobile fixes" below)
 
 ## Owner
 Michi Kono
@@ -259,3 +259,4 @@ After the first implementation pass, review surfaced that the per-card editing a
 | 2026-05-09 | Proposed | Initial draft |
 | 2026-05-09 | Accepted | Approved by owner — proceed with implementation |
 | 2026-05-09 | Accepted (revised) | Review surfaced per-card flow + tap-target gaps; spec expanded to add `<PlayerDetailsSheet>`, `<AddBuyInModal>`, `<DefaultBuyInModal>`, and a tap-target sweep across remaining surfaces |
+| 2026-06-19 | Implemented | Implementation merged to `main` (commits `f0c75eb`, `56576c8`, `8d4a095`, `3762e17`, `589da62`, `770fe34`, `1486654`). Status header was stale; corrected as a bookkeeping fix. |
