@@ -68,6 +68,7 @@ A new worktree gets its own `node_modules` (worktrees do not share them), so dep
 - Ordinary branch switches in an existing worktree already have `node_modules`, so the hook is a no-op and adds no latency. If a branch switch changes `package-lock.json`, run `npm install` yourself — the hook only bootstraps an empty worktree, it doesn't keep deps in sync.
 - The trigger lives in the repo, not in any per-machine tool config, so it works for anyone who clones and installs once. An external setup trigger (e.g. Orca's per-repo setup command) is therefore unnecessary.
 - Escape hatch: set `LEFTHOOK=0` to skip all git hooks, including this install.
+- **npm-only.** The bootstrap install (and every install) must be npm. A separate per-machine trigger that runs `pnpm install` on a fresh worktree was observed re-resolving caret ranges and drifting `node_modules` (e.g. `@biomejs/biome` 2.4.14 → 2.5.0, breaking lint). A `preinstall` guard now aborts `pnpm`/`yarn`, and `lockfile-guard` flags a stray `pnpm-lock.yaml`/`yarn.lock` or Biome drift; recover with `npm ci`. See change spec `0029-package-manager-guard`.
 
 See change spec `0025-worktree-bootstrap-hook` for the rationale.
 

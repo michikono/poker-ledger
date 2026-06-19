@@ -1,7 +1,7 @@
 # Change 0029: Package-manager guard (pnpm contamination)
 
 ## Status
-Proposed
+Accepted
 
 ## Owner
 Michi Kono
@@ -143,3 +143,5 @@ Implication confirmed: the contamination is real, intermittent, and **per-worktr
 | Date | Status | Notes |
 |---|---|---|
 | 2026-06-18 | Proposed | Initial draft — root cause (caret + pnpm ignoring lockfile) identified; trigger is environmental/per-machine |
+| 2026-06-18 | Accepted | Trigger reproduced live on the 0029 worktree; accepted to implement guards |
+| 2026-06-18 | In Progress | Implementing preinstall + lockfile guards, packageManager/engines/.npmrc, exact Biome pin |
