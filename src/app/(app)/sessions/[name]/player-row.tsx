@@ -1,13 +1,7 @@
 "use client";
 
 import { Pencil, Plus } from "lucide-react";
-import {
-  type Ref,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/currency/format";
@@ -17,6 +11,7 @@ import { BuyInsModal } from "./buy-ins-modal";
 import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 import { PlayerDetailsSheet } from "./player-details-sheet";
 import { computePlayerTotals } from "./totals";
+import { useFlashOnChange } from "./use-flash-on-change";
 
 export type PlayerRowHandle = {
   openEdit: (options?: { focus?: "name" | "venmo" }) => void;
@@ -59,14 +54,7 @@ export function PlayerRow({
   );
 
   // Replay the flash animation when the parent says this row just changed.
-  useEffect(() => {
-    if (!highlighted) return;
-    const el = rowRef.current;
-    if (!el) return;
-    el.classList.remove("player-row-flash");
-    void el.offsetWidth;
-    el.classList.add("player-row-flash");
-  }, [highlighted]);
+  useFlashOnChange(rowRef, highlighted);
 
   useImperativeHandle(ref, () => ({
     openEdit: (options) => {

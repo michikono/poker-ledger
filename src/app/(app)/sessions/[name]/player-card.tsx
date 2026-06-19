@@ -1,13 +1,7 @@
 "use client";
 
 import { Pencil, Plus } from "lucide-react";
-import {
-  type Ref,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { formatCents } from "@/lib/currency/format";
 import type { SessionStatus } from "@/lib/sessions/types";
@@ -17,6 +11,7 @@ import type { BuyInHistoryEntry, SessionPlayerView } from "./page";
 import { PlayerDetailsSheet } from "./player-details-sheet";
 import type { PlayerRowHandle } from "./player-row";
 import { computePlayerTotals } from "./totals";
+import { useFlashOnChange } from "./use-flash-on-change";
 
 /**
  * Mobile player card. Tapping the body opens the PlayerDetailsSheet (name,
@@ -56,17 +51,8 @@ export function PlayerCard({
   );
 
   // Replay the flash animation whenever the parent says this player just
-  // changed (added, renamed, etc). Toggling the class off + forcing a
-  // reflow + re-adding it restarts the keyframes even if the class was
-  // already present from a prior highlight.
-  useEffect(() => {
-    if (!highlighted) return;
-    const el = cardRef.current;
-    if (!el) return;
-    el.classList.remove("player-row-flash");
-    void el.offsetWidth;
-    el.classList.add("player-row-flash");
-  }, [highlighted]);
+  // changed (added, renamed, etc).
+  useFlashOnChange(cardRef, highlighted);
 
   useImperativeHandle(ref, () => ({
     openEdit: (options) => {
