@@ -31,11 +31,11 @@ Relevant prior specs/docs:
 
 1. **Live updates while watching.** On the session detail page, when anyone changes the session — adds a player, adds/removes a buy-in, sets a cash-out, computes/settles payments, marks a payment paid, or changes status — every other open client viewing that session updates within ~1–2s, with no manual reload. It is a **soft** background refresh: scroll position, focus, and any open modals/inputs are preserved.
 2. **Live index.** On the sessions list, a newly created session or a session status change appears/updates on other open clients without a manual reload.
-3. **Connection status light (detail page).** Immediately to the right of the game-status badge ("In progress", etc.) in the session header sits a small connection light:
+3. **Connection status light (both surfaces, consistent placement).** A small connection light sits to the right of the page header on each live surface — **right of the "Sessions" heading** on the sessions index, and **right of the game-status badge** ("In progress", etc.) on the session detail header. It behaves identically in both places:
    - **Live:** green with a subtle, continuous pulse animation (respecting `prefers-reduced-motion` — no motion when reduced, just a steady green dot).
    - **Not live** (idle-stopped or connection lost): solid **red**, static (no pulse).
    - It is a real, thumb-sized tap target (≥44×44px). Tapping it opens a brief popover explaining the current connection state and that the app auto-updates in the background while live. Reachable by tap only — no hover dependency.
-4. **Stale banner (both surfaces).** Whenever auto-refresh is not running for **any** reason — 10-minute inactivity **or** network/connection loss — a banner appears at the top of the page warning that the view is no longer updating live (with resume guidance: interact to resume, or it reconnects when you're back online). The banner disappears automatically once live syncing resumes.
+4. **Stale banner (both surfaces, consistent).** Whenever auto-refresh is not running for **any** reason — 10-minute inactivity **or** network/connection loss — the same banner appears at the top of the page warning that the view is no longer updating live (with resume guidance: interact to resume, or it reconnects when you're back online). The banner disappears automatically once live syncing resumes. The light and banner are the same components on both surfaces, driven by a shared realtime-status context, so they look and behave the same on the index and the detail page.
 5. **Idle stop after 10 minutes.** If a client goes 10 minutes with no interaction — no pointer movement, scroll, key press, tap, click, or tab refocus — background syncing stops (light red, banner shown). A tab left open and forgotten stops pulling data. (While the tab is hidden — e.g. the phone is locked — the idle countdown continues; the browser also suspends the connection itself.)
 6. **Return-to-tab resumes (phone unlock).** When the user brings the app back into view — unlocks the phone and sees the browser, or refocuses the tab — the `visibilitychange → visible` event counts as interaction: syncing resumes and immediately catches up. A player who glances at the app throughout the game stays live just by returning to it, with no need to tap the screen.
 7. **Seamless resume.** The moment the user interacts again (moves the cursor, scrolls, taps, types, or refocuses/returns to the tab) — or the network returns — syncing resumes and the view immediately performs a single catch-up refresh, then stays live.
@@ -48,7 +48,6 @@ Relevant prior specs/docs:
 - **No presence / "who's viewing" / typing indicators.**
 - **No configurable idle timeout UI.** The 10-minute threshold is a documented constant, not a setting.
 - **No device-motion / gyroscope activity source.** Considered and dropped as over-complex (thresholds + iOS permission prompts); the visibility event covers the phone-glance use case instead.
-- **No connection light on the index** (only the stale banner appears there). The light lives on the session detail header per the request.
 - **No change to the mutation → `router.refresh()` behavior that already exists** after local actions.
 - **No rules relaxation, no new server endpoints, no WebSocket server.** Realtime uses Firestore's client `onSnapshot` (WebChannel) over the already-permitted authenticated read path.
 - **No offline persistence / IndexedDB cache** enablement.
@@ -63,7 +62,7 @@ None. No schema, collection, or index changes. The listeners read existing colle
 
 - `docs/03-architecture.md` — the read-path graph currently shows only `RSC -- "Firestore Admin SDK" --> Firestore`. Add a client realtime read edge: `Client -- "onSnapshot (auth read)" --> Firestore`, with a note that a snapshot triggers a soft `router.refresh()` (re-running the RSC). Update the surrounding prose that says "clients only read via the Admin SDK."
 - `docs/04-security-threat-model.md` — update the Firestore-rules note to reflect that client SDK reads are now actually used (rules already cover this; the prose that framed client reads as hypothetical becomes current).
-- `docs/08-ux-spec.md` — document the session-header connection light (states + tap popover), the stale banner, and the new default index filter (In Progress) with explicit "All".
+- `docs/08-ux-spec.md` — document the connection light (states + tap popover) in both header positions (right of the index "Sessions" heading and right of the detail game-status badge), the shared stale banner, and the new default index filter (In Progress) with explicit "All".
 - New ADR `specs/decisions/0008-client-realtime-reads.md` — record: client `onSnapshot` for realtime (over a bespoke WS server or polling), the idle-stop + visibility-resume policy, the connection-status UX, and the reaffirmed write-deny posture.
 
 ## API impact
@@ -120,8 +119,9 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
   - Reactivation → resubscribes **and** calls `onRefresh` once (catch-up); status returns to `live`.
   - Subscribe error / offline → status becomes `offline`.
 - **Query builders `changeLogQuery` / `sessionsIndexQuery` (unit):** assert collection path, order, and limit passed to the injected query factory.
-- **`ConnectionStatusLight` (component test):** renders green+pulse when live, red+static otherwise; tap opens the popover; has an accessible label reflecting state; tap target ≥44px; no pulse under `prefers-reduced-motion`.
-- **`StaleSyncBanner` (component test):** renders only when not live; copy reflects idle vs offline; absent when live.
+- **`ConnectionStatusLight` (component test):** consumes the realtime-status context; renders green+pulse when live, red+static otherwise; tap opens the popover; has an accessible label reflecting state; tap target ≥44px; no pulse under `prefers-reduced-motion`. Same component used on both surfaces.
+- **`StaleSyncBanner` (component test):** consumes the context; renders only when not live; copy reflects idle vs offline; absent when live. Same component on both surfaces.
+- **`RealtimeSyncProvider` (component test):** runs the hook via an injected `subscribe`/`onRefresh` and exposes `status` through context to child light + banner.
 - **`FilterPills` / nav (unit):** "All" points to `?status=all` and is active for the all view; default (no param) marks "In Progress" active.
 - **Excluded from unit tests:** the real WebChannel/emulator round-trip — covered by the manual smoke test (two tabs: mutate in A → B updates in ~1–2s; leave B idle 10 min → light red + banner; interact → catch-up; toggle offline → banner + red; on mobile viewport, lock/unlock the phone → `visibilitychange` resumes with a catch-up refresh).
 
@@ -129,9 +129,9 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
 
 - [ ] With two clients on the same session, a mutation in one is reflected in the other within ~2s as a soft refresh (scroll/focus/open modals preserved), no manual reload.
 - [ ] With two clients on the sessions index, a newly created session and a status change appear/update on the other without manual reload.
-- [ ] The session header shows a connection light immediately right of the status badge: green + subtle pulse when live, solid red + static when not; pulse suppressed under `prefers-reduced-motion`.
-- [ ] Tapping the light opens a brief popover explaining the current connection state and that the app auto-updates in the background; it is a ≥44px tap target reachable without hover.
-- [ ] A stale banner appears at the top of both surfaces whenever syncing is stopped for any reason (10-min idle or connection loss) and clears when live resumes.
+- [ ] The connection light appears in a consistent place on both surfaces — right of the "Sessions" heading on the index, right of the status badge on the detail header — green + subtle pulse when live, solid red + static when not; pulse suppressed under `prefers-reduced-motion`.
+- [ ] Tapping the light (either surface) opens a brief popover explaining the current connection state and that the app auto-updates in the background; it is a ≥44px tap target reachable without hover.
+- [ ] The same stale banner appears at the top of both surfaces whenever syncing is stopped for any reason (10-min idle or connection loss) and clears when live resumes.
 - [ ] After 10 minutes with no interaction (pointer/scroll/key/tap/click/refocus), syncing stops.
 - [ ] Returning to the tab (`visibilitychange → visible`, e.g. unlocking the phone) resumes syncing with a single catch-up refresh; a hidden tab keeps counting down toward idle.
 - [ ] Interacting again or the network returning resumes syncing with a single catch-up refresh.
@@ -157,21 +157,22 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
   - `src/lib/realtime/connection-status.ts` (+ `.test.ts`) — status enum + `deriveConnectionStatus` + banner/popover copy map.
   - `src/lib/realtime/use-realtime-refresh.ts` (+ `.test.tsx`) — combines activity + subscription + online/offline + debounce; returns `{ status }`.
   - `src/lib/sessions/filter.ts` (+ `.test.ts`) — `resolveSessionFilter`.
-  - `src/app/(app)/sessions/[name]/connection-status-light.tsx` (+ test) — the light + tap popover.
-  - `src/components/realtime/stale-sync-banner.tsx` (+ test) — shared top banner.
-  - `src/app/(app)/sessions/sessions-realtime-sync.tsx` — client component for the index: runs the hook (sessions query) and renders the stale banner.
+  - `src/components/realtime/realtime-sync-provider.tsx` (+ test) — client provider: builds the surface's subscribe (change_log for a session, or the sessions index query), runs `useRealtimeRefresh`, and exposes `{ status }` via React context to its children. Wraps each page's content.
+  - `src/components/realtime/connection-status-light.tsx` (+ test) — context-consuming light + tap popover; used on both surfaces.
+  - `src/components/realtime/stale-sync-banner.tsx` (+ test) — context-consuming top banner; used on both surfaces.
   - `specs/decisions/0008-client-realtime-reads.md`
 - **Files (edited):**
   - `src/lib/firebase/client.ts` — extract shared `getClientApp()`; add `getClientDb()` with `connectFirestoreEmulator` for demo- projects.
-  - `src/app/(app)/sessions/[name]/session-view.tsx` — run the realtime hook (change_log for `session.id`), render `<ConnectionStatusLight status>` next to `<StatusBadge>` and `<StaleSyncBanner>` at the top of the page.
-  - `src/app/(app)/sessions/page.tsx` — use `resolveSessionFilter`; mount `<SessionsRealtimeSync>`.
+  - `src/app/(app)/sessions/[name]/session-view.tsx` — wrap content in `<RealtimeSyncProvider target=session sessionId=…>`; render `<StaleSyncBanner>` at the top and `<ConnectionStatusLight>` immediately right of `<StatusBadge>`.
+  - `src/app/(app)/sessions/page.tsx` — use `resolveSessionFilter`; wrap content in `<RealtimeSyncProvider target=index>`; render `<StaleSyncBanner>` at the top and `<ConnectionStatusLight>` right of the "Sessions" `<h1>` (in a flex row).
   - `src/app/(app)/sessions/filter-pills.tsx`, `src/components/layout/nav-items.ts` — "All" → `?status=all`; active-state logic for the all view.
   - `scripts/dev.mjs`, `.env.local.example`, `docs/03`, `docs/04`, `docs/08`, `docs/15`.
 - **Debounce** ~250ms so a multi-write transaction (e.g. `player_added` + `buy_in_added`) collapses into a single refresh.
 - **Skip-initial** lives in `subscribeToChanges`; the "catch-up on resume" refresh lives in `useRealtimeRefresh` (explicit `onRefresh()` on inactive→active and offline→online transitions) so resume doesn't rely on a snapshot firing.
+- **Shared context:** `RealtimeSyncProvider` owns the single hook instance per page and publishes `status` through context so the light (in the header) and the banner (at the top) — two different DOM positions — read the same state without prop-drilling. The provider is a client component but accepts server-rendered children (the index heading/list are passed through as children), so `page.tsx` stays a Server Component.
 - **Connection state:** derive from `active` (idle hook) ∧ `subscribed` ∧ `navigator.onLine` ∧ no `onSnapshot` error. Listen to `window` `online`/`offline` and the `onError` seam.
 - **Popover:** use a tap-triggered popover (Base UI Popover), not the hover `Tooltip`. Full-bleed-friendly on mobile; primary content readable at 360px.
-- **Mobile-first:** the light is a ≥44px tap target (padded around a small dot); the popover is tap-only and readable at 360px; the banner is full-width, wraps without horizontal scroll, and is safe-area aware if it renders near the top inset. Pulse animation respects `prefers-reduced-motion` (see `docs/16`/existing reduced-motion lint suppression, spec 0032). No new `<table>`; no hover-only affordances.
+- **Mobile-first:** the light is a ≥44px tap target (padded around a small dot) and sits in a flex header row that does not wrap or overflow at 360px on either surface (index "Sessions" heading row and detail badge row); the popover is tap-only and readable at 360px; the banner is full-width, wraps without horizontal scroll, and is safe-area aware if it renders near the top inset. Pulse animation respects `prefers-reduced-motion` (see `docs/16`/existing reduced-motion lint suppression, spec 0032). No new `<table>`; no hover-only affordances.
 - **Cleanup:** hooks detach `onSnapshot`, activity listeners (incl. `visibilitychange`), and online/offline listeners on unmount.
 
 ## Open questions
@@ -195,3 +196,4 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
 | 2026-07-08 | Proposed | Initial draft |
 | 2026-07-08 | Proposed | Added connection light, stale banner, device motion, 10-min window, default In-Progress view |
 | 2026-07-08 | Proposed | Dropped device motion; rely on visibilitychange for phone lock/unlock resume |
+| 2026-07-08 | Proposed | Connection light on both surfaces (right of index heading / detail badge) via shared realtime-status context |
