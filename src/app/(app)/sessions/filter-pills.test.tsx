@@ -44,11 +44,19 @@ describe("FilterPills", () => {
     );
   });
 
-  it("active pill links back to /sessions to deactivate", () => {
+  it("active pill links back to the All view to deactivate", () => {
     render(<FilterPills activeFilter="settled" />);
     expect(screen.getByRole("link", { name: "Settled" })).toHaveAttribute(
       "href",
-      "/sessions",
+      "/sessions?status=all",
+    );
+  });
+
+  it("the All pill links to the explicit all view", () => {
+    render(<FilterPills />);
+    expect(screen.getByRole("link", { name: "All" })).toHaveAttribute(
+      "href",
+      "/sessions?status=all",
     );
   });
 });

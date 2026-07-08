@@ -1,7 +1,7 @@
 # Change 0033: Background realtime sync with connection status and idle stop
 
 ## Status
-Proposed
+Implemented
 
 ## Owner
 Michi Kono
@@ -63,7 +63,7 @@ None. No schema, collection, or index changes. The listeners read existing colle
 - `docs/03-architecture.md` — the read-path graph currently shows only `RSC -- "Firestore Admin SDK" --> Firestore`. Add a client realtime read edge: `Client -- "onSnapshot (auth read)" --> Firestore`, with a note that a snapshot triggers a soft `router.refresh()` (re-running the RSC). Update the surrounding prose that says "clients only read via the Admin SDK."
 - `docs/04-security-threat-model.md` — update the Firestore-rules note to reflect that client SDK reads are now actually used (rules already cover this; the prose that framed client reads as hypothetical becomes current).
 - `docs/08-ux-spec.md` — document the connection light (states + tap popover) in both header positions (right of the index "Sessions" heading and right of the detail game-status badge), the shared stale banner, and the new default index filter (In Progress) with explicit "All".
-- New ADR `specs/decisions/0008-client-realtime-reads.md` — record: client `onSnapshot` for realtime (over a bespoke WS server or polling), the idle-stop + visibility-resume policy, the connection-status UX, and the reaffirmed write-deny posture.
+- New ADR `specs/decisions/0010-client-realtime-reads.md` — record: client `onSnapshot` for realtime (over a bespoke WS server or polling), the idle-stop + visibility-resume policy, the connection-status UX, and the reaffirmed write-deny posture.
 
 ## API impact
 
@@ -141,7 +141,7 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
 - [ ] Local dev works against the emulator via `NEXT_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_HOST`; `.env.local.example` and `docs/15` document it.
 - [ ] All quality gates pass (or failures documented with remediation plan)
 - [ ] Spec conformance review completed
-- [ ] Relevant docs updated (`docs/03`, `docs/04`, `docs/08`, `docs/15`) and ADR `0008-client-realtime-reads.md` added
+- [ ] Relevant docs updated (`docs/03`, `docs/04`, `docs/08`, `docs/15`) and ADR `0010-client-realtime-reads.md` added
 
 ## Rollout/deployment notes
 
@@ -160,7 +160,7 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
   - `src/components/realtime/realtime-sync-provider.tsx` (+ test) — client provider: builds the surface's subscribe (change_log for a session, or the sessions index query), runs `useRealtimeRefresh`, and exposes `{ status }` via React context to its children. Wraps each page's content.
   - `src/components/realtime/connection-status-light.tsx` (+ test) — context-consuming light + tap popover; used on both surfaces.
   - `src/components/realtime/stale-sync-banner.tsx` (+ test) — context-consuming top banner; used on both surfaces.
-  - `specs/decisions/0008-client-realtime-reads.md`
+  - `specs/decisions/0010-client-realtime-reads.md`
 - **Files (edited):**
   - `src/lib/firebase/client.ts` — extract shared `getClientApp()`; add `getClientDb()` with `connectFirestoreEmulator` for demo- projects.
   - `src/app/(app)/sessions/[name]/session-view.tsx` — wrap content in `<RealtimeSyncProvider target=session sessionId=…>`; render `<StaleSyncBanner>` at the top and `<ConnectionStatusLight>` immediately right of `<StatusBadge>`.
@@ -185,7 +185,7 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
 - `docs/04-security-threat-model.md` — Firestore rules posture
 - `docs/08-ux-spec.md` — session header + index filters
 - `docs/15-local-development.md` — emulator env vars
-- `specs/decisions/0008-client-realtime-reads.md` — (new) ADR for client realtime reads
+- `specs/decisions/0010-client-realtime-reads.md` — (new) ADR for client realtime reads
 - `specs/changes/0032-reduced-motion-important-lint-suppression.md` — reduced-motion handling precedent
 - `specs/changes/0024-initial-buy-in-events-and-newest-first-order.md` — change_log entry coverage
 
@@ -197,3 +197,5 @@ TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable s
 | 2026-07-08 | Proposed | Added connection light, stale banner, device motion, 10-min window, default In-Progress view |
 | 2026-07-08 | Proposed | Dropped device motion; rely on visibilitychange for phone lock/unlock resume |
 | 2026-07-08 | Proposed | Connection light on both surfaces (right of index heading / detail badge) via shared realtime-status context |
+| 2026-07-08 | Accepted | Accepted by owner; implementation begins |
+| 2026-07-08 | Implemented | Merged via implementation PR |

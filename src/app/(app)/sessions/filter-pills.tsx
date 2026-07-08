@@ -27,7 +27,7 @@ export function FilterPills({
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Link href="/sessions" className={pillClass(!activeFilter)}>
+      <Link href="/sessions?status=all" className={pillClass(!activeFilter)}>
         All
       </Link>
       {PILL_STATUSES.map((status) => {
@@ -39,7 +39,9 @@ export function FilterPills({
         return (
           <Link
             key={status}
-            href={isActive ? "/sessions" : `/sessions?status=${status}`}
+            href={
+              isActive ? "/sessions?status=all" : `/sessions?status=${status}`
+            }
             className={pillClass(isActive)}
           >
             {STATUS_LABELS[status]}

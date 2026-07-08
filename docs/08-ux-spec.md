@@ -73,18 +73,19 @@ A persistent side menu (collapsible on mobile) with six items:
 
 ### Screen: Session Index (`/sessions`)
 
-**Purpose:** List all sessions ordered by status then recency.
+**Purpose:** List sessions, filtered by status.
 **Who sees it:** Any signed-in user.
 
-**Ordering:**
-1. Search box at top
-2. In progress (most recent first)
-3. Settling (most recent first)
-4. Settled (most recent first)
+**Default filter (spec 0033):** The bare `/sessions` route redirects to `/sessions?status=in_progress` — the live-game view is the default. "All" is an explicit filter reached via the **All** pill and the "All sessions" side-nav item (`/sessions?status=all`). Other filters: Settling, Settled, Archived.
 
-Archived sessions are hidden from this page. Access them via the Archived section in the side menu.
+**Ordering (within a filter):**
+1. Search box at top
+2. Sessions, most recent first
+
+Archived sessions appear only under the Archived filter (and the side-menu Archived section).
 
 **Components:**
+- A connection-status light sits immediately right of the "Sessions" heading (background realtime sync — see Shared components).
 - Paginated list — 10 sessions per page (client-side over up to 200 fetched sessions per status group)
 - Each row: session name (link), creation date, player count, status badge
 - Search box — autocompletes via `/api/sessions/search`. See `docs/06-api-contract.md` for query semantics. Selecting a result (arrow + Enter or click) navigates to `/sessions/:name`.
@@ -120,6 +121,7 @@ Archived sessions are hidden from this page. Access them via the Archived sectio
 - Session name
 - Date created
 - Status badge (uses `formatStatus` for the display string)
+- Connection-status light immediately right of the status badge (background realtime sync — see Shared components)
 
 **Player table:**
 
@@ -193,6 +195,8 @@ CTA copy is **"Archive session"** (not "Delete"). Confirmation dialog: "Archive 
 - **Confirmation dialog** — reusable modal for destructive or significant actions (archive, manual rollback). Two-button: "Cancel" and a contextual confirm label (e.g., "Archive", "Roll back").
 - **Toast notifications** — for errors and non-blocking feedback. Auto-dismiss after 4s; clickable to dismiss early.
 - **Activity log entry** — timestamp + actor + description (description rendered with `**...**` → `<strong>`).
+- **Connection status light** (spec 0033) — small dot shown right of the page header on the session index (right of the "Sessions" heading) and the session detail header (right of the status badge). Green with a subtle pulse when background realtime sync is live; solid red and static when it's stopped (10-minute idle or connection loss). Pulse is suppressed under `prefers-reduced-motion`. It's a ≥44px tap target; tapping opens a short popover explaining the connection state and that the page auto-updates in the background. Implemented at `src/components/realtime/connection-status-light.tsx`.
+- **Stale sync banner** (spec 0033) — top-of-page banner shown on both surfaces whenever background sync is stopped (idle or offline), with resume guidance; hidden while live. Shares its state with the connection light via a realtime-status context (`src/components/realtime/realtime-sync-provider.tsx`). Implemented at `src/components/realtime/stale-sync-banner.tsx`.
 
 ---
 

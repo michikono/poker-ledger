@@ -17,7 +17,7 @@ export type NavItem = {
 export const NAV_ITEMS: readonly NavItem[] = [
   {
     label: "All sessions",
-    href: "/sessions",
+    href: "/sessions?status=all",
     icon: ListIcon,
   },
   {

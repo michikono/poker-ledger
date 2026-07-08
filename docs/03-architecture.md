@@ -48,6 +48,7 @@ graph TD
     Proxy -- "if cookie present" --> RSC
     Proxy -- "if no cookie" --> Browser
     RSC -- "Firestore Admin SDK" --> Firestore
+    Browser -- "onSnapshot realtime read (auth)\n→ router.refresh()" --> Firestore
     Browser -- "Server Action call (token)" --> Actions
     Actions -- "Firestore Admin SDK" --> Firestore
     Browser -- "sign in / getIdToken" --> FirebaseAuth
@@ -111,6 +112,11 @@ This is the authoritative description of how authentication is enforced. Other d
 4. RSC page (`src/app/(app)/sessions/[name]/page.tsx`) fetches session + players + buy-ins + payments + changelog from Firestore via Admin SDK.
 5. Server renders HTML; client receives hydrated component tree.
 
+**Background realtime sync (spec 0033):**
+1. On the session detail page and the sessions index, a client Firestore `onSnapshot` listener watches for changes — the newest `change_log` entry for a session, or the `sessions` collection on the index — over the SDK's WebChannel (authenticated read; `firestore.rules` already permits it). This is the only place clients read Firestore directly rather than via the Admin SDK.
+2. On a change it debounced-calls `router.refresh()`, re-running the RSC read path above so all server-side data shaping is reused (no client re-derivation). It is a soft refresh — scroll, focus, and open modals are preserved.
+3. Syncing stops after 10 minutes of no interaction and resumes on interaction, tab refocus (`visibilitychange`), or reconnect with a single catch-up refresh. A connection light + stale banner reflect the state. See ADR 0010.
+
 **Write (buy-in, cash-out, payment, state change):**
 1. User triggers action in the UI.
 2. Client component calls `auth.currentUser.getIdToken()` to obtain a fresh ID token.
@@ -133,7 +139,7 @@ All mutations go through Server Actions — client components do not write to Fi
 - **Proxy** (`src/proxy.ts`): presence-only cookie check at the edge. Defense-in-depth, not the primary auth gate.
 - **App layout RSC**: cryptographically verifies the session cookie via `adminAuth.verifySessionCookie` on every read request. Failure → redirect to sign-in.
 - **Server Actions**: cryptographically verify a fresh Firebase ID token (passed explicitly by the client) on every mutation. Session cookie alone is not sufficient for mutations.
-- **Firestore Security Rules**: `request.auth != null` for reads (defense-in-depth — clients only read via the Admin SDK in MVP, but the rules ensure that direct client SDK reads, if ever introduced, still require auth). All writes are denied to clients — writes always flow through Server Actions using the Admin SDK, which bypasses rules.
+- **Firestore Security Rules**: `request.auth != null` for reads. Reads now come from two paths — the Admin SDK (RSC render) and, since spec 0033, direct client `onSnapshot` listeners for background realtime sync — and the rules require auth for both. All writes are denied to clients — writes always flow through Server Actions using the Admin SDK, which bypasses rules.
 - Firebase config vars (`NEXT_PUBLIC_FIREBASE_*`) are public by design — they identify the project, not authorize access.
 - Firebase Admin SDK credentials (`FIREBASE_ADMIN_*`) are server-only and never bundled to the client.
 - User input is never trusted — validated on the server before any Firestore write.
