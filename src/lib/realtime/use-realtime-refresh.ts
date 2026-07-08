@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type ConnectionStatus,
   deriveConnectionStatus,
+  type ListenerHealth,
 } from "./connection-status";
-import type { Unsubscribe } from "./subscribe";
+import type { SubscribeHandlers, Unsubscribe } from "./subscribe";
 import {
   DEFAULT_IDLE_TIMEOUT_MS,
   useActivityStatus,
@@ -12,10 +13,7 @@ import {
 const DEFAULT_DEBOUNCE_MS = 250;
 const RETRY_MS = 5000;
 
-type SubscribeFn = (
-  onChange: () => void,
-  onError: (error: Error) => void,
-) => Unsubscribe;
+type SubscribeFn = (handlers: SubscribeHandlers) => Unsubscribe;
 
 export type UseRealtimeRefreshParams = {
   // Attaches the realtime listener; returns its unsubscribe. Injected so the
@@ -42,7 +40,7 @@ export function useRealtimeRefresh({
 } {
   const active = useActivityStatus(idleTimeoutMs);
   const [online, setOnline] = useState(true);
-  const [errored, setErrored] = useState(false);
+  const [health, setHealth] = useState<ListenerHealth>("connecting");
   // Bumping this forces the subscription effect to tear down and re-attach —
   // the recovery lever for both auto-retry (on error) and manual reconnect.
   const [reconnectNonce, setReconnectNonce] = useState(0);
@@ -53,10 +51,9 @@ export function useRealtimeRefresh({
   subscribeRef.current = subscribe;
   const mountedOnceRef = useRef(false);
 
-  // Clear the error and force a re-subscribe; the subscription effect's re-run
+  // Force a re-subscribe; the effect re-run resets health to "connecting" and
   // performs the single catch-up refresh (avoids a double refresh here).
   const reconnect = useCallback(() => {
-    setErrored(false);
     setReconnectNonce((n) => n + 1);
   }, []);
 
@@ -84,28 +81,33 @@ export function useRealtimeRefresh({
     if (mountedOnceRef.current) onRefreshRef.current();
     else mountedOnceRef.current = true;
 
-    setErrored(false);
+    setHealth("connecting");
 
     let debounce: ReturnType<typeof setTimeout> | undefined;
     let retry: ReturnType<typeof setTimeout> | undefined;
 
-    const scheduleRefresh = () => {
-      // A delivered snapshot proves the listener is healthy, so clear any stale
-      // error even when recovery happened outside this effect run (the auth-
-      // gated provider re-attaches the inner listener on re-auth). Without this
-      // the badge stays red while live updates keep arriving.
-      setErrored(false);
-      clearTimeout(debounce);
-      debounce = setTimeout(() => onRefreshRef.current(), debounceMs);
-    };
-    // A terminal listener error surfaces an offline status, then auto-retries by
-    // bumping the nonce so this effect re-attaches a fresh listener.
-    const handleError = () => {
-      setErrored(true);
-      retry = setTimeout(() => setReconnectNonce((n) => n + 1), RETRY_MS);
-    };
-
-    const unsubscribe = subscribeRef.current(scheduleRefresh, handleError);
+    const unsubscribe = subscribeRef.current({
+      // Any snapshot — including the initial one delivered right after a
+      // (re-)attach — proves the listener is authorized and healthy. This is the
+      // sole health-recovery path, independent of whether there's a change to
+      // apply, so a listener re-attached by the auth-gated provider clears a
+      // stale error even when no further write follows.
+      onSnapshot: () => {
+        setHealth("live");
+        clearTimeout(retry);
+      },
+      // A non-initial snapshot is an actual change: refresh (debounced).
+      onChange: () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => onRefreshRef.current(), debounceMs);
+      },
+      // A listener error surfaces an offline status, then auto-retries by
+      // bumping the nonce so this effect re-attaches a fresh listener.
+      onError: () => {
+        setHealth("errored");
+        retry = setTimeout(() => setReconnectNonce((n) => n + 1), RETRY_MS);
+      },
+    });
 
     return () => {
       clearTimeout(debounce);
@@ -115,7 +117,7 @@ export function useRealtimeRefresh({
   }, [active, online, debounceMs, reconnectNonce]);
 
   return {
-    status: deriveConnectionStatus({ active, online, errored }),
+    status: deriveConnectionStatus({ active, online, health }),
     reconnect,
   };
 }

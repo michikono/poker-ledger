@@ -8,6 +8,7 @@ import type { ConnectionStatus } from "@/lib/realtime/connection-status";
 import {
   changeLogQuery,
   sessionsIndexQuery,
+  type SubscribeHandlers,
   subscribeToChanges,
 } from "@/lib/realtime/subscribe";
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh";
@@ -48,14 +49,17 @@ export function RealtimeSyncProvider(props: Props) {
   const sessionId = props.target === "session" ? props.sessionId : undefined;
 
   const subscribe = useCallback(
-    (onChange: () => void, onError: (error: Error) => void) => {
+    (handlers: SubscribeHandlers) => {
       const auth = getClientAuth();
       let inner: (() => void) | undefined;
 
       // Attach the Firestore listener only once auth has resolved a signed-in
       // user, so the listen carries a token (rules require request.auth != null).
       // onAuthStateChanged fires immediately with the current state and again on
-      // sign-in/out, covering the cold-load restore race and re-auth.
+      // sign-in/out, covering the cold-load restore race and re-auth. The same
+      // handlers are reused across re-attaches; the health signal (onSnapshot)
+      // fires on each new listener's initial snapshot, so a re-attach heals a
+      // stale error on its own.
       const detachAuth = onAuthStateChanged(auth, (user) => {
         inner?.();
         inner = undefined;
@@ -65,7 +69,7 @@ export function RealtimeSyncProvider(props: Props) {
           target === "session" && sessionId
             ? changeLogQuery(db, sessionId)
             : sessionsIndexQuery(db);
-        inner = subscribeToChanges(q, onChange, onError);
+        inner = subscribeToChanges(q, handlers);
       });
 
       return () => {
