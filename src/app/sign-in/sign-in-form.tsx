@@ -1,7 +1,12 @@
 "use client";
 
 import { FirebaseError } from "firebase/app";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  getRedirectResult,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+} from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { CardIcon } from "@/components/icons/card-icon";
@@ -20,6 +25,29 @@ const SILENT_POPUP_ERRORS = new Set([
   "auth/cancelled-popup-request",
   "auth/user-cancelled",
 ]);
+
+// Popup is blocked or unsupported (common in mobile in-app browsers). Fall back
+// to a full-page redirect, which `getRedirectResult` completes on return.
+const REDIRECT_FALLBACK_ERRORS = new Set([
+  "auth/popup-blocked",
+  "auth/operation-not-supported-in-this-environment",
+  "auth/web-storage-unsupported",
+]);
+
+/**
+ * Routes a `signInWithPopup` failure to one of three actions:
+ *   - "silent": the user dismissed the popup — don't show an error.
+ *   - "redirect": the popup is unavailable — fall back to a full-page redirect.
+ *   - "error": a real failure — surface it to the user.
+ */
+export function classifyPopupError(
+  err: unknown,
+): "silent" | "redirect" | "error" {
+  if (!(err instanceof FirebaseError)) return "error";
+  if (SILENT_POPUP_ERRORS.has(err.code)) return "silent";
+  if (REDIRECT_FALLBACK_ERRORS.has(err.code)) return "redirect";
+  return "error";
+}
 
 /**
  * Guards against open-redirect via the `from` query param. We only accept
@@ -48,40 +76,62 @@ function SignInFormInner() {
   const fromParam = searchParams.get("from");
   const from =
     fromParam && isSafeInternalPath(fromParam) ? fromParam : "/sessions";
-  const [loading, setLoading] = useState(false);
+  // Start busy: on mount we resolve any pending OAuth redirect before the
+  // button becomes actionable, so a redirect return can't be interrupted.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-warm Firebase auth on mount so the click handler can open the OAuth
-  // popup synchronously within the user-activation window. Awaiting auth
-  // state inside the click handler made the first click race with IndexedDB
-  // persistence init, exhausting the gesture window and causing the popup
-  // to be suppressed; the second click then worked because state was cached.
+  // On mount, complete a redirect-based sign-in and pre-warm auth. Mobile
+  // browsers frequently degrade `signInWithPopup` into a full-page redirect
+  // (ADR 0011); `getRedirectResult` is what finishes that flow when the user
+  // lands back here. Without it, the session cookie is never created and the
+  // proxy bounces the user straight back to /sign-in. Pre-warming auth here
+  // also lets the click handler open the popup synchronously within the
+  // user-activation window (a cold first click otherwise raced IndexedDB
+  // persistence init and got suppressed).
   useEffect(() => {
-    getClientAuth()
-      .authStateReady()
-      .catch(() => {});
-  }, []);
+    const auth = getClientAuth();
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result) {
+          setLoading(false);
+          return;
+        }
+        const idToken = await result.user.getIdToken();
+        await createSession(idToken);
+        router.push(from);
+      })
+      .catch((err) => {
+        setError("Sign-in failed. Please try again.");
+        console.error(err);
+        setLoading(false);
+      });
+  }, [from, router]);
 
   async function handleSignIn() {
     setLoading(true);
     setError(null);
     const auth = getClientAuth();
     const provider = new GoogleAuthProvider();
-    const popupPromise = signInWithPopup(auth, provider);
     try {
-      const result = await popupPromise;
+      const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       await createSession(idToken);
       router.push(from);
     } catch (err) {
-      if (err instanceof FirebaseError && SILENT_POPUP_ERRORS.has(err.code)) {
+      const action = classifyPopupError(err);
+      if (action === "silent") {
         // User dismissed the popup — don't show an error.
         setLoading(false);
         return;
       }
+      if (action === "redirect") {
+        // Navigates away; getRedirectResult completes on return. Keep loading.
+        await signInWithRedirect(auth, provider);
+        return;
+      }
       setError("Sign-in failed. Please try again.");
       console.error(err);
-    } finally {
       setLoading(false);
     }
   }
