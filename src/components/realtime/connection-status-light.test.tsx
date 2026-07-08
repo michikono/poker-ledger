@@ -3,9 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ConnectionStatus } from "@/lib/realtime/connection-status";
 
 const status = vi.hoisted(() => ({ value: "live" as ConnectionStatus }));
+const reconnect = vi.hoisted(() => vi.fn());
 
 vi.mock("./realtime-sync-provider", () => ({
-  useRealtimeStatus: () => status.value,
+  useRealtimeSync: () => ({ status: status.value, reconnect }),
 }));
 
 import { ConnectionStatusLight } from "./connection-status-light";
@@ -43,6 +44,28 @@ describe("ConnectionStatusLight", () => {
         screen.getByText(/resume automatically once you're back online/i),
       ).toBeInTheDocument();
     });
+  });
+
+  it("offers a Refresh now action in the popover when not live", async () => {
+    status.value = "offline";
+    reconnect.mockClear();
+    render(<ConnectionStatusLight />);
+    fireEvent.click(screen.getByTestId("connection-status-light"));
+    const refresh = await screen.findByTestId("connection-refresh-now");
+    fireEvent.click(refresh);
+    expect(reconnect).toHaveBeenCalled();
+  });
+
+  it("does not offer Refresh now while live", async () => {
+    status.value = "live";
+    render(<ConnectionStatusLight />);
+    fireEvent.click(screen.getByTestId("connection-status-light"));
+    await waitFor(() => {
+      expect(screen.getByText(/updates automatically/i)).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByTestId("connection-refresh-now"),
+    ).not.toBeInTheDocument();
   });
 
   it("has a thumb-sized tap target", () => {
