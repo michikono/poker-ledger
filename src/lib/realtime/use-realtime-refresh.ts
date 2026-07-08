@@ -90,6 +90,11 @@ export function useRealtimeRefresh({
     let retry: ReturnType<typeof setTimeout> | undefined;
 
     const scheduleRefresh = () => {
+      // A delivered snapshot proves the listener is healthy, so clear any stale
+      // error even when recovery happened outside this effect run (the auth-
+      // gated provider re-attaches the inner listener on re-auth). Without this
+      // the badge stays red while live updates keep arriving.
+      setErrored(false);
       clearTimeout(debounce);
       debounce = setTimeout(() => onRefreshRef.current(), debounceMs);
     };
