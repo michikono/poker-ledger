@@ -8,7 +8,7 @@ Michi Kono
 
 ## Goal
 
-Keep every open client's view of a session (and the sessions index) current in near-real-time while it is being watched — with a visible connection indicator and a stale-state banner — and stop syncing a forgotten, idle tab after 10 minutes of no interaction (mobile glances via device motion count as interaction).
+Keep every open client's view of a session (and the sessions index) current in near-real-time while it is being watched — with a visible connection indicator and a stale-state banner — and stop syncing a forgotten, idle tab after 10 minutes of no interaction (returning to the tab, e.g. after unlocking the phone, resumes via the visibility event).
 
 ## Context
 
@@ -36,9 +36,9 @@ Relevant prior specs/docs:
    - **Not live** (idle-stopped or connection lost): solid **red**, static (no pulse).
    - It is a real, thumb-sized tap target (≥44×44px). Tapping it opens a brief popover explaining the current connection state and that the app auto-updates in the background while live. Reachable by tap only — no hover dependency.
 4. **Stale banner (both surfaces).** Whenever auto-refresh is not running for **any** reason — 10-minute inactivity **or** network/connection loss — a banner appears at the top of the page warning that the view is no longer updating live (with resume guidance: interact to resume, or it reconnects when you're back online). The banner disappears automatically once live syncing resumes.
-5. **Idle stop after 10 minutes.** If a client goes 10 minutes with no interaction — no pointer movement, scroll, key press, tap, click, tab refocus, **or meaningful device motion** — background syncing stops (light red, banner shown). A tab left open and forgotten stops pulling data.
-6. **Mobile glances count.** On a phone, physically moving/tilting the device (a glance) registers as interaction and keeps the session live, so a player who picks up their phone to look doesn't have to touch the screen to stay synced. (Best-effort: requires device-motion access — see Security/Local-dev.)
-7. **Seamless resume.** The moment the user interacts again (moves the cursor, scrolls, taps, types, moves the phone, or refocuses the tab) — or the network returns — syncing resumes and the view immediately performs a single catch-up refresh, then stays live.
+5. **Idle stop after 10 minutes.** If a client goes 10 minutes with no interaction — no pointer movement, scroll, key press, tap, click, or tab refocus — background syncing stops (light red, banner shown). A tab left open and forgotten stops pulling data. (While the tab is hidden — e.g. the phone is locked — the idle countdown continues; the browser also suspends the connection itself.)
+6. **Return-to-tab resumes (phone unlock).** When the user brings the app back into view — unlocks the phone and sees the browser, or refocuses the tab — the `visibilitychange → visible` event counts as interaction: syncing resumes and immediately catches up. A player who glances at the app throughout the game stays live just by returning to it, with no need to tap the screen.
+7. **Seamless resume.** The moment the user interacts again (moves the cursor, scrolls, taps, types, or refocuses/returns to the tab) — or the network returns — syncing resumes and the view immediately performs a single catch-up refresh, then stays live.
 8. **Default session view = In Progress.** Visiting `/sessions` (no filter) now shows **In Progress** games by default (the live-game case), instead of all sessions. "All" remains available as an explicit filter (`/sessions?status=all`) from the pills and side-nav. All other filters are unchanged.
 
 ## Non-goals
@@ -46,12 +46,12 @@ Relevant prior specs/docs:
 - **No optimistic/streamed partial updates or client-side re-derivation.** We refresh via the existing server render path, not by mutating local state from snapshot payloads. (Keeps all data shaping server-side; avoids a second source of truth.)
 - **No client-side writes.** All mutations still go through Server Actions + Admin SDK. `firestore.rules` writes stay denied.
 - **No presence / "who's viewing" / typing indicators.**
-- **No configurable idle timeout or motion-sensitivity UI.** The 10-minute threshold and motion threshold are documented constants, not settings.
+- **No configurable idle timeout UI.** The 10-minute threshold is a documented constant, not a setting.
+- **No device-motion / gyroscope activity source.** Considered and dropped as over-complex (thresholds + iOS permission prompts); the visibility event covers the phone-glance use case instead.
 - **No connection light on the index** (only the stale banner appears there). The light lives on the session detail header per the request.
 - **No change to the mutation → `router.refresh()` behavior that already exists** after local actions.
 - **No rules relaxation, no new server endpoints, no WebSocket server.** Realtime uses Firestore's client `onSnapshot` (WebChannel) over the already-permitted authenticated read path.
 - **No offline persistence / IndexedDB cache** enablement.
-- **No iOS auto-prompt spam:** device-motion permission is requested at most once, on a user gesture; denial degrades gracefully to touch/scroll/pointer activity only.
 
 ## Data model impact
 
@@ -64,7 +64,7 @@ None. No schema, collection, or index changes. The listeners read existing colle
 - `docs/03-architecture.md` — the read-path graph currently shows only `RSC -- "Firestore Admin SDK" --> Firestore`. Add a client realtime read edge: `Client -- "onSnapshot (auth read)" --> Firestore`, with a note that a snapshot triggers a soft `router.refresh()` (re-running the RSC). Update the surrounding prose that says "clients only read via the Admin SDK."
 - `docs/04-security-threat-model.md` — update the Firestore-rules note to reflect that client SDK reads are now actually used (rules already cover this; the prose that framed client reads as hypothetical becomes current).
 - `docs/08-ux-spec.md` — document the session-header connection light (states + tap popover), the stale banner, and the new default index filter (In Progress) with explicit "All".
-- New ADR `specs/decisions/0008-client-realtime-reads.md` — record: client `onSnapshot` for realtime (over a bespoke WS server or polling), the idle-stop + device-motion policy, the connection-status UX, and the reaffirmed write-deny posture.
+- New ADR `specs/decisions/0008-client-realtime-reads.md` — record: client `onSnapshot` for realtime (over a bespoke WS server or polling), the idle-stop + visibility-resume policy, the connection-status UX, and the reaffirmed write-deny posture.
 
 ## API impact
 
@@ -74,7 +74,6 @@ None. No Server Action signatures change; no new routes. The realtime path is a 
 
 - **Introduces real client-side Firestore reads.** Within the existing rules (`allow read: if request.auth != null`) — an authenticated user can already read every session's data through the app. No broadening of exposure versus the current Admin-SDK read path (the RSC reads the same collections on behalf of the same authenticated user). Writes remain fully denied to clients.
 - Listener scope is minimal: detail watches only the current session's `change_log` (limit 1); index watches the `sessions` collection the user is already allowed to list (limit 200).
-- **Device motion:** on iOS 13+ Safari, `DeviceMotionEvent.requestPermission()` must be called from a user gesture; we request once on first interaction. Motion data is used only locally as an activity signal (a thresholded magnitude delta) and is never stored or transmitted. On browsers without motion access, the feature degrades to the other activity signals.
 - No secrets involved. The client Firestore instance uses the existing public `NEXT_PUBLIC_FIREBASE_*` config already shipped for Auth.
 - Idle-stop reduces long-lived open connections from abandoned tabs — a modest resource/cost safeguard, not a security boundary.
 
@@ -104,15 +103,14 @@ Required gates for this change:
 
 ## Test plan
 
-TDD for the pure/deterministic pieces; Firestore and sensor wiring sit behind injectable seams so the hooks are unit-testable without the emulator or a real device, plus a manual two-tab + mobile smoke test for the real WebChannel/motion path.
+TDD for the pure/deterministic pieces; Firestore wiring sits behind injectable seams so the hooks are unit-testable without the emulator, plus a manual two-tab + mobile smoke test for the real WebChannel path.
 
 - **`resolveSessionFilter(statusParam)` (unit, TDD):** missing/invalid → `in_progress`; `"all"` → undefined (all); each valid status → itself. Drives the default-view change.
-- **`isSignificantMotion(prev, next, threshold)` (unit, TDD):** returns false for still-phone noise (sub-threshold delta incl. constant gravity), true when the acceleration-magnitude delta exceeds threshold. Ensures a motionless phone still goes idle.
 - **`deriveConnectionStatus({ active, subscribed, online, errored })` (unit, TDD):** → `"live"` only when active + subscribed + online + no error; otherwise `"paused-idle"` (inactive) or `"offline"` (network/error). Drives light color and banner copy.
 - **`useActivityStatus(timeoutMs)` (unit, TDD, fake timers + jsdom):**
   - Starts `active`; goes `inactive` after `timeoutMs` with no events.
-  - Each of `pointermove`, `scroll`, `keydown`, `touchstart`, `click`, `visibilitychange→visible`, and a thresholded `devicemotion` resets the timer.
-  - `visibilitychange→hidden` and sub-threshold motion do **not** reset the timer.
+  - Each of `pointermove`, `scroll`, `keydown`, `touchstart`, `click`, and `visibilitychange→visible` resets the timer.
+  - `visibilitychange→hidden` does **not** reset the timer.
   - Removes all listeners on unmount (no leak).
 - **`subscribeToChanges(query, onChange, onError)` adapter (unit):** ignores the first `onSnapshot` emission (initial data), invokes `onChange` on each subsequent emission, forwards errors to `onError`, returns unsubscribe. Fake `onSnapshot` injected (no emulator).
 - **`useRealtimeRefresh({ subscribe, onRefresh, idleTimeoutMs })` (unit, TDD):** inject fake `subscribe`/`onRefresh` + fake timers:
@@ -125,7 +123,7 @@ TDD for the pure/deterministic pieces; Firestore and sensor wiring sit behind in
 - **`ConnectionStatusLight` (component test):** renders green+pulse when live, red+static otherwise; tap opens the popover; has an accessible label reflecting state; tap target ≥44px; no pulse under `prefers-reduced-motion`.
 - **`StaleSyncBanner` (component test):** renders only when not live; copy reflects idle vs offline; absent when live.
 - **`FilterPills` / nav (unit):** "All" points to `?status=all` and is active for the all view; default (no param) marks "In Progress" active.
-- **Excluded from unit tests:** the real WebChannel/emulator round-trip and real device motion — covered by the manual smoke test (two tabs: mutate in A → B updates in ~1–2s; leave B idle 10 min → light red + banner; interact → catch-up; toggle offline → banner + red; on mobile viewport, tilt registers as activity where supported).
+- **Excluded from unit tests:** the real WebChannel/emulator round-trip — covered by the manual smoke test (two tabs: mutate in A → B updates in ~1–2s; leave B idle 10 min → light red + banner; interact → catch-up; toggle offline → banner + red; on mobile viewport, lock/unlock the phone → `visibilitychange` resumes with a catch-up refresh).
 
 ## Acceptance criteria
 
@@ -134,9 +132,9 @@ TDD for the pure/deterministic pieces; Firestore and sensor wiring sit behind in
 - [ ] The session header shows a connection light immediately right of the status badge: green + subtle pulse when live, solid red + static when not; pulse suppressed under `prefers-reduced-motion`.
 - [ ] Tapping the light opens a brief popover explaining the current connection state and that the app auto-updates in the background; it is a ≥44px tap target reachable without hover.
 - [ ] A stale banner appears at the top of both surfaces whenever syncing is stopped for any reason (10-min idle or connection loss) and clears when live resumes.
-- [ ] After 10 minutes with no interaction (pointer/scroll/key/tap/click/refocus/meaningful motion), syncing stops.
-- [ ] Meaningful device motion keeps a mobile client live; a motionless phone still goes idle after 10 minutes (motion threshold verified by unit test).
-- [ ] Interacting again, moving the phone, or the network returning resumes syncing with a single catch-up refresh.
+- [ ] After 10 minutes with no interaction (pointer/scroll/key/tap/click/refocus), syncing stops.
+- [ ] Returning to the tab (`visibilitychange → visible`, e.g. unlocking the phone) resumes syncing with a single catch-up refresh; a hidden tab keeps counting down toward idle.
+- [ ] Interacting again or the network returning resumes syncing with a single catch-up refresh.
 - [ ] No spurious refresh on initial page load (initial snapshot skipped).
 - [ ] `/sessions` (no filter) defaults to In Progress; "All" is reachable via `?status=all` from pills and nav; other filters unchanged.
 - [ ] `firestore.rules` unchanged; client writes remain denied; no new dependency added.
@@ -154,8 +152,7 @@ TDD for the pure/deterministic pieces; Firestore and sensor wiring sit behind in
 ## Implementation notes
 
 - **Files (new):**
-  - `src/lib/realtime/use-activity-status.ts` (+ `.test.ts`) — activity tracking incl. thresholded motion; iOS permission request once on first gesture.
-  - `src/lib/realtime/motion.ts` (+ `.test.ts`) — `isSignificantMotion` pure helper + threshold constant.
+  - `src/lib/realtime/use-activity-status.ts` (+ `.test.ts`) — activity tracking (pointer/scroll/key/tap/click + `visibilitychange`).
   - `src/lib/realtime/subscribe.ts` (+ `.test.ts`) — `subscribeToChanges` adapter + `changeLogQuery`/`sessionsIndexQuery` builders.
   - `src/lib/realtime/connection-status.ts` (+ `.test.ts`) — status enum + `deriveConnectionStatus` + banner/popover copy map.
   - `src/lib/realtime/use-realtime-refresh.ts` (+ `.test.tsx`) — combines activity + subscription + online/offline + debounce; returns `{ status }`.
@@ -175,7 +172,7 @@ TDD for the pure/deterministic pieces; Firestore and sensor wiring sit behind in
 - **Connection state:** derive from `active` (idle hook) ∧ `subscribed` ∧ `navigator.onLine` ∧ no `onSnapshot` error. Listen to `window` `online`/`offline` and the `onError` seam.
 - **Popover:** use a tap-triggered popover (Base UI Popover), not the hover `Tooltip`. Full-bleed-friendly on mobile; primary content readable at 360px.
 - **Mobile-first:** the light is a ≥44px tap target (padded around a small dot); the popover is tap-only and readable at 360px; the banner is full-width, wraps without horizontal scroll, and is safe-area aware if it renders near the top inset. Pulse animation respects `prefers-reduced-motion` (see `docs/16`/existing reduced-motion lint suppression, spec 0032). No new `<table>`; no hover-only affordances.
-- **Cleanup:** hooks detach `onSnapshot`, activity listeners, motion listeners, and online/offline listeners on unmount.
+- **Cleanup:** hooks detach `onSnapshot`, activity listeners (incl. `visibilitychange`), and online/offline listeners on unmount.
 
 ## Open questions
 
@@ -197,3 +194,4 @@ TDD for the pure/deterministic pieces; Firestore and sensor wiring sit behind in
 |---|---|---|
 | 2026-07-08 | Proposed | Initial draft |
 | 2026-07-08 | Proposed | Added connection light, stale banner, device motion, 10-min window, default In-Progress view |
+| 2026-07-08 | Proposed | Dropped device motion; rely on visibilitychange for phone lock/unlock resume |
