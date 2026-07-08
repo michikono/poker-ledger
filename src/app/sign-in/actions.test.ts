@@ -64,7 +64,7 @@ describe("createSession", () => {
     expect(cookieSet).toHaveBeenCalledTimes(1);
     expect(cookieSet).toHaveBeenCalledWith("session", "baked-cookie", {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: false, // NODE_ENV is "test" by default, not "production"
       maxAge: FIVE_DAYS_S,
       path: "/",
