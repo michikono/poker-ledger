@@ -4,6 +4,19 @@ import type { NextRequest } from "next/server";
 const PUBLIC_PATHS = ["/sign-in"];
 
 /**
+ * Firebase reserves the `/__/` path prefix for its hosted OAuth surface —
+ * `/__/auth/handler`, `/__/auth/iframe`, `/__/firebase/init.json`, etc. When
+ * `authDomain` is the app's own host (ADR 0011), these are served from our
+ * domain and proxied to `<project>.firebaseapp.com` by `next.config.ts`
+ * rewrites. The auth gate must never touch them: redirecting `/__/auth/handler`
+ * to `/sign-in` (no session cookie yet during sign-in) prevents the OAuth
+ * handler from ever running and loops sign-in forever. See spec 0037.
+ */
+export function isFirebaseReservedPath(pathname: string): boolean {
+  return pathname === "/__" || pathname.startsWith("/__/");
+}
+
+/**
  * Header set on every request that lets server components recover the
  * pathname + search string of the original URL. Next.js's App Router
  * deliberately does not expose the request URL to layouts/pages; we forward
@@ -14,6 +27,7 @@ const PUBLIC_PATHS = ["/sign-in"];
 export const CURRENT_URL_HEADER = "x-current-url";
 
 export function isPublicPath(pathname: string): boolean {
+  if (isFirebaseReservedPath(pathname)) return true;
   return PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
@@ -48,5 +62,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)"],
+  // Exclude Firebase's reserved `/__/` OAuth surface so the proxy never runs on
+  // it and the `next.config.ts` rewrite can forward it transparently to
+  // `firebaseapp.com` (ADR 0011 / spec 0037). `isPublicPath` also treats these
+  // as public as defense-in-depth.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|__/|.*\\.png$).*)"],
 };

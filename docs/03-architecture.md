@@ -87,7 +87,11 @@ This is the authoritative description of how authentication is enforced. Other d
       `/__/auth/*` and `/__/firebase/*` to the project's `firebaseapp.com`
       host. This keeps the OAuth `sessionStorage` nonce first-party so mobile
       browsers don't partition it away (ADR 0011). Demo/emulator projects keep
-      the env `authDomain` and are unaffected.
+      the env `authDomain` and are unaffected. The proxy (`src/proxy.ts`)
+      **exempts the `/__/` reserved prefix** from the auth gate — otherwise it
+      redirects `/__/auth/handler` to `/sign-in` (no session cookie yet during
+      sign-in), which prevents the handler from running and loops sign-in
+      forever (spec 0037).
     - Client invokes `createSessionCookie(idToken)` Server Action.
     - Server Action verifies the ID token (`adminAuth.verifyIdToken`), creates a session cookie via `adminAuth.createSessionCookie(idToken, { expiresIn: 5 * 24 * 60 * 60 * 1000 })`, and sets it as `HttpOnly`, `Secure`, `SameSite=Lax`. `Lax` (not `Strict`) so the cookie is sent on the cross-site top-level navigation returning from the OAuth redirect flow; mutations still require a fresh ID token (step 3), so the relaxed attribute does not weaken write authorization.
     - Client redirects to the originally requested page (or `/sessions`).
