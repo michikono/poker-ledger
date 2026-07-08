@@ -32,18 +32,31 @@ export function sessionsIndexQuery(db: Firestore): Query {
   );
 }
 
-// Wraps onSnapshot and ignores the initial emission (which carries current
-// data, not a change) so mount/resubscribe doesn't trigger a spurious refresh.
-// Every subsequent emission calls `onChange`; errors go to `onError`.
+export type SubscribeHandlers = {
+  // Fires on every emission, including the initial one. A delivered snapshot is
+  // proof the listener is authorized and healthy, so this drives connection
+  // health independently of whether there's a change to apply.
+  onSnapshot: () => void;
+  // Fires only on non-initial emissions (an actual change). The initial snapshot
+  // carries current data, not a change, so it must not trigger a refresh.
+  onChange: () => void;
+  onError?: (error: Error) => void;
+};
+
+// Wraps onSnapshot, separating two concerns that must not be conflated:
+// `onSnapshot` (health — every emission) and `onChange` (refresh — non-initial
+// emissions only). Ignoring the initial emission for `onChange` keeps
+// mount/resubscribe from triggering a spurious refresh, while still surfacing
+// that first snapshot as a health signal.
 export function subscribeToChanges(
   q: Query,
-  onChange: () => void,
-  onError?: (error: Error) => void,
+  { onSnapshot: onSnap, onChange, onError }: SubscribeHandlers,
 ): Unsubscribe {
   let seenInitial = false;
   return onSnapshot(
     q,
     () => {
+      onSnap();
       if (!seenInitial) {
         seenInitial = true;
         return;

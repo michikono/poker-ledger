@@ -1,12 +1,16 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Unsubscribe } from "./subscribe";
+import type { SubscribeHandlers, Unsubscribe } from "./subscribe";
 import { useRealtimeRefresh } from "./use-realtime-refresh";
 
 const IDLE = 1000;
 const DEBOUNCE = 250;
 
 type Harness = {
+  // A snapshot with no change (e.g. the initial snapshot of a re-attached
+  // listener): health signal only, mirrors subscribeToChanges' onSnapshot.
+  emitSnapshot: () => void;
+  // A real change: fires onSnapshot then onChange, as subscribeToChanges does.
   emitChange: () => void;
   emitError: () => void;
   unsubscribe: ReturnType<typeof vi.fn>;
@@ -14,24 +18,29 @@ type Harness = {
 };
 
 function makeSubscribe(): {
-  subscribe: (onChange: () => void, onError: (e: Error) => void) => Unsubscribe;
+  subscribe: (handlers: SubscribeHandlers) => Unsubscribe;
   harness: Harness;
 } {
-  let onChange: () => void = () => {};
-  let onError: (e: Error) => void = () => {};
+  let handlers: SubscribeHandlers = {
+    onSnapshot: () => {},
+    onChange: () => {},
+  };
   let count = 0;
   const unsubscribe = vi.fn();
-  const subscribe = (c: () => void, e: (err: Error) => void): Unsubscribe => {
+  const subscribe = (h: SubscribeHandlers): Unsubscribe => {
     count += 1;
-    onChange = c;
-    onError = e;
+    handlers = h;
     return unsubscribe;
   };
   return {
     subscribe,
     harness: {
-      emitChange: () => onChange(),
-      emitError: () => onError(new Error("boom")),
+      emitSnapshot: () => handlers.onSnapshot(),
+      emitChange: () => {
+        handlers.onSnapshot();
+        handlers.onChange();
+      },
+      emitError: () => handlers.onError?.(new Error("boom")),
       unsubscribe,
       subscribeCount: () => count,
     },
@@ -190,7 +199,7 @@ describe("useRealtimeRefresh", () => {
     expect(result.current.status).toBe("live");
   });
 
-  it("returns to live when a snapshot arrives after an error", () => {
+  it("returns to live when any snapshot arrives after an error", () => {
     const { subscribe, harness } = makeSubscribe();
     const { result } = renderHook(() =>
       useRealtimeRefresh({
@@ -204,13 +213,40 @@ describe("useRealtimeRefresh", () => {
       harness.emitError();
     });
     expect(result.current.status).toBe("offline");
-    // A healthy listener (e.g. re-attached by the auth-gated provider) delivers
-    // a snapshot without a re-subscribe — that alone must clear the stale error.
+    // The stuck-red regression: a listener re-attached by the auth-gated
+    // provider delivers only its *initial* snapshot (a health signal, no
+    // onChange) without a re-subscribe. That alone must clear the stale error.
     act(() => {
-      harness.emitChange();
+      harness.emitSnapshot();
     });
     expect(result.current.status).toBe("live");
     expect(harness.subscribeCount()).toBe(1);
+  });
+
+  it("cancels the pending auto-retry once a snapshot recovers the listener", () => {
+    const { subscribe, harness } = makeSubscribe();
+    const { result } = renderHook(() =>
+      useRealtimeRefresh({
+        subscribe,
+        onRefresh: vi.fn(),
+        idleTimeoutMs: 60_000,
+        debounceMs: DEBOUNCE,
+      }),
+    );
+    act(() => {
+      harness.emitError();
+    });
+    expect(result.current.status).toBe("offline");
+    act(() => {
+      harness.emitSnapshot();
+    });
+    expect(result.current.status).toBe("live");
+    // The recovered listener stays attached: the 5s retry must not re-subscribe.
+    act(() => {
+      vi.advanceTimersByTime(5000 + 1);
+    });
+    expect(harness.subscribeCount()).toBe(1);
+    expect(result.current.status).toBe("live");
   });
 
   it("reconnect() resubscribes immediately and does one catch-up refresh", () => {

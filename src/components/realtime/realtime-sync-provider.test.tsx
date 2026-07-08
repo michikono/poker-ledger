@@ -103,10 +103,11 @@ describe("RealtimeSyncProvider", () => {
         <StatusProbe />
       </RealtimeSyncProvider>,
     );
-    captured.params?.subscribe(
-      () => {},
-      () => {},
-    );
+    captured.params?.subscribe({
+      onSnapshot: () => {},
+      onChange: () => {},
+      onError: () => {},
+    });
     expect(onAuthStateChanged).toHaveBeenCalled();
     // No user yet.
     authCallback?.(null);
@@ -123,10 +124,11 @@ describe("RealtimeSyncProvider", () => {
         <StatusProbe />
       </RealtimeSyncProvider>,
     );
-    captured.params?.subscribe(
-      () => {},
-      () => {},
-    );
+    captured.params?.subscribe({
+      onSnapshot: () => {},
+      onChange: () => {},
+      onError: () => {},
+    });
     authCallback?.({ uid: "u1" });
     expect(sessionsIndexQuery).toHaveBeenCalledWith({ _db: true });
     expect(subscribeToChanges).toHaveBeenCalledTimes(1);
@@ -138,10 +140,11 @@ describe("RealtimeSyncProvider", () => {
         <StatusProbe />
       </RealtimeSyncProvider>,
     );
-    captured.params?.subscribe(
-      () => {},
-      () => {},
-    );
+    captured.params?.subscribe({
+      onSnapshot: () => {},
+      onChange: () => {},
+      onError: () => {},
+    });
     authCallback?.({ uid: "u1" });
     expect(subscribeToChanges).toHaveBeenCalledTimes(1);
     authCallback?.(null); // sign-out tears down the inner listener
@@ -156,10 +159,11 @@ describe("RealtimeSyncProvider", () => {
         <StatusProbe />
       </RealtimeSyncProvider>,
     );
-    const unsubscribe = captured.params?.subscribe(
-      () => {},
-      () => {},
-    );
+    const unsubscribe = captured.params?.subscribe({
+      onSnapshot: () => {},
+      onChange: () => {},
+      onError: () => {},
+    });
     authCallback?.({ uid: "u1" });
     unsubscribe?.();
     expect(detachAuth).toHaveBeenCalled();

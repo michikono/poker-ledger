@@ -67,12 +67,28 @@ describe("subscribeToChanges", () => {
     });
     const onChange = vi.fn();
 
-    subscribeToChanges({} as Query, onChange);
-    emit({}); // initial — ignored
+    subscribeToChanges({} as Query, { onSnapshot: vi.fn(), onChange });
+    emit({}); // initial — ignored for onChange
     expect(onChange).not.toHaveBeenCalled();
     emit({}); // real change
     emit({}); // another
     expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("fires onSnapshot on every emission, including the initial one", () => {
+    let emit: (snap: unknown) => void = () => {};
+    onSnapshot.mockImplementation((_q, next) => {
+      emit = next;
+      return () => {};
+    });
+    const onSnap = vi.fn();
+
+    subscribeToChanges({} as Query, { onSnapshot: onSnap, onChange: vi.fn() });
+    emit({}); // initial — still a health signal
+    expect(onSnap).toHaveBeenCalledTimes(1);
+    emit({});
+    emit({});
+    expect(onSnap).toHaveBeenCalledTimes(3);
   });
 
   it("forwards errors to onError", () => {
@@ -83,7 +99,11 @@ describe("subscribeToChanges", () => {
     });
     const onError = vi.fn();
 
-    subscribeToChanges({} as Query, vi.fn(), onError);
+    subscribeToChanges({} as Query, {
+      onSnapshot: vi.fn(),
+      onChange: vi.fn(),
+      onError,
+    });
     const err = new Error("permission-denied");
     fail(err);
     expect(onError).toHaveBeenCalledWith(err);
@@ -92,6 +112,11 @@ describe("subscribeToChanges", () => {
   it("returns the unsubscribe from onSnapshot", () => {
     const unsub = vi.fn();
     onSnapshot.mockReturnValue(unsub);
-    expect(subscribeToChanges({} as Query, vi.fn())).toBe(unsub);
+    expect(
+      subscribeToChanges({} as Query, {
+        onSnapshot: vi.fn(),
+        onChange: vi.fn(),
+      }),
+    ).toBe(unsub);
   });
 });
