@@ -8,7 +8,7 @@ Michi Kono
 
 ## Goal
 
-Fix the background realtime sync (spec 0033) showing a permanent red "offline" status on load: only attach the client Firestore `onSnapshot` listener once a signed-in user is present, so the listen carries a valid auth token instead of being denied.
+Fix the background realtime sync (spec 0033) showing a permanent red "offline" status on load, and make recovery durable: attach the client Firestore `onSnapshot` listener only once a signed-in user is present (so the listen carries a valid auth token instead of being denied), auto-recover from a terminal listener error, and give the stale banner a "Refresh now" link for manual recovery.
 
 ## Context
 
@@ -22,6 +22,14 @@ Root cause — an auth-readiness race:
 
 The mutation path already handles this correctly — `client-token.ts` awaits `auth.authStateReady()` before reading `currentUser.getIdToken()`. The realtime path skipped that step.
 
+**Durability of recovery (current state):**
+- **Network drop → reconnect:** already recovers. `useRealtimeRefresh` listens to `window` `online`/`offline`; offline tears down the listener, `online` re-runs the effect → resubscribe + catch-up refresh.
+- **Transient Firebase blip (internet up):** the Firestore WebChannel retries internally and doesn't invoke our error callback — status stays live and data resumes on its own.
+- **Terminal listener error (hard `onError`) while online + active:** **does not recover.** The subscription effect only re-runs on `active`/`online` changes; `errored` is never a resubscribe trigger, so the listener stays dead (stuck red). The cold-load `PERMISSION_DENIED` above is one instance; a backend/permission error mid-session is another.
+- **Hard refresh:** recovers (full remount re-attaches; green after this fix).
+
+This change closes the terminal-error gap (auto-retry) and adds a user-driven "Refresh now" recovery in the banner.
+
 Relevant files:
 - `src/components/realtime/realtime-sync-provider.tsx` — builds and starts the subscription.
 - `src/lib/realtime/subscribe.ts` — `subscribeToChanges` + query builders (unchanged).
@@ -34,11 +42,14 @@ Relevant files:
 2. Cross-client updates work as specified in 0033 (a change on another device appears within ~1–2s).
 3. Genuine offline (real network loss) still shows the red light + banner and recovers on reconnect, exactly as before.
 4. If a signed-in client SDK user is ever absent (e.g. IndexedDB cleared but cookie present), the listener simply doesn't attach and no false-red is shown; the normal mutation flow redirects such a user to sign-in.
+5. **Auto-recovery:** if the listener hits a terminal error while online, the connection retries on its own after a short backoff (repeating until it recovers), so it no longer sticks red indefinitely.
+6. **"Refresh now" link in the banner:** the stale banner includes a "Refresh now" action. Tapping it immediately attempts to re-establish the live connection (force resubscribe) and pulls the latest data. Because the tap also registers as interaction, it resumes an idle-paused tab too. If the underlying problem persists (still offline), the banner stays until it clears; a full page refresh remains the ultimate fallback.
 
 ## Non-goals
 
-- **No change to the 0033 UX** (light placement, banner copy, 10-min idle stop, visibility resume, default In-Progress view).
-- **No new generic error-retry loop.** This fix removes the *cause* of the stuck error (unauthenticated listen). Recovery from unrelated post-attach errors still rides the existing `online`/`offline` and idle→active transitions (and now also auth-state changes). A broader retry policy is out of scope.
+- **No change to the 0033 UX beyond adding the "Refresh now" link** (light placement, banner tone, 10-min idle stop, visibility resume, default In-Progress view all unchanged).
+- **No exponential/complex backoff policy.** A single fixed retry interval (repeating) is enough; a tuned backoff curve is out of scope.
+- **No hard `window.location.reload()` for "Refresh now."** It attempts a soft reconnect (resubscribe + `router.refresh()`), preserving client state; a manual browser refresh remains available as the last resort.
 - **No rules change**, no new dependency, no server changes.
 
 ## Data model impact
@@ -47,7 +58,7 @@ None.
 
 ## Diagram impact
 
-None. (The 0033 data-flow note in `docs/03-architecture.md` still holds — the client read now simply waits for auth before attaching.)
+None structural. `docs/08-ux-spec.md` "Stale sync banner" entry gains a note that the banner includes a "Refresh now" recovery action. The 0033 data-flow note in `docs/03-architecture.md` still holds — the client read now waits for auth before attaching and auto-retries a terminal error.
 
 ## API impact
 
@@ -80,8 +91,12 @@ None. Works identically against the emulator (emulator Auth also restores state 
   - Once the auth callback fires with a user, `subscribeToChanges` is created with the correct query (change_log for a session; sessions for the index).
   - Tearing down unsubscribes both the auth listener and the inner Firestore listener.
   - Re-firing the auth callback (sign-out → sign-in) detaches the old listener and attaches a new one.
-- Existing 0033 unit tests (`useActivityStatus`, `subscribeToChanges`, `deriveConnectionStatus`, `useRealtimeRefresh`) remain unchanged and green.
-- **Manual smoke:** load a session page signed in → light is green within ~1s; open a second tab, mutate → first tab updates. (The real WebChannel/auth path stays a manual gate per 0033.)
+- **`useRealtimeRefresh` (extended, TDD, fake timers):**
+  - After a listener error, a fresh subscription is created automatically once the retry interval elapses (auto-recovery); status returns to live if the resubscribe succeeds.
+  - The returned `reconnect()` clears the error, resubscribes immediately, and calls `onRefresh` once (manual recovery).
+- **`StaleSyncBanner` (extended):** renders a "Refresh now" control when not live; activating it calls the context `reconnect`. Absent when live.
+- Existing 0033 unit tests (`useActivityStatus`, `subscribeToChanges`, `deriveConnectionStatus`, and the unchanged parts of `useRealtimeRefresh`) remain green.
+- **Manual smoke:** load a session page signed in → light green within ~1s; two-tab mutate → updates; kill network → red + banner, restore → recovers; tap "Refresh now" → attempts reconnect. (The real WebChannel/auth path stays a manual gate per 0033.)
 
 ## Acceptance criteria
 
@@ -90,18 +105,20 @@ None. Works identically against the emulator (emulator Auth also restores state 
 - [ ] Cross-client realtime updates still work (~1–2s).
 - [ ] Real network offline still shows red + banner and recovers on reconnect.
 - [ ] Sign-out then sign-in re-establishes the listener.
+- [ ] A terminal listener error auto-retries and recovers without a manual refresh.
+- [ ] The stale banner shows a "Refresh now" link that force-reconnects and pulls latest data; it's a ≥44px tap target.
 - [ ] All quality gates pass.
 - [ ] Spec conformance review completed.
+- [ ] `docs/08-ux-spec.md` banner entry updated.
 
 ## Rollout/deployment notes
 
 No env or infra changes. Purely a client-side timing fix; deploys with the normal preview → production flow.
 
-## Implementation notes
-
-- In `RealtimeSyncProvider`, wrap the subscription in `onAuthStateChanged(getClientAuth(), user => …)`: on each auth change, tear down any existing Firestore listener and, if `user` is present, attach a fresh `subscribeToChanges(query, onChange, onError)`. Return an unsubscribe that removes the auth listener and the inner listener. `onAuthStateChanged` fires immediately with the current state, so cold-load (`null` → user) is handled without extra plumbing.
-- `subscribeToChanges` already resets its skip-initial guard per attach, so re-attaching on auth restore does not cause a spurious refresh.
-- Keep `useRealtimeRefresh` unchanged: its injected `subscribe` seam is exactly this auth-aware function, so its tests and behavior are untouched.
+- **Auth-gated subscribe.** In `RealtimeSyncProvider`, wrap the subscription in `onAuthStateChanged(getClientAuth(), user => …)`: on each auth change, tear down any existing Firestore listener and, if `user` is present, attach a fresh `subscribeToChanges(query, onChange, onError)`. Return an unsubscribe that removes both the auth listener and the inner listener. `onAuthStateChanged` fires immediately with the current state, so cold-load (`null` → user) is handled without extra plumbing. `subscribeToChanges` already resets its skip-initial guard per attach, so re-attaching does not cause a spurious refresh.
+- **Auto-retry + `reconnect()` in `useRealtimeRefresh`.** Add a `reconnectNonce` state included in the subscription effect's deps (with a scoped `biome-ignore useExhaustiveDependencies` — it's a deliberate resubscribe trigger, not read in the body). The `onError` handler sets `errored` and schedules a `setReconnectNonce(n => n + 1)` after a fixed `RETRY_MS` (auto-recovery; the effect's cleanup clears the pending timer). Return a `reconnect()` that clears `errored`, bumps the nonce (immediate resubscribe), and calls `onRefresh()` once. The injected `subscribe` seam stays the same shape, so existing tests only extend.
+- **Context exposes `reconnect`.** Change the provider context value from `ConnectionStatus` to `{ status, reconnect }`. `ConnectionStatusLight` reads `.status`; `StaleSyncBanner` reads `.status` and `.reconnect`. (Rename/adjust `useRealtimeStatus` → a `useRealtimeSync` hook, or keep a thin `useRealtimeStatus` for the light.)
+- **Banner "Refresh now".** Add a button (Button `variant="link"`, touch-height so it's a ≥44px tap target) after the message that calls `reconnect`. Its click bubbles to the window activity listener, so it also resumes an idle-paused tab.
 
 ## Open questions
 
@@ -118,3 +135,4 @@ None.
 | Date | Status | Notes |
 |---|---|---|
 | 2026-07-08 | Proposed | Initial draft — fix cold-load offline race in realtime sync |
+| 2026-07-08 | Proposed | Add durable recovery: auto-retry on terminal error + "Refresh now" banner link |
