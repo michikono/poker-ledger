@@ -105,6 +105,7 @@ Worktree dev ports — offset +500 — Next 3500, UI 4500, Firestore 8580, Auth 
 | `FIRESTORE_EMULATOR_HOST` | Tells Admin SDK to use Firestore emulator | `localhost:8080` (auto-shifted by `scripts/dev.mjs` to match the worktree offset) |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Tells Admin SDK to use Auth emulator | `localhost:9099` (auto-shifted by `scripts/dev.mjs`) |
 | `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL` | Tells the browser SDK which Auth emulator to connect to | `http://localhost:9099` (auto-injected by `scripts/dev.mjs`; falls back to default if absent) |
+| `NEXT_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_HOST` | Tells the browser Firestore SDK (realtime `onSnapshot` listeners, spec 0033) which Firestore emulator to connect to | `localhost:8080` (auto-injected by `scripts/dev.mjs`; falls back to default if absent; demo- projects only) |
 | `FIREBASE_ADMIN_PROJECT_ID` | Admin SDK project ID (server-only) | `demo-poker-ledger` |
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | Service account email (production only) | *(blank for local)* |
 | `FIREBASE_ADMIN_PRIVATE_KEY` | Service account private key (production only) | *(blank for local)* |

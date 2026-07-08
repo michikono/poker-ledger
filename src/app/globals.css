@@ -218,6 +218,22 @@
   animation: player-row-flash 1.5s ease-out;
 }
 
+@keyframes connection-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Subtle "live" heartbeat for the connection light. The global
+   prefers-reduced-motion block below neutralizes it to a steady dot. */
+.connection-pulse {
+  animation: connection-pulse 2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Neutralize CSS animations and transitions for users who request
      reduced motion. State still updates — only the motion between

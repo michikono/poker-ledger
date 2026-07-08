@@ -91,6 +91,7 @@ const childEnv = {
   FIRESTORE_EMULATOR_HOST: `localhost:${ports.firestore}`,
   FIREBASE_AUTH_EMULATOR_HOST: `localhost:${ports.auth}`,
   NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL: `http://localhost:${ports.auth}`,
+  NEXT_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_HOST: `localhost:${ports.firestore}`,
 };
 
 const { result } = concurrently(

@@ -63,7 +63,7 @@ The canonical auth flow is documented in `docs/03-architecture.md` → "Auth flo
 1. **Proxy** (`src/proxy.ts`): presence-only cookie check. Redirects to `/sign-in` if the `session` cookie is absent. **Does NOT cryptographically verify** — that happens at layer 2.
 2. **App layout RSC** (`src/app/(app)/layout.tsx`): cryptographically verifies the session cookie via `adminAuth.verifySessionCookie(cookie, true)` (revocation check enabled). Failure → redirect. This is the primary check for read paths.
 3. **Server Actions**: every mutation requires a fresh Firebase ID token (passed by client via `auth.currentUser.getIdToken()`), verified by `adminAuth.verifyIdToken(token, true)` — the `true` enables a revocation check, so tokens issued before `revokeRefreshTokens` was called for the user are rejected. The session cookie alone is NOT sufficient for mutations.
-4. **Firestore Security Rules**: reads require `request.auth != null` as defense-in-depth. Writes are denied to clients — all writes flow through Server Actions using the Admin SDK (which bypasses rules).
+4. **Firestore Security Rules**: reads require `request.auth != null`. This covers both read paths — the Admin SDK (RSC render) and the direct client `onSnapshot` listeners added for background realtime sync (spec 0033 / ADR 0010), which read the same collections on behalf of the same authenticated user. Writes are denied to clients — all writes flow through Server Actions using the Admin SDK (which bypasses rules).
 
 **Authorization (what an authenticated user can do):**
 - All access (view session, list sessions, search, and all mutations) requires sign-in. Anyone signed in can read or mutate any session — no per-session ownership in MVP.
