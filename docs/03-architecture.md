@@ -66,6 +66,7 @@ ADRs accepted:
 - [x] `specs/decisions/0003-auth-model.md` — Google Sign-In required for all access; first-name-only changelog attribution
 - [x] `specs/decisions/0004-server-actions-over-api-routes.md` — Mutations via Server Actions; RSC for reads; thin API route for search
 - [x] `specs/decisions/0005-monetary-amounts-as-integer-cents.md` — All monetary amounts stored as integer cents
+- [x] `specs/decisions/0011-self-hosted-auth-handler.md` — Same-origin OAuth handler (runtime `authDomain` + rewrites) to fix mobile sign-in
 
 ## Auth flow (canonical)
 
@@ -73,7 +74,14 @@ This is the authoritative description of how authentication is enforced. Other d
 
 1. **Sign-in (one-time)**
     - User clicks "Sign in with Google" in `src/app/sign-in/page.tsx`.
-    - Firebase Client SDK (`signInWithPopup`) returns an ID token.
+    - Firebase Client SDK (`signInWithPopup`) returns an ID token. The OAuth
+      handler is served **same-origin** with the app: the client initializes
+      `authDomain` to the app's own host (`resolveAuthDomain`,
+      `src/lib/firebase/auth-domain.ts`) and `next.config.ts` proxies
+      `/__/auth/*` and `/__/firebase/*` to the project's `firebaseapp.com`
+      host. This keeps the OAuth `sessionStorage` nonce first-party so mobile
+      browsers don't partition it away (ADR 0011). Demo/emulator projects keep
+      the env `authDomain` and are unaffected.
     - Client invokes `createSessionCookie(idToken)` Server Action.
     - Server Action verifies the ID token (`adminAuth.verifyIdToken`), creates a session cookie via `adminAuth.createSessionCookie(idToken, { expiresIn: 5 * 24 * 60 * 60 * 1000 })`, and sets it as `HttpOnly`, `Secure`, `SameSite=Strict`.
     - Client redirects to the originally requested page (or `/sessions`).

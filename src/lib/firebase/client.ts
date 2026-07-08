@@ -6,11 +6,19 @@ import {
   type Firestore,
   getFirestore,
 } from "firebase/firestore";
+import { resolveAuthDomain } from "./auth-domain";
 
 function getClientApp() {
+  const envAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "";
+  const host = typeof window === "undefined" ? undefined : window.location.host;
+
   const firebaseConfig: FirebaseOptions = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
+    authDomain: resolveAuthDomain(
+      envAuthDomain,
+      host,
+      isDemoProject() === true,
+    ),
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "",
     messagingSenderId:
