@@ -1,7 +1,7 @@
 # Change 0035: Mobile Google Sign-In — same-origin auth handler
 
 ## Status
-Proposed
+Implemented
 
 ## Owner
 michikono
@@ -180,3 +180,5 @@ None blocking. (Custom-domain adoption is deferred to a future ADR.)
 | Date | Status | Notes |
 |---|---|---|
 | 2026-07-08 | Proposed | Initial draft |
+| 2026-07-08 | Accepted | Accepted by owner; implementing on claude/mobile-auth-sessionstorage-r64ill |
+| 2026-07-08 | Implemented | Merged via PR #115 |

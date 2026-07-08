@@ -98,7 +98,7 @@ Worktree dev ports — offset +500 — Next 3500, UI 4500, Firestore 8580, Auth 
 |---|---|---|
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | `demo-poker-ledger` |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase web API key | `demo-api-key` (emulator accepts any value) |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain | `demo-poker-ledger.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth domain — SSR/emulator fallback. In the browser, real projects use the app's own host so the OAuth handler is same-origin (ADR 0011). | `demo-poker-ledger.firebaseapp.com` |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket | `demo-poker-ledger.appspot.com` |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID | `000000000000` |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase App ID | `1:000000000000:web:0000000000000000000000` |
