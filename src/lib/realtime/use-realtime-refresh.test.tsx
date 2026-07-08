@@ -166,4 +166,51 @@ describe("useRealtimeRefresh", () => {
     });
     expect(result.current.status).toBe("offline");
   });
+
+  it("auto-retries after a terminal listener error", () => {
+    const { subscribe, harness } = makeSubscribe();
+    // Idle window longer than the 5s retry so the retry isn't masked by idle.
+    const { result } = renderHook(() =>
+      useRealtimeRefresh({
+        subscribe,
+        onRefresh: vi.fn(),
+        idleTimeoutMs: 60_000,
+        debounceMs: DEBOUNCE,
+      }),
+    );
+    expect(harness.subscribeCount()).toBe(1);
+    act(() => {
+      harness.emitError();
+    });
+    expect(result.current.status).toBe("offline");
+    act(() => {
+      vi.advanceTimersByTime(5000 + 1);
+    });
+    expect(harness.subscribeCount()).toBe(2);
+    expect(result.current.status).toBe("live");
+  });
+
+  it("reconnect() resubscribes immediately and does one catch-up refresh", () => {
+    const { subscribe, harness } = makeSubscribe();
+    const onRefresh = vi.fn();
+    const { result } = renderHook(() =>
+      useRealtimeRefresh({
+        subscribe,
+        onRefresh,
+        idleTimeoutMs: IDLE,
+        debounceMs: DEBOUNCE,
+      }),
+    );
+    act(() => {
+      harness.emitError();
+    });
+    expect(result.current.status).toBe("offline");
+    onRefresh.mockClear();
+    act(() => {
+      result.current.reconnect();
+    });
+    expect(harness.subscribeCount()).toBe(2);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe("live");
+  });
 });

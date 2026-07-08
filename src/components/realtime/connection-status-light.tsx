@@ -3,14 +3,14 @@
 import { Popover } from "@base-ui/react/popover";
 import { CONNECTION_COPY, isLive } from "@/lib/realtime/connection-status";
 import { cn } from "@/lib/utils";
-import { useRealtimeStatus } from "./realtime-sync-provider";
+import { useRealtimeSync } from "./realtime-sync-provider";
 
 // Small connection light shown right of the page header. Green + subtle pulse
 // when live, solid red + static otherwise. Tapping it opens a short popover
-// explaining the state. The dot is a ≥44px tap target (padded) so it's
-// thumb-friendly on mobile.
+// explaining the state, with a "Refresh now" recovery action. The dot is a
+// ≥44px tap target (padded) so it's thumb-friendly on mobile.
 export function ConnectionStatusLight() {
-  const status = useRealtimeStatus();
+  const { status, reconnect } = useRealtimeSync();
   const live = isLive(status);
   const copy = CONNECTION_COPY[status];
 
@@ -51,6 +51,16 @@ export function ConnectionStatusLight() {
             <Popover.Description className="mt-1 text-muted-foreground">
               {copy.detail}
             </Popover.Description>
+            {!live && (
+              <button
+                type="button"
+                onClick={reconnect}
+                data-testid="connection-refresh-now"
+                className="mt-2 inline-flex min-h-11 items-center text-primary underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-0"
+              >
+                Refresh now
+              </button>
+            )}
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>

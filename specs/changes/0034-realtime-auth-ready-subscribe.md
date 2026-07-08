@@ -1,7 +1,7 @@
 # Change 0034: Gate realtime listener on Firebase Auth readiness
 
 ## Status
-Proposed
+Implemented
 
 ## Owner
 Michi Kono
@@ -156,3 +156,5 @@ None.
 | 2026-07-08 | Proposed | Add durable recovery: auto-retry on terminal error + "Refresh now" banner link |
 | 2026-07-08 | Proposed | Debounce banner appearance (blips stay badge-only); add "Refresh now" to the light popover too |
 | 2026-07-08 | Proposed | Make banner debounce visibility-aware — never flash on lock/unlock resume |
+| 2026-07-08 | Accepted | Accepted by owner; implementation begins |
+| 2026-07-08 | Implemented | Merged via implementation PR |
