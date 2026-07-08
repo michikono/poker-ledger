@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPublicPath, proxy } from "./proxy";
+import { config, isPublicPath, proxy } from "./proxy";
 
 describe("isPublicPath", () => {
   it("returns true for /sign-in", () => {
@@ -24,6 +24,31 @@ describe("isPublicPath", () => {
 
   it("returns false for /sign-in-something (prefix match should not fire)", () => {
     expect(isPublicPath("/sign-in-something")).toBe(false);
+  });
+
+  it("returns true for the Firebase OAuth handler (/__/auth/handler)", () => {
+    expect(isPublicPath("/__/auth/handler")).toBe(true);
+  });
+
+  it("returns true for Firebase reserved paths (/__/firebase/init.json)", () => {
+    expect(isPublicPath("/__/firebase/init.json")).toBe(true);
+  });
+});
+
+describe("proxy matcher config", () => {
+  const [pattern] = config.matcher;
+  const matches = (pathname: string) =>
+    new RegExp(`^${pattern}$`).test(pathname);
+
+  it("excludes Firebase's /__/ OAuth surface so middleware never runs on it", () => {
+    expect(matches("/__/auth/handler")).toBe(false);
+    expect(matches("/__/auth/iframe")).toBe(false);
+    expect(matches("/__/firebase/init.json")).toBe(false);
+  });
+
+  it("still matches normal app routes", () => {
+    expect(matches("/sessions")).toBe(true);
+    expect(matches("/sign-in")).toBe(true);
   });
 });
 
@@ -101,6 +126,17 @@ describe("proxy", () => {
 
   it("lets unauthenticated users access /sign-in without a redirect", () => {
     const req = makeRequest("/sign-in");
+    const res = proxy(req as unknown as Parameters<typeof proxy>[0]);
+    expect(res.status).not.toBe(307);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("does NOT redirect the Firebase OAuth handler even without a session cookie", () => {
+    // Regression (spec 0037): once authDomain is the app's own host, the OAuth
+    // handler is served from /__/auth/handler. A fresh sign-in has no session
+    // cookie, so gating this path redirected it to /sign-in before the rewrite
+    // could proxy it to firebaseapp.com — looping sign-in forever.
+    const req = makeRequest("/__/auth/handler");
     const res = proxy(req as unknown as Parameters<typeof proxy>[0]);
     expect(res.status).not.toBe(307);
     expect(res.headers.get("location")).toBeNull();
