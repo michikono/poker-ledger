@@ -190,6 +190,29 @@ describe("useRealtimeRefresh", () => {
     expect(result.current.status).toBe("live");
   });
 
+  it("returns to live when a snapshot arrives after an error", () => {
+    const { subscribe, harness } = makeSubscribe();
+    const { result } = renderHook(() =>
+      useRealtimeRefresh({
+        subscribe,
+        onRefresh: vi.fn(),
+        idleTimeoutMs: IDLE,
+        debounceMs: DEBOUNCE,
+      }),
+    );
+    act(() => {
+      harness.emitError();
+    });
+    expect(result.current.status).toBe("offline");
+    // A healthy listener (e.g. re-attached by the auth-gated provider) delivers
+    // a snapshot without a re-subscribe — that alone must clear the stale error.
+    act(() => {
+      harness.emitChange();
+    });
+    expect(result.current.status).toBe("live");
+    expect(harness.subscribeCount()).toBe(1);
+  });
+
   it("reconnect() resubscribes immediately and does one catch-up refresh", () => {
     const { subscribe, harness } = makeSubscribe();
     const onRefresh = vi.fn();
