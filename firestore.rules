@@ -1,4 +1,7 @@
 rules_version = '2';
+// Deployed to production by .github/workflows/deploy-firestore.yml on push to
+// main (path-filtered on this file). Client reads require auth; all client
+// writes are denied — mutations go through the Admin SDK server-side.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /sessions/{sessionId} {
