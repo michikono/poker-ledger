@@ -1,4 +1,4 @@
-# Change 0035: Clear realtime error state on a successful snapshot
+# Change 0038: Clear realtime error state on a successful snapshot
 
 ## Status
 Implemented

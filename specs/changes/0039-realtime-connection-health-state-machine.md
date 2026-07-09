@@ -1,4 +1,4 @@
-# Change 0036: Model realtime connection health as an event-driven state machine
+# Change 0039: Model realtime connection health as an event-driven state machine
 
 ## Status
 Implemented
@@ -12,14 +12,14 @@ Stop the connection-status badge from getting stuck red while live updates are f
 
 ## Context
 
-This badge has now regressed twice. Spec 0034 gated the Firestore listener on Firebase Auth readiness and added terminal-error auto-retry. Spec 0035 tried to clear the stuck-red state by resetting `errored` inside the change handler. Production still shows a **continuous red badge while cross-client updates arrive**, with a brief green flicker on load.
+This badge has now regressed twice. Spec 0034 gated the Firestore listener on Firebase Auth readiness and added terminal-error auto-retry. Spec 0038 tried to clear the stuck-red state by resetting `errored` inside the change handler. Production still shows a **continuous red badge while cross-client updates arrive**, with a brief green flicker on load.
 
 Root cause is a design flaw, not a missing edge case:
 
 1. **Health and "a change to apply" are collapsed into one callback.** `subscribeToChanges` (`src/lib/realtime/subscribe.ts`) deliberately **swallows the initial snapshot** of each listener so mount/re-attach doesn't trigger a spurious `router.refresh()`. `onChange` therefore fires only on the *second and later* snapshots of a *stable* listener.
-2. **Health is a sticky `errored` boolean** cleared in four scattered places: `reconnect()`, the effect body top, and (spec 0035) inside `scheduleRefresh` — i.e. inside `onChange`.
+2. **Health is a sticky `errored` boolean** cleared in four scattered places: `reconnect()`, the effect body top, and (spec 0038) inside `scheduleRefresh` — i.e. inside `onChange`.
 3. Because the only data-driven clear lives in `onChange`, and `onChange` never fires for a swallowed initial snapshot, the **initial snapshot of a freshly (re-)attached listener — the strongest possible proof the listener is healthy and authorized — cannot clear `errored`.**
-4. The auth-gated provider (`src/components/realtime/realtime-sync-provider.tsx`) re-attaches the inner listener on **every** `onAuthStateChanged` re-fire (cold-load token restore, re-auth, token refresh). Each re-attach resets `seenInitial = false`. So in production: a transient blip sets `errored = true`; auth re-fires and attaches a healthy listener; its initial snapshot is swallowed; if no further write happens soon, `onChange` never runs and `errored` never clears. The badge stays red while the listener is live. Spec 0035 only helped the narrow case where a *second* snapshot happens to arrive on a listener that was never torn down.
+4. The auth-gated provider (`src/components/realtime/realtime-sync-provider.tsx`) re-attaches the inner listener on **every** `onAuthStateChanged` re-fire (cold-load token restore, re-auth, token refresh). Each re-attach resets `seenInitial = false`. So in production: a transient blip sets `errored = true`; auth re-fires and attaches a healthy listener; its initial snapshot is swallowed; if no further write happens soon, `onChange` never runs and `errored` never clears. The badge stays red while the listener is live. Spec 0038 only helped the narrow case where a *second* snapshot happens to arrive on a listener that was never torn down.
 
 The clean model separates the two concerns and makes health a single monotonic, last-event-wins state:
 
@@ -113,7 +113,7 @@ None.
 
 ## Links
 
-- `specs/changes/0035-realtime-clear-error-on-snapshot.md`
+- `specs/changes/0038-realtime-clear-error-on-snapshot.md`
 - `specs/changes/0034-realtime-auth-ready-subscribe.md`
 - `specs/changes/0033-background-realtime-sync.md`
 
