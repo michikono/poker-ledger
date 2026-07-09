@@ -102,8 +102,12 @@ export function useRealtimeRefresh({
         debounce = setTimeout(() => onRefreshRef.current(), debounceMs);
       },
       // A listener error surfaces an offline status, then auto-retries by
-      // bumping the nonce so this effect re-attaches a fresh listener.
-      onError: () => {
+      // bumping the nonce so this effect re-attaches a fresh listener. Log the
+      // underlying FirebaseError: it is the only signal of *why* the listener
+      // failed (its `.code` distinguishes auth/rules from transport), and it was
+      // previously swallowed here — leaving a red badge undiagnosable.
+      onError: (error) => {
+        console.error("[realtime] Firestore listener error", error);
         setHealth("errored");
         retry = setTimeout(() => setReconnectNonce((n) => n + 1), RETRY_MS);
       },
