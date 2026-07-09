@@ -6,6 +6,8 @@ on:
     paths:
       - firestore.rules
       - firestore.indexes.json
+      - scripts/deploy-firestore-config.mjs
+      - .github/workflows/deploy-firestore.yml
 
 permissions:
   id-token: write
@@ -17,23 +19,26 @@ jobs:
   deploy:
     name: Deploy Firestore
     runs-on: ubuntu-latest
+    # Keep the environment so the OIDC subject (and thus the WIF trust) is
+    # unchanged. To make this a single flow with no approval prompt, remove the
+    # "Required reviewers" rule on the firestore-production environment in repo
+    # Settings — that does not affect auth.
     environment: firestore-production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
       - id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/1030556024864/locations/global/workloadIdentityPools/github/providers/poker-ledger
           service_account: firestore-deployer@poker-ledger-8d3bc.iam.gserviceaccount.com
-      # firebase-tools authenticates via Application Default Credentials — the
-      # WIF credentials file the auth step writes. FIREBASE_TOKEN is a legacy CLI
-      # refresh token, not a Google access token, so passing the WIF access token
-      # there fails auth; point firebase at the credentials file instead.
-      - run: npx firebase deploy --only firestore --project poker-ledger-8d3bc --non-interactive
+          token_format: access_token
+      # firebase-tools cannot authenticate from a keyless WIF credentials file, so
+      # deploy rules + indexes directly via the Firebase REST APIs using the
+      # short-lived access token the auth step mints. See spec 0044.
+      - run: node scripts/deploy-firestore-config.mjs
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+          FIREBASE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          FIREBASE_PROJECT_ID: poker-ledger-8d3bc

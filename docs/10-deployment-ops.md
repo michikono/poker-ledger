@@ -28,13 +28,14 @@ Define how the application is deployed, monitored, and operated. Covers environm
 
 `firestore.rules` and `firestore.indexes.json` deploy via the GitHub Actions workflow `.github/workflows/deploy-firestore.yml`.
 
-- Trigger: a push to `main` that changes either file (path filter).
+- Trigger: a push to `main` that changes `firestore.rules`, `firestore.indexes.json`, the deploy script, or the workflow (path filter).
 - Auth: Workload Identity Federation — no long-lived deploy credentials. The `firestore-deployer` service account on `poker-ledger-8d3bc` holds only `roles/firebaserules.admin` and `roles/datastore.indexAdmin`.
-- Gate: the workflow attaches to the GitHub `firestore-production` environment, which requires manual reviewer approval before the deploy step runs.
-- Command: `npx firebase deploy --only firestore --project poker-ledger-8d3bc --non-interactive`.
+- Command: `node scripts/deploy-firestore-config.mjs`, which calls the Firebase Rules API (create ruleset → point the `cloud.firestore` release at it) and the Firestore Admin API (create each composite index, `ALREADY_EXISTS` = success) using the WIF access token. `firebase-tools` is **not** used in CI: it cannot authenticate from a keyless WIF credentials file (spec 0044).
+- Gate: the workflow attaches to the GitHub `firestore-production` environment so the OIDC subject (and thus the WIF trust) is stable. To make the deploy a single flow with no approval prompt, remove the environment's *Required reviewers* rule in repo Settings → Environments; that does not affect auth.
 - Concurrency: serialized via the `deploy-firestore` concurrency group; only one deploy runs at a time.
+- Limitations: the script creates indexes but does not delete indexes removed from the file (matches `firebase deploy --non-interactive`), and does not manage single-field `fieldOverrides` — apply those manually.
 
-Manual `firebase deploy` from a developer laptop is the documented fallback if the workflow is disabled.
+Manual `firebase deploy --only firestore` from a developer laptop (with a `firebase login` session) is the documented fallback and still works.
 
 ## Environment variables
 
