@@ -16,11 +16,14 @@ import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh";
 type RealtimeSync = {
   status: ConnectionStatus;
   reconnect: () => void;
+  // Reason the listener is offline (FirebaseError code/message), or null.
+  errorReason: string | null;
 };
 
 const RealtimeSyncContext = createContext<RealtimeSync>({
   status: "live",
   reconnect: () => {},
+  errorReason: null,
 });
 
 export function useRealtimeSync(): RealtimeSync {
@@ -80,13 +83,13 @@ export function RealtimeSyncProvider(props: Props) {
     [target, sessionId],
   );
 
-  const { status, reconnect } = useRealtimeRefresh({
+  const { status, reconnect, errorReason } = useRealtimeRefresh({
     subscribe,
     onRefresh: () => router.refresh(),
   });
 
   return (
-    <RealtimeSyncContext.Provider value={{ status, reconnect }}>
+    <RealtimeSyncContext.Provider value={{ status, reconnect, errorReason }}>
       {children}
     </RealtimeSyncContext.Provider>
   );
