@@ -43,7 +43,7 @@ const captured: { params: UseRealtimeRefreshParams | undefined } = {
 };
 const useRealtimeRefresh = vi.fn((params: UseRealtimeRefreshParams) => {
   captured.params = params;
-  return { status: "paused-idle" as const, reconnect, errorReason: null };
+  return { status: "paused-idle" as const, reconnect };
 });
 vi.mock("@/lib/realtime/use-realtime-refresh", () => ({
   useRealtimeRefresh: (params: UseRealtimeRefreshParams) =>

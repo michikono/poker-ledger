@@ -3,15 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ConnectionStatus } from "@/lib/realtime/connection-status";
 
 const status = vi.hoisted(() => ({ value: "live" as ConnectionStatus }));
-const errorReason = vi.hoisted(() => ({ value: null as string | null }));
 const reconnect = vi.hoisted(() => vi.fn());
 
 vi.mock("./realtime-sync-provider", () => ({
-  useRealtimeSync: () => ({
-    status: status.value,
-    reconnect,
-    errorReason: errorReason.value,
-  }),
+  useRealtimeSync: () => ({ status: status.value, reconnect }),
 }));
 
 import { ConnectionStatusLight } from "./connection-status-light";
@@ -73,19 +68,8 @@ describe("ConnectionStatusLight", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows the listener error reason in the popover when offline from an error", async () => {
+  it("does not show a diagnostic details line in the popover", async () => {
     status.value = "offline";
-    errorReason.value = "permission-denied";
-    render(<ConnectionStatusLight />);
-    fireEvent.click(screen.getByTestId("connection-status-light"));
-    const reason = await screen.findByTestId("connection-error-reason");
-    expect(reason).toHaveTextContent("permission-denied");
-    errorReason.value = null;
-  });
-
-  it("shows no error reason when there is none (e.g. paused-idle)", async () => {
-    status.value = "paused-idle";
-    errorReason.value = null;
     render(<ConnectionStatusLight />);
     fireEvent.click(screen.getByTestId("connection-status-light"));
     await screen.findByTestId("connection-refresh-now");

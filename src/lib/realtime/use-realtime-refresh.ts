@@ -37,14 +37,10 @@ export function useRealtimeRefresh({
 }: UseRealtimeRefreshParams): {
   status: ConnectionStatus;
   reconnect: () => void;
-  errorReason: string | null;
 } {
   const active = useActivityStatus(idleTimeoutMs);
   const [online, setOnline] = useState(true);
   const [health, setHealth] = useState<ListenerHealth>("connecting");
-  // The last listener error's code (or message) — surfaced in the badge popover
-  // so a mobile user can see *why* the connection is red. Null when healthy.
-  const [errorReason, setErrorReason] = useState<string | null>(null);
   // Bumping this forces the subscription effect to tear down and re-attach —
   // the recovery lever for both auto-retry (on error) and manual reconnect.
   const [reconnectNonce, setReconnectNonce] = useState(0);
@@ -86,7 +82,6 @@ export function useRealtimeRefresh({
     else mountedOnceRef.current = true;
 
     setHealth("connecting");
-    setErrorReason(null);
 
     let debounce: ReturnType<typeof setTimeout> | undefined;
     let retry: ReturnType<typeof setTimeout> | undefined;
@@ -99,7 +94,6 @@ export function useRealtimeRefresh({
       // stale error even when no further write follows.
       onSnapshot: () => {
         setHealth("live");
-        setErrorReason(null);
         clearTimeout(retry);
       },
       // A non-initial snapshot is an actual change: refresh (debounced).
@@ -114,8 +108,6 @@ export function useRealtimeRefresh({
       // previously swallowed here — leaving a red badge undiagnosable.
       onError: (error) => {
         console.error("[realtime] Firestore listener error", error);
-        const code = (error as { code?: unknown }).code;
-        setErrorReason(typeof code === "string" ? code : error.message);
         setHealth("errored");
         retry = setTimeout(() => setReconnectNonce((n) => n + 1), RETRY_MS);
       },
@@ -131,6 +123,5 @@ export function useRealtimeRefresh({
   return {
     status: deriveConnectionStatus({ active, online, health }),
     reconnect,
-    errorReason,
   };
 }

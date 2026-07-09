@@ -176,29 +176,6 @@ describe("useRealtimeRefresh", () => {
     expect(result.current.status).toBe("offline");
   });
 
-  it("exposes the listener error reason and clears it on the next snapshot", () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const { subscribe, harness } = makeSubscribe();
-    const { result } = renderHook(() =>
-      useRealtimeRefresh({
-        subscribe,
-        onRefresh: vi.fn(),
-        idleTimeoutMs: IDLE,
-        debounceMs: DEBOUNCE,
-      }),
-    );
-    expect(result.current.errorReason).toBeNull();
-    act(() => {
-      harness.emitError();
-    });
-    // makeSubscribe emits a plain Error (no code), so the message is used.
-    expect(result.current.errorReason).toBe("boom");
-    act(() => {
-      harness.emitSnapshot();
-    });
-    expect(result.current.errorReason).toBeNull();
-  });
-
   it("logs the listener error so the failure is diagnosable", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { subscribe, harness } = makeSubscribe();
