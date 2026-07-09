@@ -176,6 +176,27 @@ describe("useRealtimeRefresh", () => {
     expect(result.current.status).toBe("offline");
   });
 
+  it("logs the listener error so the failure is diagnosable", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { subscribe, harness } = makeSubscribe();
+    renderHook(() =>
+      useRealtimeRefresh({
+        subscribe,
+        onRefresh: vi.fn(),
+        idleTimeoutMs: IDLE,
+        debounceMs: DEBOUNCE,
+      }),
+    );
+    act(() => {
+      harness.emitError();
+    });
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining("Firestore listener error"),
+      expect.any(Error),
+    );
+    spy.mockRestore();
+  });
+
   it("auto-retries after a terminal listener error", () => {
     const { subscribe, harness } = makeSubscribe();
     // Idle window longer than the 5s retry so the retry isn't masked by idle.
