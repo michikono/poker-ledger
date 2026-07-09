@@ -10,7 +10,7 @@ import { useRealtimeSync } from "./realtime-sync-provider";
 // explaining the state, with a "Refresh now" recovery action. The dot is a
 // ≥44px tap target (padded) so it's thumb-friendly on mobile.
 export function ConnectionStatusLight() {
-  const { status, reconnect } = useRealtimeSync();
+  const { status, reconnect, errorReason } = useRealtimeSync();
   const live = isLive(status);
   const copy = CONNECTION_COPY[status];
 
@@ -51,6 +51,14 @@ export function ConnectionStatusLight() {
             <Popover.Description className="mt-1 text-muted-foreground">
               {copy.detail}
             </Popover.Description>
+            {!live && errorReason && (
+              <p
+                data-testid="connection-error-reason"
+                className="mt-1 font-mono text-xs text-muted-foreground"
+              >
+                Details: {errorReason}
+              </p>
+            )}
             {!live && (
               <button
                 type="button"
