@@ -30,7 +30,10 @@ jobs:
         with:
           workload_identity_provider: projects/1030556024864/locations/global/workloadIdentityPools/github/providers/poker-ledger
           service_account: firestore-deployer@poker-ledger-8d3bc.iam.gserviceaccount.com
-          token_format: access_token
+      # firebase-tools authenticates via Application Default Credentials — the
+      # WIF credentials file the auth step writes. FIREBASE_TOKEN is a legacy CLI
+      # refresh token, not a Google access token, so passing the WIF access token
+      # there fails auth; point firebase at the credentials file instead.
       - run: npx firebase deploy --only firestore --project poker-ledger-8d3bc --non-interactive
         env:
-          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
